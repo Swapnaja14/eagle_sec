@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { coursesAPI } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import './CoursesListPage.css'
+
+const MOCK_COURSES = [
+  { id: 'mock-1', course_id: 'CS-DEMO-001', display_name: 'PSARA Foundation Course', description: 'Core PSARA compliance training for all security personnel.', status: 'active', compliance_taxonomy: 'none', skills_taxonomy: 'none', lesson_count: 4, created_at: new Date().toISOString() },
+  { id: 'mock-2', course_id: 'CS-DEMO-002', display_name: 'Fire Safety & Evacuation', description: 'Emergency response and fire safety procedures.', status: 'active', compliance_taxonomy: 'ISO 27001', skills_taxonomy: 'Incident Response', lesson_count: 3, created_at: new Date().toISOString() },
+  { id: 'mock-3', course_id: 'CS-DEMO-003', display_name: 'Digital Security Awareness', description: 'Cybersecurity fundamentals for non-technical staff.', status: 'draft', compliance_taxonomy: 'GDPR', skills_taxonomy: 'Threat Analysis', lesson_count: 2, created_at: new Date().toISOString() },
+]
 
 export default function CoursesListPage() {
   const [courses, setCourses] = useState([])
@@ -9,9 +16,18 @@ export default function CoursesListPage() {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const navigate = useNavigate()
+  const { isRealUser } = useAuth()
 
   const fetchCourses = async () => {
     setLoading(true)
+    if (!isRealUser) {
+      let results = [...MOCK_COURSES]
+      if (search) results = results.filter(c => c.display_name.toLowerCase().includes(search.toLowerCase()))
+      if (filterStatus) results = results.filter(c => c.status === filterStatus)
+      setCourses(results)
+      setLoading(false)
+      return
+    }
     try {
       const params = {}
       if (search) params.search = search
@@ -29,6 +45,7 @@ export default function CoursesListPage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this course?')) return
+    if (!isRealUser) { setCourses(prev => prev.filter(c => c.id !== id)); return }
     try {
       await coursesAPI.delete(id)
       setCourses(prev => prev.filter(c => c.id !== id))

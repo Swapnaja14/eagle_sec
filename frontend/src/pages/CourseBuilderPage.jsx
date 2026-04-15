@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { coursesAPI, questionsAPI } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import QuestionBankModal from '../components/course/QuestionBankModal'
 import './CourseBuilderPage.css'
 
@@ -27,6 +28,7 @@ const LANGUAGE_OPTIONS = [
 export default function CourseBuilderPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { isRealUser } = useAuth()
   const [activeLevel, setActiveLevel] = useState(1)
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(!!id)
@@ -109,9 +111,50 @@ export default function CourseBuilderPage() {
   const handleSaveLevel = async () => {
     setSaving(true)
     try {
+      // ── DEMO MODE: no real backend, simulate save locally ─────────────────
+      if (!isRealUser) {
+        if (activeLevel === 1) {
+          if (!id && !course) {
+            const mockCourse = {
+              id: `mock-${Date.now()}`, course_id: `CS-DEMO-${Date.now().toString(36).toUpperCase()}`,
+              ...meta, status: 'draft',
+              created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+              pre_assessment: { id: 1, is_active: true, single_attempt: true, time_limit_minutes: 45, language: 'en', question_count: 10, randomize: false, questions: [] },
+              post_assessment: { id: 1, is_active: true, passing_threshold: 85, max_attempts: 2, language: 'en', question_count: 10, randomize: false, questions: [] },
+              certification: { id: 1, template: 'corporate_modern', enable_soft_expiry: false, enable_recertification_reminder: true, batch_expiries: [] },
+              lessons: [],
+            }
+            setCourse(mockCourse)
+            setPreAssess(prev => ({ ...prev, ...mockCourse.pre_assessment }))
+            setPostAssess(prev => ({ ...prev, ...mockCourse.post_assessment }))
+            setCert(prev => ({ ...prev, ...mockCourse.certification }))
+            navigate(`/courses/${mockCourse.id}/builder`, { replace: true })
+            showNotif('Course created! (Demo mode — not saved to backend)')
+          } else {
+            setCourse(prev => ({ ...prev, ...meta, updated_at: new Date().toISOString() }))
+            showNotif('Metadata saved! (Demo mode)')
+          }
+        } else if (activeLevel === 2) {
+          showNotif('Pre-Assessment saved! (Demo mode)')
+        } else if (activeLevel === 3) {
+          showNotif('Lessons saved! (Demo mode)')
+        } else if (activeLevel === 4) {
+          showNotif('Post-Assessment saved! (Demo mode)')
+        } else if (activeLevel === 5) {
+          showNotif('Certification settings saved! (Demo mode)')
+        } else if (activeLevel === 6) {
+          if (batchExpiry.target_group && batchExpiry.expiry_date) {
+            setBatchExpiry({ target_group: '', expiry_date: '' })
+            showNotif('Batch expiry applied! (Demo mode)')
+          }
+        }
+        setSaving(false)
+        return
+      }
+
+      // ── REAL BACKEND ──────────────────────────────────────────────────────
       if (activeLevel === 1) {
         if (!id && !course) {
-          // Create new course
           const res = await coursesAPI.create(meta)
           setCourse(res.data)
           navigate(`/courses/${res.data.id}/builder`, { replace: true })
@@ -168,6 +211,12 @@ export default function CourseBuilderPage() {
     if (!newLessonTitle.trim()) return
     const cid = course?.id || id
     if (!cid) { showNotif('Save course metadata first.', 'error'); return }
+    if (!isRealUser) {
+      const mockLesson = { id: Date.now(), title: newLessonTitle, order: lessons.length + 1, files: [], created_at: new Date().toISOString() }
+      setLessons(prev => [...prev, mockLesson])
+      setNewLessonTitle('')
+      return
+    }
     try {
       const res = await coursesAPI.createLesson(cid, { title: newLessonTitle })
       setLessons(prev => [...prev, { ...res.data, files: [] }])
@@ -177,6 +226,7 @@ export default function CourseBuilderPage() {
 
   const handleDeleteLesson = async (lessonId) => {
     if (!window.confirm('Delete this lesson?')) return
+    if (!isRealUser) { setLessons(prev => prev.filter(l => l.id !== lessonId)); return }
     const cid = course?.id || id
     try {
       await coursesAPI.deleteLesson(cid, lessonId)
@@ -185,6 +235,12 @@ export default function CourseBuilderPage() {
   }
 
   const handleUploadLessonFile = async (lessonId, file) => {
+    if (!isRealUser) {
+      const mockFile = { id: Date.now(), original_filename: file.name, file_type: file.name.match(/\.(mp4|mov|avi)$/i) ? 'video' : 'document', language: 'en', allow_offline_download: false }
+      setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, files: [...(l.files || []), mockFile] } : l))
+      showNotif('File added! (Demo mode)')
+      return
+    }
     const cid = course?.id || id
     const formData = new FormData()
     formData.append('file', file)
@@ -199,6 +255,10 @@ export default function CourseBuilderPage() {
   }
 
   const handleDeleteLessonFile = async (lessonId, fileId) => {
+    if (!isRealUser) {
+      setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, files: (l.files || []).filter(f => f.id !== fileId) } : l))
+      return
+    }
     const cid = course?.id || id
     try {
       await coursesAPI.deleteLessonFile(cid, lessonId, fileId)
@@ -210,6 +270,10 @@ export default function CourseBuilderPage() {
   }
 
   const handleToggleOffline = async (lessonId, fileId, currentValue) => {
+    if (!isRealUser) {
+      setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, files: l.files.map(f => f.id === fileId ? { ...f, allow_offline_download: !currentValue } : f) } : l))
+      return
+    }
     const cid = course?.id || id
     try {
       await coursesAPI.updateLessonFile(cid, lessonId, fileId, { allow_offline_download: !currentValue })
@@ -224,6 +288,7 @@ export default function CourseBuilderPage() {
   const handleRetire = async () => {
     const cid = course?.id || id
     if (!cid) return
+    if (!isRealUser) { setCourse(prev => ({ ...prev, status: 'retired' })); showNotif('Course retired. (Demo mode)'); return }
     try {
       await coursesAPI.retire(cid)
       setCourse(prev => ({ ...prev, status: 'retired' }))
@@ -234,6 +299,7 @@ export default function CourseBuilderPage() {
   const handleActivate = async () => {
     const cid = course?.id || id
     if (!cid) return
+    if (!isRealUser) { setCourse(prev => ({ ...prev, status: 'active' })); showNotif('Course activated. (Demo mode)'); return }
     try {
       await coursesAPI.activate(cid)
       setCourse(prev => ({ ...prev, status: 'active' }))
@@ -244,6 +310,10 @@ export default function CourseBuilderPage() {
   const handleClone = async () => {
     const cid = course?.id || id
     if (!cid) return
+    if (!isRealUser) {
+      showNotif('Clone not available in demo mode.')
+      return
+    }
     try {
       const res = await coursesAPI.clone(cid)
       showNotif('Course cloned!')
@@ -254,6 +324,12 @@ export default function CourseBuilderPage() {
   const handleFinish = async () => {
     const cid = course?.id || id
     if (!cid) { showNotif('Save course metadata first.', 'error'); return }
+    if (!isRealUser) {
+      setCourse(prev => ({ ...prev, status: 'active' }))
+      showNotif('Course published! 🎉 (Demo mode)')
+      setTimeout(() => navigate('/courses'), 1500)
+      return
+    }
     try {
       await coursesAPI.update(cid, { status: 'active' })
       showNotif('Course published successfully! 🎉')
