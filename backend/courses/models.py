@@ -58,7 +58,7 @@ MAX_ATTEMPTS_CHOICES = [
 
 
 class Course(models.Model):
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='courses')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True, related_name='courses')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     # Level 1: Global Metadata

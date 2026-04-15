@@ -58,7 +58,7 @@ class Tag(models.Model):
 
 
 class ContentFile(models.Model):
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='content_files')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True, related_name='content_files')
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     file = models.FileField(upload_to='content/%Y/%m/')
     original_filename = models.CharField(max_length=255)

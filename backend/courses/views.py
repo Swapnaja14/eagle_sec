@@ -153,7 +153,18 @@ class PreAssessmentViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         course_pk = self.kwargs.get('course_pk')
-        return PreAssessment.objects.get(course_id=course_pk)
+        obj = PreAssessment.objects.get(course_id=course_pk)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def list(self, request, *args, **kwargs):
+        """Return single object instead of list (OneToOne relationship)."""
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except PreAssessment.DoesNotExist:
+            return Response(None, status=status.HTTP_404_NOT_FOUND)
 
 
 class PostAssessmentViewSet(viewsets.ModelViewSet):
@@ -166,7 +177,18 @@ class PostAssessmentViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         course_pk = self.kwargs.get('course_pk')
-        return PostAssessment.objects.get(course_id=course_pk)
+        obj = PostAssessment.objects.get(course_id=course_pk)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def list(self, request, *args, **kwargs):
+        """Return single object instead of list (OneToOne relationship)."""
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except PostAssessment.DoesNotExist:
+            return Response(None, status=status.HTTP_404_NOT_FOUND)
 
 
 class CertificationViewSet(viewsets.ModelViewSet):
@@ -179,7 +201,18 @@ class CertificationViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         course_pk = self.kwargs.get('course_pk')
-        return Certification.objects.get(course_id=course_pk)
+        obj = Certification.objects.get(course_id=course_pk)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def list(self, request, *args, **kwargs):
+        """Return single object instead of list (OneToOne relationship)."""
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except Certification.DoesNotExist:
+            return Response(None, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['post'])
     def add_batch_expiry(self, request, course_pk=None):

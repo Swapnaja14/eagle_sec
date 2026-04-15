@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import PSARADashboardPage from './pages/PSARADashboardPage'
 import AnalyticsReportPage from './pages/AnalyticsReportPage'
+import GapAnalysisPage from './pages/GapAnalysisPage'
 import EmployeeHistoryPage from './pages/EmployeeHistoryPage'
 import SessionSchedulerPage from './pages/SessionSchedulerPage'
 import TrainingCalendarPage from './pages/TrainingCalendarPage'
@@ -80,7 +81,7 @@ function AppRoutes() {
       <Route path="/admin/dashboard"  element={<P roles={['superadmin','admin']}><DashboardPage /></P>} />
       <Route path="/admin/psara"      element={<P roles={['superadmin','admin']}><PSARADashboardPage /></P>} />
       <Route path="/admin/analytics"  element={<P roles={['superadmin','admin']}><AnalyticsReportPage /></P>} />
-      <Route path="/admin/gap-analysis" element={<P roles={['superadmin','admin']}><AnalyticsReportPage /></P>} />
+      <Route path="/admin/gap-analysis" element={<P roles={['superadmin','admin']}><GapAnalysisPage /></P>} />
       <Route path="/employee/history" element={<P roles={['superadmin','admin']}><EmployeeHistoryPage /></P>} />
       <Route path="/admin/calendar"   element={<P roles={['superadmin','admin','trainer','trainee']}><TrainingCalendarPage /></P>} />
       <Route path="/admin/sites"      element={<P roles={['superadmin','admin']}><SiteManagementPage /></P>} />

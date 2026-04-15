@@ -40,7 +40,7 @@ SUBJECT_CHOICES = [
 
 
 class Question(models.Model):
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='questions')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True, related_name='questions')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     text = models.TextField()

@@ -42,10 +42,10 @@ export const DEMO_ACCOUNTS = [
 ]
 
 // ─── ROLE MAP: backend role → frontend role ───────────────────────────────────
-// Backend: admin | instructor | trainee
+// Backend: superadmin | admin | instructor | trainee
 // Frontend: superadmin | admin | trainer | trainee
 const mapBackendRole = (backendRole) => {
-  const map = { admin: 'admin', instructor: 'trainer', trainee: 'trainee' }
+  const map = { superadmin: 'superadmin', admin: 'admin', instructor: 'trainer', trainee: 'trainee' }
   return map[backendRole] || backendRole
 }
 
@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }) => {
             const role = mapBackendRole(data.role)
             const userObj = { ...data, role }
             setUser(userObj)
-            localStorage.setItem('traintrack_user', JSON.stringify(userObj))
+            localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
           } catch {
             // Token expired — clear everything
             _clearStorage()

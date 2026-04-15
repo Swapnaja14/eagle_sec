@@ -17,10 +17,12 @@ class Tenant(models.Model):
 
 
 class User(AbstractUser):
+    ROLE_SUPERADMIN = 'superadmin'
     ROLE_ADMIN = 'admin'
     ROLE_INSTRUCTOR = 'instructor'
     ROLE_TRAINEE = 'trainee'
     ROLE_CHOICES = [
+        (ROLE_SUPERADMIN, 'Super Admin'),
         (ROLE_ADMIN, 'Admin'),
         (ROLE_INSTRUCTOR, 'Instructor'),
         (ROLE_TRAINEE, 'Trainee'),

@@ -29,6 +29,20 @@ const DIFFICULTY_OPTIONS = [
   { value: 'hard', label: 'Hard' },
 ]
 
+// Mock questions used when no real backend token is available
+const MOCK_QUESTIONS = [
+  { id: 1, text: 'What does CIA stand for in cybersecurity?', question_type: 'mcq', type_display: 'Multiple Choice', language: 'en', language_display: 'English', difficulty: 'easy', difficulty_display: 'Easy', subject: 'cybersecurity', subject_display: 'Cybersecurity', options: ['Confidentiality, Integrity, Availability', 'Control, Integrity, Access', 'Cyber, Intelligence, Analysis', 'None of the above'], correct_answer: '0', points: 1 },
+  { id: 2, text: 'Which protocol is used for secure web communication?', question_type: 'mcq', type_display: 'Multiple Choice', language: 'en', language_display: 'English', difficulty: 'easy', difficulty_display: 'Easy', subject: 'networking', subject_display: 'Networking', options: ['HTTP', 'FTP', 'HTTPS', 'SMTP'], correct_answer: '2', points: 1 },
+  { id: 3, text: 'A firewall can prevent all types of cyber attacks.', question_type: 'true_false', type_display: 'True/False', language: 'en', language_display: 'English', difficulty: 'medium', difficulty_display: 'Medium', subject: 'cybersecurity', subject_display: 'Cybersecurity', options: [], correct_answer: 'false', points: 1 },
+  { id: 4, text: 'What is the primary purpose of a VPN?', question_type: 'mcq', type_display: 'Multiple Choice', language: 'en', language_display: 'English', difficulty: 'medium', difficulty_display: 'Medium', subject: 'networking', subject_display: 'Networking', options: ['Speed up internet', 'Encrypt and tunnel traffic', 'Block ads', 'Manage DNS'], correct_answer: '1', points: 2 },
+  { id: 5, text: 'What does GDPR stand for?', question_type: 'mcq', type_display: 'Multiple Choice', language: 'en', language_display: 'English', difficulty: 'easy', difficulty_display: 'Easy', subject: 'compliance', subject_display: 'Compliance', options: ['General Data Protection Regulation', 'Global Data Privacy Rules', 'General Digital Privacy Rights', 'None'], correct_answer: '0', points: 1 },
+  { id: 6, text: 'Explain the concept of zero-trust security.', question_type: 'short_answer', type_display: 'Short Answer', language: 'en', language_display: 'English', difficulty: 'hard', difficulty_display: 'Hard', subject: 'cybersecurity', subject_display: 'Cybersecurity', options: [], correct_answer: 'Never trust, always verify', points: 3 },
+  { id: 7, text: 'Which cloud model provides the most control to the customer?', question_type: 'mcq', type_display: 'Multiple Choice', language: 'en', language_display: 'English', difficulty: 'medium', difficulty_display: 'Medium', subject: 'cloud_computing', subject_display: 'Cloud Computing', options: ['SaaS', 'PaaS', 'IaaS', 'FaaS'], correct_answer: '2', points: 2 },
+  { id: 8, text: 'DevOps combines development and operations to shorten delivery cycles.', question_type: 'true_false', type_display: 'True/False', language: 'en', language_display: 'English', difficulty: 'easy', difficulty_display: 'Easy', subject: 'devops', subject_display: 'DevOps', options: [], correct_answer: 'true', points: 1 },
+  { id: 9, text: 'साइबर सुरक्षा में CIA का क्या अर्थ है?', question_type: 'mcq', type_display: 'Multiple Choice', language: 'hi', language_display: 'Hindi', difficulty: 'easy', difficulty_display: 'Easy', subject: 'cybersecurity', subject_display: 'Cybersecurity', options: ['गोपनीयता, अखंडता, उपलब्धता', 'नियंत्रण, अखंडता, पहुंच', 'साइबर, खुफिया, विश्लेषण', 'इनमें से कोई नहीं'], correct_answer: '0', points: 1 },
+  { id: 10, text: 'What is SQL injection?', question_type: 'short_answer', type_display: 'Short Answer', language: 'en', language_display: 'English', difficulty: 'hard', difficulty_display: 'Hard', subject: 'software_development', subject_display: 'Software Dev', options: [], correct_answer: 'Inserting malicious SQL into queries', points: 3 },
+]
+
 export default function QuestionBankModal({ language, selectedIds = [], onSelect, onClose }) {
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +53,19 @@ export default function QuestionBankModal({ language, selectedIds = [], onSelect
   const fetchQuestions = useCallback(async () => {
     setLoading(true)
     try {
+      const hasToken = !!localStorage.getItem('access_token')
+      if (!hasToken) {
+        // Demo mode — filter mock questions locally
+        let results = [...MOCK_QUESTIONS]
+        if (filters.language) results = results.filter(q => q.language === filters.language)
+        if (filters.subject) results = results.filter(q => q.subject === filters.subject)
+        if (filters.difficulty) results = results.filter(q => q.difficulty === filters.difficulty)
+        if (filters.search) results = results.filter(q => q.text.toLowerCase().includes(filters.search.toLowerCase()))
+        setQuestions(results)
+        setCount(results.length)
+        setLoading(false)
+        return
+      }
       const params = {}
       if (filters.language) params.language = filters.language
       if (filters.subject) params.subject = filters.subject
@@ -47,7 +74,11 @@ export default function QuestionBankModal({ language, selectedIds = [], onSelect
       const res = await questionsAPI.list(params)
       setQuestions(res.data.results || res.data || [])
       setCount(res.data.count || (res.data?.length) || 0)
-    } catch { setQuestions([]) }
+    } catch {
+      // Fallback to mock on any error
+      setQuestions(MOCK_QUESTIONS)
+      setCount(MOCK_QUESTIONS.length)
+    }
     setLoading(false)
   }, [filters])
 

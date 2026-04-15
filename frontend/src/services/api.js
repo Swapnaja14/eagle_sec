@@ -25,7 +25,7 @@ api.interceptors.response.use(
         const refresh = localStorage.getItem('refresh_token')
         if (!refresh) throw new Error('No refresh token')
 
-        const { data } = await axios.post('/api/auth/refresh/', { refresh })
+        const { data } = await api.post('/auth/refresh/', { refresh })
         localStorage.setItem('access_token', data.access)
         original.headers.Authorization = `Bearer ${data.access}`
         return api(original)
@@ -93,17 +93,17 @@ export const coursesAPI = {
   updateLessonFile: (courseId, lessonId, fileId, data) =>
     api.patch(`/courses/${courseId}/lessons/${lessonId}/files/${fileId}/`, data),
 
-  // Pre-Assessment
+  // Pre-Assessment (OneToOne per course — no separate id needed)
   getPreAssessment: (courseId) => api.get(`/courses/${courseId}/pre-assessment/`),
-  updatePreAssessment: (courseId, id, data) => api.patch(`/courses/${courseId}/pre-assessment/${id}/`, data),
+  updatePreAssessment: (courseId, _id, data) => api.patch(`/courses/${courseId}/pre-assessment/${_id}/`, data),
 
-  // Post-Assessment
+  // Post-Assessment (OneToOne per course — no separate id needed)
   getPostAssessment: (courseId) => api.get(`/courses/${courseId}/post-assessment/`),
-  updatePostAssessment: (courseId, id, data) => api.patch(`/courses/${courseId}/post-assessment/${id}/`, data),
+  updatePostAssessment: (courseId, _id, data) => api.patch(`/courses/${courseId}/post-assessment/${_id}/`, data),
 
-  // Certification
+  // Certification (OneToOne per course — no separate id needed)
   getCertification: (courseId) => api.get(`/courses/${courseId}/certification/`),
-  updateCertification: (courseId, id, data) => api.patch(`/courses/${courseId}/certification/${id}/`, data),
+  updateCertification: (courseId, _id, data) => api.patch(`/courses/${courseId}/certification/${_id}/`, data),
   addBatchExpiry: (courseId, data) => api.post(`/courses/${courseId}/certification/add_batch_expiry/`, data),
 }
 

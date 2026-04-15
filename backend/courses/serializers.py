@@ -105,6 +105,9 @@ class CourseSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         tenant = self.context['request'].user.tenant
         user = self.context['request'].user
+        if not tenant:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'tenant': 'User must belong to a tenant to create courses.'})
         course = Course.objects.create(tenant=tenant, created_by=user, **validated_data)
         # Auto-create assessment and certification stubs
         PreAssessment.objects.create(course=course)

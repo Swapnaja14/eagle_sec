@@ -181,7 +181,9 @@ export default function ContentUploadPage() {
         if (activeFileType === 'video' && videoOpts.duration) formData.append('duration', videoOpts.duration)
         if (activeFileType === 'document' && docOpts.page_count) formData.append('page_count', docOpts.page_count)
         formData.append('permissions', docOpts.permissions)
-        if (smartTags.length > 0) formData.append('tag_names', JSON.stringify(smartTags))
+        if (smartTags.length > 0) {
+          smartTags.forEach(tag => formData.append('tag_names', tag))
+        }
 
         await contentAPI.upload(formData, () => {})
       }
