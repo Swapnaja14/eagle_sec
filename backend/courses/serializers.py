@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import (Course, PreAssessment, Lesson, LessonFile,
                       PostAssessment, Certification, BatchExpiry)
 from questions.serializers import QuestionSerializer
+from questions.models import Question
 
 
 class LessonFileSerializer(serializers.ModelSerializer):
@@ -9,7 +10,7 @@ class LessonFileSerializer(serializers.ModelSerializer):
         model = LessonFile
         fields = ['id', 'original_filename', 'file', 'file_type',
                   'language', 'allow_offline_download', 'uploaded_at']
-        read_only_fields = ['id', 'uploaded_at']
+        read_only_fields = ['id', 'original_filename', 'file_type', 'uploaded_at']
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -29,7 +30,7 @@ class PreAssessmentSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
     question_ids = serializers.PrimaryKeyRelatedField(
         many=True, write_only=True, source='questions',
-        queryset=__import__('questions.models', fromlist=['Question']).Question.objects.all(),
+        queryset=Question.objects.all(),
         required=False
     )
 
@@ -45,7 +46,7 @@ class PostAssessmentSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
     question_ids = serializers.PrimaryKeyRelatedField(
         many=True, write_only=True, source='questions',
-        queryset=__import__('questions.models', fromlist=['Question']).Question.objects.all(),
+        queryset=Question.objects.all(),
         required=False
     )
 
@@ -103,14 +104,16 @@ class CourseSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
+        from django.db import transaction
         tenant = self.context['request'].user.tenant
         user = self.context['request'].user
         if not tenant:
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'tenant': 'User must belong to a tenant to create courses.'})
-        course = Course.objects.create(tenant=tenant, created_by=user, **validated_data)
-        # Auto-create assessment and certification stubs
-        PreAssessment.objects.create(course=course)
-        PostAssessment.objects.create(course=course)
-        Certification.objects.create(course=course)
+        with transaction.atomic():
+            course = Course.objects.create(tenant=tenant, created_by=user, **validated_data)
+            # Auto-create assessment and certification stubs
+            PreAssessment.objects.create(course=course)
+            PostAssessment.objects.create(course=course)
+            Certification.objects.create(course=course)
         return course

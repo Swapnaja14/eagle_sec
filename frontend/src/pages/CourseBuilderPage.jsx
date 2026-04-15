@@ -43,7 +43,7 @@ export default function CourseBuilderPage() {
 
   // Level 2 — Pre-Assessment
   const [preAssess, setPreAssess] = useState({
-    id: null, single_attempt: true, time_limit_minutes: 45, language: 'en',
+    id: null, is_active: true, single_attempt: true, time_limit_minutes: 45, language: 'en',
     question_count: 10, randomize: false, questions: [],
   })
 
@@ -54,7 +54,7 @@ export default function CourseBuilderPage() {
 
   // Level 4 — Post-Assessment
   const [postAssess, setPostAssess] = useState({
-    id: null, passing_threshold: 85, max_attempts: 2, language: 'en',
+    id: null, is_active: true, passing_threshold: 85, max_attempts: 2, language: 'en',
     question_count: 10, randomize: false, questions: [],
   })
 
@@ -114,6 +114,8 @@ export default function CourseBuilderPage() {
       // ── DEMO MODE: no real backend, simulate save locally ─────────────────
       if (!isRealUser) {
         if (activeLevel === 1) {
+          if (!meta.display_name.trim()) { showNotif('Course name is required.', 'error'); setSaving(false); return }
+          if (meta.start_date && meta.end_date && meta.end_date < meta.start_date) { showNotif('End date must be after start date.', 'error'); setSaving(false); return }
           if (!id && !course) {
             const mockCourse = {
               id: `mock-${Date.now()}`, course_id: `CS-DEMO-${Date.now().toString(36).toUpperCase()}`,
@@ -129,7 +131,7 @@ export default function CourseBuilderPage() {
             setPostAssess(prev => ({ ...prev, ...mockCourse.post_assessment }))
             setCert(prev => ({ ...prev, ...mockCourse.certification }))
             navigate(`/courses/${mockCourse.id}/builder`, { replace: true })
-            showNotif('Course created! (Demo mode — not saved to backend)')
+            showNotif('Course created! (Demo mode)')
           } else {
             setCourse(prev => ({ ...prev, ...meta, updated_at: new Date().toISOString() }))
             showNotif('Metadata saved! (Demo mode)')
@@ -145,8 +147,8 @@ export default function CourseBuilderPage() {
         } else if (activeLevel === 6) {
           if (batchExpiry.target_group && batchExpiry.expiry_date) {
             setBatchExpiry({ target_group: '', expiry_date: '' })
-            showNotif('Batch expiry applied! (Demo mode)')
           }
+          showNotif('Settings saved! (Demo mode)')
         }
         setSaving(false)
         return
@@ -154,19 +156,34 @@ export default function CourseBuilderPage() {
 
       // ── REAL BACKEND ──────────────────────────────────────────────────────
       if (activeLevel === 1) {
+        if (!meta.display_name.trim()) {
+          showNotif('Course name is required.', 'error'); setSaving(false); return
+        }
+        if (meta.start_date && meta.end_date && meta.end_date < meta.start_date) {
+          showNotif('End date must be after start date.', 'error'); setSaving(false); return
+        }
         if (!id && !course) {
           const res = await coursesAPI.create(meta)
-          setCourse(res.data)
-          navigate(`/courses/${res.data.id}/builder`, { replace: true })
+          const c = res.data
+          setCourse(c)
+          if (c.pre_assessment) setPreAssess(prev => ({ ...prev, ...c.pre_assessment, questions: c.pre_assessment.questions || [] }))
+          if (c.post_assessment) setPostAssess(prev => ({ ...prev, ...c.post_assessment, questions: c.post_assessment.questions || [] }))
+          if (c.certification) setCert(prev => ({ ...prev, ...c.certification }))
+          navigate(`/courses/${c.id}/builder`, { replace: true })
           showNotif('Course created!')
         } else {
           const cid = course?.id || id
-          await coursesAPI.update(cid, meta)
+          const res = await coursesAPI.update(cid, meta)
+          setCourse(prev => ({ ...prev, ...res.data }))
           showNotif('Metadata saved!')
         }
-      } else if (activeLevel === 2 && preAssess.id) {
+      } else if (activeLevel === 2) {
         const cid = course?.id || id
-        await coursesAPI.updatePreAssessment(cid, preAssess.id, {
+        if (!cid) { showNotif('Save course metadata first.', 'error'); setSaving(false); return }
+        const assessId = preAssess.id
+        if (!assessId) { showNotif('Pre-assessment not initialized. Save metadata first.', 'error'); setSaving(false); return }
+        await coursesAPI.updatePreAssessment(cid, assessId, {
+          is_active: preAssess.is_active,
           single_attempt: preAssess.single_attempt,
           time_limit_minutes: preAssess.time_limit_minutes,
           language: preAssess.language,
@@ -175,9 +192,13 @@ export default function CourseBuilderPage() {
           question_ids: preAssess.questions.map(q => q.id),
         })
         showNotif('Pre-Assessment saved!')
-      } else if (activeLevel === 4 && postAssess.id) {
+      } else if (activeLevel === 4) {
         const cid = course?.id || id
-        await coursesAPI.updatePostAssessment(cid, postAssess.id, {
+        if (!cid) { showNotif('Save course metadata first.', 'error'); setSaving(false); return }
+        const assessId = postAssess.id
+        if (!assessId) { showNotif('Post-assessment not initialized. Save metadata first.', 'error'); setSaving(false); return }
+        await coursesAPI.updatePostAssessment(cid, assessId, {
+          is_active: postAssess.is_active,
           passing_threshold: postAssess.passing_threshold,
           max_attempts: postAssess.max_attempts,
           language: postAssess.language,
@@ -186,9 +207,12 @@ export default function CourseBuilderPage() {
           question_ids: postAssess.questions.map(q => q.id),
         })
         showNotif('Post-Assessment saved!')
-      } else if (activeLevel === 5 && cert.id) {
+      } else if (activeLevel === 5) {
         const cid = course?.id || id
-        await coursesAPI.updateCertification(cid, cert.id, {
+        if (!cid) { showNotif('Save course metadata first.', 'error'); setSaving(false); return }
+        const certId = cert.id
+        if (!certId) { showNotif('Certification not initialized. Save metadata first.', 'error'); setSaving(false); return }
+        await coursesAPI.updateCertification(cid, certId, {
           template: cert.template,
           enable_soft_expiry: cert.enable_soft_expiry,
           enable_recertification_reminder: cert.enable_recertification_reminder,
@@ -196,10 +220,24 @@ export default function CourseBuilderPage() {
         showNotif('Certification settings saved!')
       } else if (activeLevel === 6) {
         const cid = course?.id || id
+        if (!cid) { showNotif('Save course metadata first.', 'error'); setSaving(false); return }
+        // Save policy overrides on certification
+        if (cert.id) {
+          await coursesAPI.updateCertification(cid, cert.id, {
+            enable_soft_expiry: cert.enable_soft_expiry,
+            enable_recertification_reminder: cert.enable_recertification_reminder,
+          })
+        }
+        // Apply batch expiry if filled
         if (cert.id && batchExpiry.target_group && batchExpiry.expiry_date) {
+          if (batchExpiry.expiry_date < new Date().toISOString().split('T')[0]) {
+            showNotif('Expiry date must be in the future.', 'error'); setSaving(false); return
+          }
           await coursesAPI.addBatchExpiry(cid, batchExpiry)
           setBatchExpiry({ target_group: '', expiry_date: '' })
-          showNotif('Batch expiry applied!')
+          showNotif('Batch expiry applied and policy saved!')
+        } else {
+          showNotif('Policy settings saved!')
         }
       }
     } catch (err) {
@@ -324,6 +362,8 @@ export default function CourseBuilderPage() {
   const handleFinish = async () => {
     const cid = course?.id || id
     if (!cid) { showNotif('Save course metadata first.', 'error'); return }
+    if (!meta.display_name.trim()) { showNotif('Course name is required before publishing.', 'error'); return }
+    if (lessons.length === 0) { showNotif('Add at least one lesson before publishing.', 'error'); return }
     if (!isRealUser) {
       setCourse(prev => ({ ...prev, status: 'active' }))
       showNotif('Course published! 🎉 (Demo mode)')
@@ -332,6 +372,7 @@ export default function CourseBuilderPage() {
     }
     try {
       await coursesAPI.update(cid, { status: 'active' })
+      setCourse(prev => ({ ...prev, status: 'active' }))
       showNotif('Course published successfully! 🎉')
       setTimeout(() => navigate('/courses'), 1500)
     } catch { showNotif('Failed to publish.', 'error') }
@@ -988,10 +1029,8 @@ export default function CourseBuilderPage() {
         </div>
         <div className="cb-bottom-actions">
           <button className="btn btn-ghost" onClick={() => navigate('/courses')}>Discard Draft</button>
-          <button className="btn btn-primary" onClick={handleFinish} disabled={saving}>
-            {activeLevel < LEVELS.length ? (
-              <span onClick={() => setActiveLevel(prev => Math.min(LEVELS.length, prev + 1))}>Next Level →</span>
-            ) : 'Finish Builder'}
+          <button className="btn btn-primary" onClick={activeLevel < LEVELS.length ? () => setActiveLevel(prev => Math.min(LEVELS.length, prev + 1)) : handleFinish} disabled={saving}>
+            {activeLevel < LEVELS.length ? 'Next Level →' : 'Finish Builder'}
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as dj_filters
 from .models import Course, Lesson, LessonFile, PreAssessment, PostAssessment, Certification, BatchExpiry
@@ -52,48 +53,86 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def clone(self, request, pk=None):
-        course = self.get_object()
-        lessons = list(course.lessons.prefetch_related('files').all())
-        old_pre = getattr(course, 'pre_assessment', None)
-        old_post = getattr(course, 'post_assessment', None)
-        old_cert = getattr(course, 'certification', None)
+        original = self.get_object()
 
-        course.pk = None
-        course.course_id = ''
-        course.display_name = f"Copy of {course.display_name}"
-        course.status = 'draft'
-        course.save()
+        with transaction.atomic():
+            lessons = list(original.lessons.prefetch_related('files').all())
+            old_pre = getattr(original, 'pre_assessment', None)
+            old_post = getattr(original, 'post_assessment', None)
+            old_cert = getattr(original, 'certification', None)
 
-        for lesson in lessons:
-            files = list(lesson.files.all())
-            lesson.pk = None
-            lesson.course = course
-            lesson.save()
-            for f in files:
-                f.pk = None
-                f.lesson = lesson
-                f.save()
+            # Clone course
+            new_course = Course.objects.create(
+                tenant=original.tenant,
+                created_by=request.user,
+                course_id='',
+                display_name=f"Copy of {original.display_name}",
+                description=original.description,
+                start_date=original.start_date,
+                end_date=original.end_date,
+                compliance_taxonomy=original.compliance_taxonomy,
+                skills_taxonomy=original.skills_taxonomy,
+                status='draft',
+            )
 
-        if old_pre:
-            pre_q = list(old_pre.questions.all())
-            old_pre.pk = None
-            old_pre.course = course
-            old_pre.save()
-            old_pre.questions.set(pre_q)
+            # Clone lessons + files
+            for lesson in lessons:
+                files = list(lesson.files.all())
+                new_lesson = Lesson.objects.create(
+                    course=new_course, title=lesson.title, order=lesson.order
+                )
+                for f in files:
+                    LessonFile.objects.create(
+                        lesson=new_lesson, file=f.file,
+                        original_filename=f.original_filename,
+                        file_type=f.file_type, language=f.language,
+                        allow_offline_download=f.allow_offline_download,
+                    )
 
-        if old_post:
-            post_q = list(old_post.questions.all())
-            old_post.pk = None
-            old_post.course = course
-            old_post.save()
-            old_post.questions.set(post_q)
+            # Clone pre-assessment
+            if old_pre:
+                pre_q = list(old_pre.questions.all())
+                new_pre = PreAssessment.objects.create(
+                    course=new_course,
+                    is_active=old_pre.is_active,
+                    single_attempt=old_pre.single_attempt,
+                    time_limit_minutes=old_pre.time_limit_minutes,
+                    language=old_pre.language,
+                    question_count=old_pre.question_count,
+                    randomize=old_pre.randomize,
+                )
+                new_pre.questions.set(pre_q)
+            else:
+                PreAssessment.objects.create(course=new_course)
 
-        if old_cert:
-            old_cert.pk = None
-            old_cert.course = course
-            old_cert.save()
+            # Clone post-assessment
+            if old_post:
+                post_q = list(old_post.questions.all())
+                new_post = PostAssessment.objects.create(
+                    course=new_course,
+                    is_active=old_post.is_active,
+                    passing_threshold=old_post.passing_threshold,
+                    max_attempts=old_post.max_attempts,
+                    language=old_post.language,
+                    question_count=old_post.question_count,
+                    randomize=old_post.randomize,
+                )
+                new_post.questions.set(post_q)
+            else:
+                PostAssessment.objects.create(course=new_course)
 
-        serializer = self.get_serializer(course)
+            # Clone certification
+            if old_cert:
+                Certification.objects.create(
+                    course=new_course,
+                    template=old_cert.template,
+                    enable_soft_expiry=old_cert.enable_soft_expiry,
+                    enable_recertification_reminder=old_cert.enable_recertification_reminder,
+                )
+            else:
+                Certification.objects.create(course=new_course)
+
+        serializer = self.get_serializer(new_course)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -153,18 +192,22 @@ class PreAssessmentViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         course_pk = self.kwargs.get('course_pk')
-        obj = PreAssessment.objects.get(course_id=course_pk)
+        try:
+            obj = PreAssessment.objects.get(course_id=course_pk)
+        except PreAssessment.DoesNotExist:
+            # Auto-create if missing (shouldn't happen but defensive)
+            course = Course.objects.get(pk=course_pk)
+            obj = PreAssessment.objects.create(course=course)
         self.check_object_permissions(self.request, obj)
         return obj
 
     def list(self, request, *args, **kwargs):
-        """Return single object instead of list (OneToOne relationship)."""
         try:
             instance = self.get_object()
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
-        except PreAssessment.DoesNotExist:
-            return Response(None, status=status.HTTP_404_NOT_FOUND)
+        except Course.DoesNotExist:
+            return Response({'detail': 'Course not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class PostAssessmentViewSet(viewsets.ModelViewSet):
@@ -177,18 +220,21 @@ class PostAssessmentViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         course_pk = self.kwargs.get('course_pk')
-        obj = PostAssessment.objects.get(course_id=course_pk)
+        try:
+            obj = PostAssessment.objects.get(course_id=course_pk)
+        except PostAssessment.DoesNotExist:
+            course = Course.objects.get(pk=course_pk)
+            obj = PostAssessment.objects.create(course=course)
         self.check_object_permissions(self.request, obj)
         return obj
 
     def list(self, request, *args, **kwargs):
-        """Return single object instead of list (OneToOne relationship)."""
         try:
             instance = self.get_object()
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
-        except PostAssessment.DoesNotExist:
-            return Response(None, status=status.HTTP_404_NOT_FOUND)
+        except Course.DoesNotExist:
+            return Response({'detail': 'Course not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class CertificationViewSet(viewsets.ModelViewSet):
@@ -201,22 +247,28 @@ class CertificationViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         course_pk = self.kwargs.get('course_pk')
-        obj = Certification.objects.get(course_id=course_pk)
+        try:
+            obj = Certification.objects.get(course_id=course_pk)
+        except Certification.DoesNotExist:
+            course = Course.objects.get(pk=course_pk)
+            obj = Certification.objects.create(course=course)
         self.check_object_permissions(self.request, obj)
         return obj
 
     def list(self, request, *args, **kwargs):
-        """Return single object instead of list (OneToOne relationship)."""
         try:
             instance = self.get_object()
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
-        except Certification.DoesNotExist:
-            return Response(None, status=status.HTTP_404_NOT_FOUND)
+        except Course.DoesNotExist:
+            return Response({'detail': 'Course not found.'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['post'])
     def add_batch_expiry(self, request, course_pk=None):
-        cert = Certification.objects.get(course_id=course_pk)
+        try:
+            cert = Certification.objects.get(course_id=course_pk)
+        except Certification.DoesNotExist:
+            return Response({'detail': 'Certification not found.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = BatchExpirySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(certification=cert)
