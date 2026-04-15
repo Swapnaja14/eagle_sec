@@ -17,7 +17,6 @@ import CourseBuilderPage from './pages/CourseBuilderPage'
 import CoursesListPage from './pages/CoursesListPage'
 import ContentUploadPage from './pages/ContentUploadPage'
 import QuestionBankPage from './pages/QuestionBankPage'
-import QuizResultsPage from './pages/QuizResultsPage'
 import SessionEvaluationPage from './pages/SessionEvaluationPage'
 import BulkExportPage from './pages/BulkExportPage'
 import SiteManagementPage from './pages/SiteManagementPage'
@@ -34,6 +33,13 @@ import TraineeDashboardPage from './pages/TraineeDashboardPage'
 import MyTrainingHistoryPage from './pages/MyTrainingHistoryPage'
 import TakeAssessmentPage from './pages/TakeAssessmentPage'
 import MyCertificatesPage from './pages/MyCertificatesPage'
+
+// ─── ASSESSMENT PAGES ─────────────────────────────────────────────────────────
+import AssessmentsListPage from './pages/AssessmentsListPage'
+import AssessmentCreationPage from './pages/AssessmentCreationPage'
+import AssessmentDetailPage from './pages/AssessmentDetailPage'
+import TakeQuizPage from './pages/TakeQuizPage'
+import QuizResultsPage from './pages/QuizResultsPage'
 
 import './index.css'
 
@@ -101,6 +107,14 @@ function AppRoutes() {
       <Route path="/courses/new"            element={<P roles={['superadmin','admin','trainer']}><CourseBuilderPage /></P>} />
       <Route path="/courses/:id/builder"    element={<P roles={['superadmin','admin','trainer']}><CourseBuilderPage /></P>} />
       <Route path="/questions/manage"       element={<P roles={['superadmin','admin','trainer']}><QuestionBankPage /></P>} />
+
+      {/* ─── ASSESSMENTS ───────────────────────────────────────────────── */}
+      <Route path="/assessments"            element={<P roles={['superadmin','admin','trainer']}><AssessmentsListPage /></P>} />
+      <Route path="/assessments/create"     element={<P roles={['superadmin','admin','trainer']}><AssessmentCreationPage /></P>} />
+      <Route path="/assessments/:id"        element={<P roles={['superadmin','admin','trainer']}><AssessmentDetailPage /></P>} />
+      <Route path="/assessments/:id/edit"   element={<P roles={['superadmin','admin','trainer']}><AssessmentCreationPage /></P>} />
+      <Route path="/quiz/:quizId/take"      element={<P roles={['superadmin','admin','trainer','trainee']}><TakeQuizPage /></P>} />
+      <Route path="/quiz-results/:submissionId" element={<P roles={['superadmin','admin','trainer','trainee']}><QuizResultsPage /></P>} />
 
       {/* ─── TRAINER PORTAL ────────────────────────────────────────────── */}
       <Route path="/trainer/dashboard" element={<P roles={['trainer']}><TrainerDashboardPage /></P>} />

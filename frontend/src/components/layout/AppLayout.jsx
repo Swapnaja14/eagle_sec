@@ -23,6 +23,7 @@ const SIDEBAR_NAV = {
       { to: '/content/upload', icon: '📁', label: 'Content Hub' },
     ]},
     { section: 'Assessments', items: [
+      { to: '/assessments', icon: '📝', label: 'Assessments' },
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
       { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
       { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
@@ -53,6 +54,7 @@ const SIDEBAR_NAV = {
       { to: '/content/upload', icon: '📁', label: 'Content Hub' },
     ]},
     { section: 'Assessments', items: [
+      { to: '/assessments', icon: '📝', label: 'Assessments' },
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
       { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
       { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
@@ -77,7 +79,8 @@ const SIDEBAR_NAV = {
       { to: '/content/upload', icon: '📁', label: 'Content Hub' },
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
     ]},
-    { section: 'Results', items: [
+    { section: 'Assessments', items: [
+      { to: '/assessments', icon: '📝', label: 'Assessments' },
       { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
       { to: '/sessions/evaluate', icon: '⭐', label: 'Session Feedback' },
     ]},
