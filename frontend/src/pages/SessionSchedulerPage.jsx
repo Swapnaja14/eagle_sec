@@ -1,0 +1,349 @@
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { mockTrainers, mockSites, mockClients, mockTrainingModules } from '../data/mockData';
+import './SessionSchedulerPage.css';
+
+const PLATFORMS = [
+  { id: 'zoom', label: 'Zoom', icon: '🔵' },
+  { id: 'teams', label: 'Teams', icon: '🟣' },
+  { id: 'meet', label: 'Google Meet', icon: '🟢' },
+];
+
+const MOCK_EMPLOYEES = [
+  { id: 'EMP-10001', name: 'Ramesh Verma' },
+  { id: 'EMP-10002', name: 'Anita Singh' },
+  { id: 'EMP-10003', name: 'Suresh Patil' },
+  { id: 'EMP-10004', name: 'Kavya Nair' },
+  { id: 'EMP-10005', name: 'Deepak Rao' },
+  { id: 'EMP-10006', name: 'Meera Joshi' },
+  { id: 'EMP-10007', name: 'Arjun Kumar' },
+];
+
+export default function SessionSchedulerPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isVirtual = location.pathname.includes('virtual');
+  const [activeTab, setActiveTab] = useState(isVirtual ? 'virtual' : 'classroom');
+  const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const [classroomForm, setClassroomForm] = useState({
+    topic: '',
+    trainerId: '',
+    clientId: mockClients[0].id,
+    siteId: '',
+    date: '',
+    startTime: '',
+    durationMinutes: 120,
+    maxParticipants: 30,
+    venue: '',
+    notes: '',
+    participants: [],
+  });
+
+  const [virtualForm, setVirtualForm] = useState({
+    topic: '',
+    trainerId: '',
+    platform: 'zoom',
+    meetingLink: '',
+    date: '',
+    startTime: '',
+    durationMinutes: 90,
+    maxParticipants: 50,
+    notes: '',
+    participants: [],
+    sendCalendarInvite: true,
+  });
+
+  const [participantSearch, setParticipantSearch] = useState('');
+
+  const form = activeTab === 'classroom' ? classroomForm : virtualForm;
+  const setForm = activeTab === 'classroom' ? setClassroomForm : setVirtualForm;
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const filteredEmployees = MOCK_EMPLOYEES.filter(emp =>
+    (emp.name.toLowerCase().includes(participantSearch.toLowerCase()) ||
+      emp.id.toLowerCase().includes(participantSearch.toLowerCase())) &&
+    !form.participants.find(p => p.id === emp.id)
+  );
+
+  const addParticipant = (emp) => {
+    setForm(prev => ({ ...prev, participants: [...prev.participants, emp] }));
+  };
+
+  const removeParticipant = (id) => {
+    setForm(prev => ({ ...prev, participants: prev.participants.filter(p => p.id !== id) }));
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.topic) e.topic = 'Topic is required';
+    if (!form.trainerId) e.trainerId = 'Trainer is required';
+    if (!form.date) e.date = 'Date is required';
+    if (!form.startTime) e.startTime = 'Start time is required';
+    if (activeTab === 'classroom' && !form.venue) e.venue = 'Venue is required';
+    if (activeTab === 'virtual' && !form.meetingLink) e.meetingLink = 'Meeting link is required';
+    return e;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+    setSubmitted(true);
+  };
+
+  const filteredSites = mockSites.filter(s => s.clientId === form.clientId);
+
+  return (
+    <div className="scheduler-page">
+      <div className="page-header">
+        <h1 className="page-title">Schedule Training Session</h1>
+        <p className="page-subtitle">Create and configure a new training session for your workforce.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="scheduler-tabs">
+        <button
+          className={`scheduler-tab ${activeTab === 'classroom' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('classroom'); setSubmitted(false); }}
+        >
+          🏫 Classroom Session
+        </button>
+        <button
+          className={`scheduler-tab ${activeTab === 'virtual' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('virtual'); setSubmitted(false); }}
+        >
+          💻 Virtual Session
+        </button>
+      </div>
+
+      {submitted ? (
+        <div className="success-banner">
+          <h3>✅ Session Scheduled Successfully!</h3>
+          <p style={{ marginBottom: 16 }}>
+            "{form.topic}" has been scheduled for {form.date} at {form.startTime}.
+            {form.participants.length > 0 && ` ${form.participants.length} participants have been notified.`}
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button className="btn btn-primary" onClick={() => setSubmitted(false)}>Schedule Another</button>
+            <button className="btn btn-secondary" onClick={() => navigate('/admin/calendar')}>View Calendar</button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <div className="card scheduler-card">
+
+            {/* === SECTION: Basic Info === */}
+            <div className="scheduler-section">
+              <div className="scheduler-section-title">📋 Session Details</div>
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">Training Topic *</label>
+                  <select className="form-select" name="topic" value={form.topic} onChange={handleChange}>
+                    <option value="">Select Topic...</option>
+                    {mockTrainingModules.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  {errors.topic && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.topic}</span>}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Trainer *</label>
+                  <select className="form-select" name="trainerId" value={form.trainerId} onChange={handleChange}>
+                    <option value="">Select Trainer...</option>
+                    {mockTrainers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.id})</option>)}
+                  </select>
+                  {errors.trainerId && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.trainerId}</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* === SECTION: Date & Time === */}
+            <div className="scheduler-section">
+              <div className="scheduler-section-title">📅 Date & Time</div>
+              <div className="form-grid-3">
+                <div className="form-group">
+                  <label className="form-label">Date *</label>
+                  <input
+                    type="date" className="form-input"
+                    name="date" value={form.date} onChange={handleChange}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                  {errors.date && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.date}</span>}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Start Time *</label>
+                  <input type="time" className="form-input" name="startTime" value={form.startTime} onChange={handleChange} />
+                  {errors.startTime && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.startTime}</span>}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Duration (Minutes)</label>
+                  <select className="form-select" name="durationMinutes" value={form.durationMinutes} onChange={handleChange}>
+                    <option value={60}>60 mins (1 hr)</option>
+                    <option value={90}>90 mins (1.5 hr)</option>
+                    <option value={120}>120 mins (2 hr)</option>
+                    <option value={180}>180 mins (3 hr)</option>
+                    <option value={240}>240 mins (4 hr)</option>
+                    <option value={480}>Full Day (8 hr)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* === SECTION: Location (Classroom only) === */}
+            {activeTab === 'classroom' && (
+              <div className="scheduler-section">
+                <div className="scheduler-section-title">📍 Location</div>
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Client</label>
+                    <select className="form-select" name="clientId" value={form.clientId} onChange={handleChange}>
+                      {mockClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Site</label>
+                    <select className="form-select" name="siteId" value={form.siteId} onChange={handleChange}>
+                      <option value="">Select Site...</option>
+                      {filteredSites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">Venue / Room *</label>
+                    <input
+                      className="form-input"
+                      name="venue" value={form.venue} onChange={handleChange}
+                      placeholder="e.g. Conference Room A, Training Hall 2..."
+                    />
+                    {errors.venue && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.venue}</span>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* === SECTION: Platform (Virtual only) === */}
+            {activeTab === 'virtual' && (
+              <div className="scheduler-section">
+                <div className="scheduler-section-title">🌐 Platform & Link</div>
+                <div className="platform-grid">
+                  {PLATFORMS.map(p => (
+                    <button
+                      key={p.id} type="button"
+                      className={`platform-btn ${form.platform === p.id ? 'active' : ''}`}
+                      onClick={() => setForm(prev => ({ ...prev, platform: p.id }))}
+                    >
+                      <span className="platform-icon">{p.icon}</span> {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Meeting Link *</label>
+                  <input
+                    className="form-input"
+                    name="meetingLink" value={form.meetingLink} onChange={handleChange}
+                    placeholder="https://zoom.us/j/123456..."
+                  />
+                  {errors.meetingLink && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.meetingLink}</span>}
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    <label className="toggle" style={{ flexShrink: 0 }}>
+                      <input type="checkbox" name="sendCalendarInvite" checked={form.sendCalendarInvite} onChange={handleChange} />
+                      <span className="toggle-slider" />
+                    </label>
+                    Send calendar invite to all participants
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* === SECTION: Capacity === */}
+            <div className="scheduler-section">
+              <div className="scheduler-section-title">👥 Capacity</div>
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">Max Participants</label>
+                  <input type="number" className="form-input" name="maxParticipants" value={form.maxParticipants} onChange={handleChange} min={1} max={500} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Currently Selected</label>
+                  <div style={{ display: 'flex', alignItems: 'center', height: 42, fontSize: '1.1rem', fontWeight: 700, color: form.participants.length >= form.maxParticipants ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                    {form.participants.length} / {form.maxParticipants}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* === SECTION: Participants === */}
+            <div className="scheduler-section">
+              <div className="scheduler-section-title">🧑‍🤝‍🧑 Add Participants</div>
+              <div className="participant-search-row">
+                <input
+                  className="form-input"
+                  placeholder="Search by name or Employee ID..."
+                  value={participantSearch}
+                  onChange={e => setParticipantSearch(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+              </div>
+              {participantSearch && filteredEmployees.length > 0 && (
+                <div className="card" style={{ padding: '8px', marginBottom: 12, maxHeight: 160, overflowY: 'auto' }}>
+                  {filteredEmployees.slice(0, 5).map(emp => (
+                    <div
+                      key={emp.id}
+                      style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      onClick={() => { addParticipant(emp); setParticipantSearch(''); }}
+                    >
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{emp.name}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{emp.id}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="participant-chips">
+                {form.participants.length === 0
+                  ? <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No participants added yet...</span>
+                  : form.participants.map(p => (
+                    <div key={p.id} className="participant-chip">
+                      {p.name} <button type="button" onClick={() => removeParticipant(p.id)}>×</button>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+
+            {/* === SECTION: Notes === */}
+            <div className="scheduler-section">
+              <div className="scheduler-section-title">📝 Notes & Instructions</div>
+              <textarea
+                className="form-textarea"
+                name="notes" value={form.notes} onChange={handleChange}
+                placeholder="Additional instructions for participants..."
+                rows={3}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+          </div>
+
+          <div className="scheduler-footer">
+            <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
+            <button type="button" className="btn btn-secondary">Save as Draft</button>
+            <button type="submit" className="btn btn-primary">
+              {activeTab === 'classroom' ? '🏫 Schedule Classroom Session' : '💻 Schedule Virtual Session'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}

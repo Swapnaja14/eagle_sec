@@ -1,18 +1,20 @@
 import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
+import { useAuth, DEMO_ACCOUNTS } from '../context/AuthContext'
 import './Login.css'
 
+const ROLE_REDIRECT = {
+  superadmin: '/admin/dashboard',
+  admin: '/admin/dashboard',
+  trainer: '/trainer/dashboard',
+  trainee: '/trainee/dashboard',
+}
+
 export default function LoginPage() {
-  const [mode, setMode] = useState('login') // 'login' | 'register'
-  const [form, setForm] = useState({
-    username: '', password: '', email: '',
-    first_name: '', last_name: '', confirm_password: '',
-    role: 'trainee', tenant_name: '', department: '',
-  })
+  const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login, register } = useAuth()
+  const { login, loginAs } = useAuth()
   const navigate = useNavigate()
 
   const handleChange = (e) => {
@@ -25,24 +27,25 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      if (mode === 'login') {
-        await login({ username: form.username, password: form.password })
-      } else {
-        await register(form)
-      }
-      navigate('/dashboard')
+      const user = await login({ username: form.username, password: form.password })
+      navigate(ROLE_REDIRECT[user.role] || '/admin/dashboard')
     } catch (err) {
-      const data = err.response?.data
-      if (data) {
-        const msg = typeof data === 'string' ? data
-          : Object.values(data).flat().join(' ')
-        setError(msg)
-      } else {
-        setError('Connection error. Make sure the backend is running.')
-      }
+      setError(err.message || 'Invalid credentials.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDemoLogin = (account) => {
+    const user = loginAs(account)
+    navigate(ROLE_REDIRECT[user.role] || '/admin/dashboard')
+  }
+
+  const ROLE_BADGE_STYLES = {
+    superadmin: { background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' },
+    admin:      { background: 'rgba(59,130,246,0.15)',  color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' },
+    trainer:    { background: 'rgba(34,197,94,0.15)',   color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' },
+    trainee:    { background: 'rgba(245,158,11,0.15)',  color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' },
   }
 
   return (
@@ -53,7 +56,7 @@ export default function LoginPage() {
         <div className="login-orb login-orb-3" />
       </div>
 
-      <div className="login-container">
+      <div className="login-container" style={{ maxWidth: 900, width: '100%' }}>
         {/* Branding */}
         <div className="login-brand">
           <div className="login-logo">
@@ -65,132 +68,100 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="login-brand-name">LearnSphere</h1>
-            <p className="login-brand-tagline">Enterprise Learning Platform</p>
+            <p className="login-brand-tagline">Training & Compliance Portal</p>
           </div>
         </div>
 
-        {/* Card */}
-        <div className="login-card">
-          {/* Mode toggle */}
-          <div className="login-tabs">
-            <button
-              className={`login-tab ${mode === 'login' ? 'active' : ''}`}
-              onClick={() => setMode('login')}
-            >Sign In</button>
-            <button
-              className={`login-tab ${mode === 'register' ? 'active' : ''}`}
-              onClick={() => setMode('register')}
-            >Create Account</button>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+          {/* Left: Login Form */}
+          <div className="login-card">
+            <h2 style={{ margin: '0 0 4px', color: 'var(--text-primary)', fontSize: '1.3rem', fontWeight: 800 }}>Sign In</h2>
+            <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Enter your credentials or use a demo account →</p>
 
-          <form onSubmit={handleSubmit} className="login-form">
-            {mode === 'register' && (
-              <>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">First Name</label>
-                    <input className="form-input" name="first_name" value={form.first_name} onChange={handleChange} placeholder="John" required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Last Name</label>
-                    <input className="form-input" name="last_name" value={form.last_name} onChange={handleChange} placeholder="Doe" required />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input className="form-input" type="email" name="email" value={form.email} onChange={handleChange} placeholder="john@company.com" required />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Company Name</label>
-                    <input className="form-input" name="tenant_name" value={form.tenant_name} onChange={handleChange} placeholder="TechCorp Inc." />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Role</label>
-                    <select className="form-select" name="role" value={form.role} onChange={handleChange}>
-                      <option value="trainee">Trainee</option>
-                      <option value="instructor">Instructor</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                </div>
-              </>
+            {error && (
+              <div className="form-error-box" style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: 'var(--accent-red)', fontSize: '0.85rem', marginBottom: 16 }}>
+                {error}
+              </div>
             )}
 
-            <div className="form-group">
-              <label className="form-label">Username</label>
-              <input
-                className="form-input"
-                name="username"
-                value={form.username}
-                onChange={handleChange}
-                placeholder="e.g. john.doe"
-                required
-                autoFocus
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input
-                className="form-input"
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            {mode === 'register' && (
+            <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">Confirm Password</label>
+                <label className="form-label">Employee ID / Username</label>
                 <input
                   className="form-input"
+                  name="username"
+                  value={form.username}
+                  onChange={handleChange}
+                  placeholder="e.g. admin"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input
+                  className="form-input"
+                  name="password"
                   type="password"
-                  name="confirm_password"
-                  value={form.confirm_password}
+                  value={form.password}
                   onChange={handleChange}
                   placeholder="••••••••"
                   required
                 />
               </div>
-            )}
+              <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}>
+                {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Signing in...</> : 'Sign In to LearnSphere'}
+              </button>
+            </form>
 
-            {error && (
-              <div className="login-error">
-                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                  <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/>
+            <p className="login-footer" style={{ marginTop: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+              © 2026 LearnSphere — Training & Compliance Portal
+            </p>
+          </div>
+
+          {/* Right: Demo Accounts */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
+              ⚡ Quick Demo Access
+            </div>
+            {DEMO_ACCOUNTS.map(account => (
+              <button
+                key={account.role}
+                onClick={() => handleDemoLogin(account)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 18px',
+                  background: 'var(--bg-card)',
+                  border: `1px solid var(--border-color)`,
+                  borderRadius: 12, cursor: 'pointer',
+                  textAlign: 'left', width: '100%',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = account.badgeText; e.currentTarget.style.background = account.badgeColor }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = 'var(--bg-card)' }}
+              >
+                <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>{account.avatar}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{account.first_name} {account.last_name}</span>
+                    <span style={{ ...ROLE_BADGE_STYLES[account.role], padding: '2px 8px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700 }}>
+                      {account.roleLabel}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {account.description}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {account.username} / {account.password}
+                  </div>
+                </div>
+                <svg width="16" height="16" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-                {error}
-              </div>
-            )}
-
-            {mode === 'login' && (
-              <div className="login-demo-hint">
-                <span>Demo:</span> admin / admin123
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg login-submit"
-              disabled={loading}
-            >
-              {loading ? (
-                <><span className="spinner" style={{width:18,height:18}} /> {mode === 'login' ? 'Signing in...' : 'Creating account...'}</>
-              ) : (
-                mode === 'login' ? 'Sign In to LearnSphere' : 'Create Account'
-              )}
-            </button>
-          </form>
+              </button>
+            ))}
+          </div>
         </div>
-
-        <p className="login-footer">
-          © 2024 LearnSphere — Enterprise Learning Management System
-        </p>
       </div>
     </div>
   )
