@@ -1,45 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import api, { authAPI } from '../services/api'
+import { authAPI } from '../services/api'
 
 const AuthContext = createContext(null)
-
-// ─── DEMO ACCOUNTS (quick login, bypasses backend) ───────────────────────────
-export const DEMO_ACCOUNTS = [
-  {
-    username: 'superadmin', password: 'super123', role: 'superadmin',
-    first_name: 'Suresh', last_name: 'Iyer', email: 'superadmin@learnsphere.in',
-    avatar: '🔴', roleLabel: 'Super Admin',
-    description: 'Full system access including RBAC and Audit Logs',
-    badgeColor: 'rgba(239,68,68,0.2)', badgeText: '#ef4444',
-    _isMock: true,
-  },
-  {
-    username: 'admin', password: 'admin123', role: 'admin',
-    first_name: 'Anita', last_name: 'Sharma', email: 'admin@learnsphere.in',
-    avatar: '🔵', roleLabel: 'Admin / Manager',
-    description: 'Manage training, employees, sites and compliance',
-    badgeColor: 'rgba(59,130,246,0.2)', badgeText: '#3b82f6',
-    _isMock: true,
-  },
-  {
-    username: 'trainer', password: 'trainer123', role: 'trainer',
-    first_name: 'Rajesh', last_name: 'Kumar', email: 'trainer@learnsphere.in',
-    avatar: '🟢', roleLabel: 'Trainer',
-    description: 'Schedule sessions, build courses, manage assessments',
-    badgeColor: 'rgba(34,197,94,0.2)', badgeText: '#22c55e',
-    _isMock: true,
-  },
-  {
-    username: 'trainee', password: 'trainee123', role: 'trainee',
-    first_name: 'Priya', last_name: 'Mehta', email: 'trainee@learnsphere.in',
-    avatar: '🟡', roleLabel: 'Trainee / Guard',
-    description: 'View your training, take assessments, download certificates',
-    badgeColor: 'rgba(245,158,11,0.2)', badgeText: '#f59e0b',
-    employeeId: 'EMP-10042',
-    psaraExpiry: new Date(Date.now() + 22 * 24 * 60 * 60 * 1000).toISOString(),
-    _isMock: true,
-  },
-]
 
 // ─── ROLE MAP: backend role → frontend role ───────────────────────────────────
 // Backend: superadmin | admin | instructor | trainee
@@ -89,13 +51,7 @@ export const AuthProvider = ({ children }) => {
     const stored = localStorage.getItem('learnsphere_user')
     if (stored) {
       try {
-        const parsed = JSON.parse(stored)
-        // If it's a mock user, restore directly without hitting /me
-        if (parsed._isMock) {
-          setUser(parsed)
-          setLoading(false)
-          return
-        }
+        JSON.parse(stored)
         // Real user: verify token is still valid by hitting /me
         const token = localStorage.getItem('access_token')
         if (token) {
@@ -130,15 +86,6 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     const { username, password } = credentials
 
-    // Check if it's a demo account (offline)
-    const demoAccount = DEMO_ACCOUNTS.find(
-      a => a.username === username && a.password === password
-    )
-    if (demoAccount) {
-      return loginAs(demoAccount)
-    }
-
-    // Real backend login
     try {
       const { data } = await authAPI.login({ username, password })
       // Backend returns: { access, refresh, user: { id, username, role, ... } }
@@ -146,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('refresh_token', data.refresh)
 
       const role = mapBackendRole(data.user.role)
-      const userObj = { ...data.user, role, _isMock: false }
+      const userObj = { ...data.user, role }
       localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
       setUser(userObj)
       return userObj
@@ -154,19 +101,26 @@ export const AuthProvider = ({ children }) => {
       const detail = err.response?.data?.detail || err.response?.data
       if (typeof detail === 'string') throw new Error(detail)
       if (typeof detail === 'object') throw new Error(Object.values(detail).flat().join(' '))
-      throw new Error('Invalid credentials. Try a demo account or check your backend connection.')
+      throw new Error('Invalid credentials.')
     }
   }
 
-  // ── INSTANT DEMO LOGIN (no backend) ───────────────────────────────────────
-  const loginAs = (account) => {
-    const { password: _pw, ...userObj } = account
-    localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
-    // Clear any real tokens so api.js doesn't send them
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    setUser(userObj)
-    return userObj
+  const register = async (formData) => {
+    try {
+      const { data } = await authAPI.register(formData)
+      localStorage.setItem('access_token', data.access)
+      localStorage.setItem('refresh_token', data.refresh)
+      const role = mapBackendRole(data.user.role)
+      const userObj = { ...data.user, role }
+      localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
+      setUser(userObj)
+      return userObj
+    } catch (err) {
+      const detail = err.response?.data
+      if (typeof detail === 'string') throw new Error(detail)
+      if (typeof detail === 'object') throw new Error(Object.values(detail).flat().join(' '))
+      throw new Error('Registration failed.')
+    }
   }
 
   // ── LOGOUT ─────────────────────────────────────────────────────────────────
@@ -174,19 +128,15 @@ export const AuthProvider = ({ children }) => {
     _clearStorage()
   }
 
-  // Legacy compat
-  const register = async (formData) => login(formData)
-
   return (
     <AuthContext.Provider value={{
       user,
       loading,
       login,
-      loginAs,
       logout,
       register,
       hasPermission: (perm) => hasPermission(user, perm),
-      isRealUser: user && !user._isMock,
+      isRealUser: !!user,
     }}>
       {children}
     </AuthContext.Provider>
