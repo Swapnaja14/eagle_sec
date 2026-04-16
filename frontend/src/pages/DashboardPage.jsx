@@ -1,33 +1,130 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line
 } from 'recharts';
-import { dashboardCards, upcomingSessions, complianceAlerts, mockTrainingRecords } from '../data/mockData';
 import './DashboardPage.css';
-
-const departmentData = [
-  { name: 'Security', actual: 95, target: 100 },
-  { name: 'Housekeeping', actual: 82, target: 90 },
-  { name: 'Facility', actual: 88, target: 95 },
-  { name: 'IT', actual: 100, target: 100 },
-  { name: 'Maintenance', actual: 75, target: 85 }
-];
-
-const trendData = [
-  { month: 'Oct', enrolled: 120, completed: 100 },
-  { month: 'Nov', enrolled: 150, completed: 130 },
-  { month: 'Dec', enrolled: 180, completed: 170 },
-  { month: 'Jan', enrolled: 200, completed: 185 },
-  { month: 'Feb', enrolled: 220, completed: 210 },
-  { month: 'Mar', enrolled: 250, completed: 240 }
-];
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [range, setRange] = useState('30d');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [overview, setOverview] = useState({
+    cards: null,
+    department_completion: [],
+    monthly_trend: [],
+    upcoming_sessions: [],
+    compliance_alerts: [],
+    recent_history: [],
+  });
+
+  const fetchOverview = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get('/dashboard/overview/', { params: { range } });
+      setOverview({
+        cards: data.cards || null,
+        department_completion: data.department_completion || [],
+        monthly_trend: data.monthly_trend || [],
+        upcoming_sessions: data.upcoming_sessions || [],
+        compliance_alerts: data.compliance_alerts || [],
+        recent_history: data.recent_history || [],
+      });
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Failed to load dashboard data.';
+      setError(typeof detail === 'string' ? detail : 'Failed to load dashboard data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOverview();
+  }, [range]);
+
+  const dashboardCards = useMemo(() => {
+    const cards = overview.cards || {};
+    return {
+      totalTrained: {
+        value: cards.total_trained?.value || 0,
+        trend: cards.total_trained?.delta || '+0.0%',
+        trendUp: cards.total_trained?.trend_up ?? true,
+      },
+      avgScore: {
+        value: cards.avg_score?.value || 0,
+        trend: cards.avg_score?.delta || '+0.0%',
+        trendUp: cards.avg_score?.trend_up ?? true,
+      },
+      complianceRate: {
+        value: cards.compliance_rate?.value || 0,
+        trend: cards.compliance_rate?.delta || '+0.0%',
+        trendUp: cards.compliance_rate?.trend_up ?? true,
+      },
+      pendingCerts: {
+        value: cards.pending_certifications?.value || 0,
+        trend: cards.pending_certifications?.delta || '+0.0%',
+        trendUp: cards.pending_certifications?.trend_up ?? true,
+      },
+    };
+  }, [overview.cards]);
+
+  const departmentData = useMemo(
+    () => overview.department_completion.map(d => ({
+      name: d.department,
+      actual: d.actual_percent,
+      target: d.target_percent,
+    })),
+    [overview.department_completion]
+  );
+
+  const trendData = useMemo(
+    () => overview.monthly_trend.map(t => ({
+      month: t.month,
+      enrolled: t.enrolled,
+      completed: t.completed,
+    })),
+    [overview.monthly_trend]
+  );
+
+  const upcomingSessions = useMemo(
+    () => overview.upcoming_sessions.map(s => ({
+      id: s.id,
+      type: s.type,
+      topic: s.topic,
+      date: new Date(s.date_time).toLocaleString(),
+      trainerName: s.trainer_name || 'N/A',
+      attendeeCount: s.attendee_count,
+    })),
+    [overview.upcoming_sessions]
+  );
+
+  const complianceAlerts = useMemo(
+    () => overview.compliance_alerts.map(a => ({
+      id: a.id,
+      dept: a.department || a.site || 'Unknown',
+      behind: a.behind_percent,
+    })),
+    [overview.compliance_alerts]
+  );
+
+  const recentHistory = useMemo(
+    () => overview.recent_history.map(r => ({
+      id: `${r.employee_id}-${r.session_date}`,
+      employeeName: r.employee_name,
+      employeeId: r.employee_id,
+      moduleName: r.module_name,
+      sessionDate: r.session_date,
+      score: r.score,
+      status: r.status,
+    })),
+    [overview.recent_history]
+  );
 
   return (
     <div className="dashboard-page">
@@ -95,10 +192,15 @@ export default function DashboardPage() {
             <div className="chart-card card">
               <div className="chart-header">
                 <h3 className="chart-title">Training Completion by Department</h3>
-                <select className="form-select" style={{ width: 'auto', padding: '6px 36px 6px 12px' }}>
-                  <option>Last 30 Days</option>
-                  <option>Last Quarter</option>
-                  <option>YTD</option>
+                <select
+                  className="form-select"
+                  style={{ width: 'auto', padding: '6px 36px 6px 12px' }}
+                  value={range}
+                  onChange={(e) => setRange(e.target.value)}
+                >
+                  <option value="30d">Last 30 Days</option>
+                  <option value="quarter">Last Quarter</option>
+                  <option value="ytd">YTD</option>
                 </select>
               </div>
               <div style={{ width: '100%', height: 300 }}>
@@ -140,6 +242,7 @@ export default function DashboardPage() {
           <div className="side-panel">
             <div className="card">
               <h3 className="chart-title" style={{ marginBottom: 20 }}>Upcoming Sessions</h3>
+              {upcomingSessions.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No upcoming sessions.</p>}
               {upcomingSessions.map(session => (
                 <div key={session.id} className="timeline-card">
                   <div className="timeline-icon">
@@ -156,6 +259,7 @@ export default function DashboardPage() {
 
             <div className="card">
               <h3 className="chart-title" style={{ marginBottom: 20 }}>Compliance Alerts</h3>
+              {complianceAlerts.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No active alerts.</p>}
               {complianceAlerts.map(alert => (
                 <div key={alert.id} className="alert-item">
                   <div className="alert-info">
@@ -187,7 +291,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockTrainingRecords.slice(0, 5).map(record => (
+                {recentHistory.map(record => (
                   <tr key={record.id}>
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{record.employeeName}</div>
@@ -214,10 +318,15 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+            {!loading && recentHistory.length === 0 && (
+              <div style={{ padding: 14, color: 'var(--text-muted)' }}>No recent training history.</div>
+            )}
           </div>
         </div>
 
       </div>
+      {loading && <div style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading dashboard data...</div>}
+      {error && <div style={{ marginTop: 12, color: 'var(--accent-red)' }}>{error}</div>}
     </div>
   );
 }
