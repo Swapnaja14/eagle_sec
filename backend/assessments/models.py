@@ -66,14 +66,14 @@ class Submission(models.Model):
     total_points = models.IntegerField(default=0)
     percentage = models.FloatField(default=0)
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress', db_index=True)
     started_at = models.DateTimeField(auto_now_add=True)
-    submitted_at = models.DateTimeField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     time_taken_seconds = models.IntegerField(null=True, blank=True)
     
     passed = models.BooleanField(default=False)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -82,6 +82,11 @@ class Submission(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['user', 'quiz', 'attempt_number']
+        indexes = [
+            models.Index(fields=['quiz', 'created_at']),
+            models.Index(fields=['quiz', 'status']),
+            models.Index(fields=['user', 'status']),
+        ]
 
 
 class Answer(models.Model):
