@@ -9,6 +9,33 @@ const PLATFORMS = [
   { id: 'meet', label: 'Google Meet', icon: '🟢' },
 ];
 
+const TECH_TRAINING_TOPICS = [
+  'Cybersecurity Fundamentals',
+  'Network Security & Firewalls',
+  'Cloud Security Best Practices',
+  'AWS Security Essentials',
+  'Azure Security & Identity',
+  'Google Cloud Security',
+  'SIEM & Security Monitoring',
+  'SOC Operations Basics',
+  'Incident Response & Forensics',
+  'Threat Hunting Techniques',
+  'Vulnerability Management',
+  'Penetration Testing Basics',
+  'Application Security (OWASP Top 10)',
+  'API Security',
+  'Secure Coding in Python',
+  'DevSecOps Pipeline Security',
+  'Container Security (Docker/Kubernetes)',
+  'Linux Hardening',
+  'Identity & Access Management (IAM)',
+  'Zero Trust Security Model',
+  'Data Privacy & Protection',
+  'Endpoint Detection & Response',
+  'Email & Phishing Defense',
+  'Business Continuity & Disaster Recovery',
+];
+
 const MOCK_EMPLOYEES = [
   { id: 'EMP-10001', name: 'Ramesh Verma' },
   { id: 'EMP-10002', name: 'Anita Singh' },
@@ -56,6 +83,11 @@ export default function SessionSchedulerPage() {
   });
 
   const [participantSearch, setParticipantSearch] = useState('');
+  const [customTopic, setCustomTopic] = useState('');
+  const [topicOptions, setTopicOptions] = useState(() => {
+    const merged = [...mockTrainingModules, ...TECH_TRAINING_TOPICS];
+    return [...new Set(merged)];
+  });
 
   const form = activeTab === 'classroom' ? classroomForm : virtualForm;
   const setForm = activeTab === 'classroom' ? setClassroomForm : setVirtualForm;
@@ -78,6 +110,18 @@ export default function SessionSchedulerPage() {
 
   const removeParticipant = (id) => {
     setForm(prev => ({ ...prev, participants: prev.participants.filter(p => p.id !== id) }));
+  };
+
+  const handleAddCustomTopic = () => {
+    const topic = customTopic.trim();
+    if (!topic) return;
+    const exists = topicOptions.some(t => t.toLowerCase() === topic.toLowerCase());
+    if (!exists) {
+      setTopicOptions(prev => [...prev, topic]);
+    }
+    setForm(prev => ({ ...prev, topic }));
+    setCustomTopic('');
+    if (errors.topic) setErrors(prev => ({ ...prev, topic: '' }));
   };
 
   const validate = () => {
@@ -150,8 +194,19 @@ export default function SessionSchedulerPage() {
                   <label className="form-label">Training Topic *</label>
                   <select className="form-select" name="topic" value={form.topic} onChange={handleChange}>
                     <option value="">Select Topic...</option>
-                    {mockTrainingModules.map(m => <option key={m} value={m}>{m}</option>)}
+                    {topicOptions.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <input
+                      className="form-input"
+                      value={customTopic}
+                      onChange={(e) => setCustomTopic(e.target.value)}
+                      placeholder="Add custom training topic"
+                    />
+                    <button type="button" className="btn btn-secondary" onClick={handleAddCustomTopic}>
+                      Add
+                    </button>
+                  </div>
                   {errors.topic && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.topic}</span>}
                 </div>
                 <div className="form-group">
