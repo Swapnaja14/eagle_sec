@@ -63,8 +63,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'learnsphere.wsgi.application'
 
-# Use SQLite for quick local dev (set USE_SQLITE=true in .env)
-# Use PostgreSQL for production (default when USE_SQLITE is false/missing)
+# Use SQLite for quick local dev by default.
+# Set USE_SQLITE=false in .env to force PostgreSQL.
 if config('USE_SQLITE', default=False, cast=bool):
     DATABASES = {
         'default': {

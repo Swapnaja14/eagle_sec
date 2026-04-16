@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth, DEMO_ACCOUNTS } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import './AppLayout.css';
 
 // ─── SIDEBAR CONFIG PER ROLE ─────────────────────────────────────────────────
@@ -109,7 +109,7 @@ const ROLE_BADGE = {
 }
 
 export default function AppLayout({ children }) {
-  const { user, logout, loginAs } = useAuth();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const navigate = useNavigate();
@@ -118,13 +118,6 @@ export default function AppLayout({ children }) {
   const handleLogout = () => {
     logout();
     navigate('/login');
-  };
-
-  const handleSwitchRole = (account) => {
-    loginAs(account);
-    setAccountOpen(false);
-    const redirect = { superadmin: '/admin/dashboard', admin: '/admin/dashboard', trainer: '/trainer/dashboard', trainee: '/trainee/dashboard' };
-    navigate(redirect[account.role] || '/admin/dashboard');
   };
 
   // Close dropdown on outside click
@@ -252,31 +245,6 @@ export default function AppLayout({ children }) {
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{user?.email}</div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Switch Role */}
-                  <div style={{ padding: '10px 14px 6px', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Switch Demo Account</div>
-                    {DEMO_ACCOUNTS.filter(a => a.role !== user?.role).map(account => (
-                      <button
-                        key={account.role}
-                        onClick={() => handleSwitchRole(account)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                          padding: '8px 10px', borderRadius: 8, background: 'none',
-                          border: 'none', cursor: 'pointer', marginBottom: 4, textAlign: 'left',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                      >
-                        <span style={{ fontSize: '1.2rem' }}>{account.avatar}</span>
-                        <div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{account.first_name} {account.last_name}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{account.roleLabel}</div>
-                        </div>
-                      </button>
-                    ))}
                   </div>
 
                   {/* Logout */}

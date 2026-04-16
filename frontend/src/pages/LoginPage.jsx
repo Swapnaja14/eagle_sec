@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, DEMO_ACCOUNTS } from '../context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 import './Login.css'
 
 const ROLE_REDIRECT = {
@@ -11,23 +11,44 @@ const ROLE_REDIRECT = {
 }
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [activeTab, setActiveTab] = useState('login')
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' })
+  const [registerForm, setRegisterForm] = useState({
+    first_name: '',
+    last_name: '',
+    username: '',
+    email: '',
+    password: '',
+    confirm_password: '',
+    role: 'trainee',
+    department: '',
+    tenant_name: '',
+  })
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login, loginAs } = useAuth()
+  const { login, register } = useAuth()
   const navigate = useNavigate()
 
-  const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  const handleLoginChange = (e) => {
+    setLoginForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
     setError('')
+    setSuccess('')
   }
 
-  const handleSubmit = async (e) => {
+  const handleRegisterChange = (e) => {
+    setRegisterForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    setError('')
+    setSuccess('')
+  }
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess('')
     try {
-      const user = await login({ username: form.username, password: form.password })
+      const user = await login({ username: loginForm.username, password: loginForm.password })
       navigate(ROLE_REDIRECT[user.role] || '/admin/dashboard')
     } catch (err) {
       setError(err.message || 'Invalid credentials.')
@@ -36,16 +57,25 @@ export default function LoginPage() {
     }
   }
 
-  const handleDemoLogin = (account) => {
-    const user = loginAs(account)
-    navigate(ROLE_REDIRECT[user.role] || '/admin/dashboard')
-  }
-
-  const ROLE_BADGE_STYLES = {
-    superadmin: { background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' },
-    admin:      { background: 'rgba(59,130,246,0.15)',  color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' },
-    trainer:    { background: 'rgba(34,197,94,0.15)',   color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' },
-    trainee:    { background: 'rgba(245,158,11,0.15)',  color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' },
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    setSuccess('')
+    try {
+      const payload = {
+        ...registerForm,
+        tenant_name: registerForm.tenant_name.trim() || undefined,
+        department: registerForm.department.trim() || undefined,
+      }
+      const user = await register(payload)
+      setSuccess('Registration successful. You are now signed in.')
+      navigate(ROLE_REDIRECT[user.role] || '/trainee/dashboard')
+    } catch (err) {
+      setError(err.message || 'Registration failed.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -56,7 +86,7 @@ export default function LoginPage() {
         <div className="login-orb login-orb-3" />
       </div>
 
-      <div className="login-container" style={{ maxWidth: 900, width: '100%' }}>
+      <div className="login-container">
         {/* Branding */}
         <div className="login-brand">
           <div className="login-logo">
@@ -72,95 +102,108 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
-          {/* Left: Login Form */}
-          <div className="login-card">
-            <h2 style={{ margin: '0 0 4px', color: 'var(--text-primary)', fontSize: '1.3rem', fontWeight: 800 }}>Sign In</h2>
-            <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Enter your credentials or use a demo account →</p>
+        <div className="login-card">
+          <div className="login-tabs">
+            <button className={`login-tab ${activeTab === 'login' ? 'active' : ''}`} onClick={() => { setActiveTab('login'); setError(''); setSuccess('') }} type="button">
+              Sign In
+            </button>
+            <button className={`login-tab ${activeTab === 'register' ? 'active' : ''}`} onClick={() => { setActiveTab('register'); setError(''); setSuccess('') }} type="button">
+              Register
+            </button>
+          </div>
 
-            {error && (
-              <div className="form-error-box" style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: 'var(--accent-red)', fontSize: '0.85rem', marginBottom: 16 }}>
-                {error}
-              </div>
-            )}
+          <h2 style={{ margin: '0 0 4px', color: 'var(--text-primary)', fontSize: '1.3rem', fontWeight: 800 }}>
+            {activeTab === 'login' ? 'Welcome Back' : 'Create Account'}
+          </h2>
+          <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            {activeTab === 'login'
+              ? 'Secure access to your training dashboard.'
+              : 'Register with your details to get started.'}
+          </p>
 
-            <form onSubmit={handleSubmit}>
+          {error && (
+            <div className="form-error-box" style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: 'var(--accent-red)', fontSize: '0.85rem', marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="form-success-box" style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, color: '#22c55e', fontSize: '0.85rem', marginBottom: 16 }}>
+              {success}
+            </div>
+          )}
+
+          {activeTab === 'login' ? (
+            <form onSubmit={handleLoginSubmit} className="login-form">
               <div className="form-group">
-                <label className="form-label">Employee ID / Username</label>
-                <input
-                  className="form-input"
-                  name="username"
-                  value={form.username}
-                  onChange={handleChange}
-                  placeholder="e.g. admin"
-                  required
-                  autoFocus
-                />
+                <label className="form-label">Username</label>
+                <input className="form-input" name="username" value={loginForm.username} onChange={handleLoginChange} placeholder="e.g. EMP-12345" required autoFocus />
               </div>
               <div className="form-group">
                 <label className="form-label">Password</label>
-                <input
-                  className="form-input"
-                  name="password"
-                  type="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  placeholder="••••••••"
-                  required
-                />
+                <input className="form-input" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} placeholder="••••••••" required />
               </div>
-              <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}>
-                {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Signing in...</> : 'Sign In to LearnSphere'}
+              <button className="btn btn-primary login-submit" type="submit" disabled={loading}>
+                {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Signing in...</> : 'Sign In'}
               </button>
             </form>
-
-            <p className="login-footer" style={{ marginTop: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-              © 2026 LearnSphere — Training & Compliance Portal
-            </p>
-          </div>
-
-          {/* Right: Demo Accounts */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
-              ⚡ Quick Demo Access
-            </div>
-            {DEMO_ACCOUNTS.map(account => (
-              <button
-                key={account.role}
-                onClick={() => handleDemoLogin(account)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '14px 18px',
-                  background: 'var(--bg-card)',
-                  border: `1px solid var(--border-color)`,
-                  borderRadius: 12, cursor: 'pointer',
-                  textAlign: 'left', width: '100%',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = account.badgeText; e.currentTarget.style.background = account.badgeColor }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = 'var(--bg-card)' }}
-              >
-                <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>{account.avatar}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{account.first_name} {account.last_name}</span>
-                    <span style={{ ...ROLE_BADGE_STYLES[account.role], padding: '2px 8px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700 }}>
-                      {account.roleLabel}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {account.description}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                    {account.username} / {account.password}
-                  </div>
+          ) : (
+            <form onSubmit={handleRegisterSubmit} className="login-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">First Name</label>
+                  <input className="form-input" name="first_name" value={registerForm.first_name} onChange={handleRegisterChange} required />
                 </div>
-                <svg width="16" height="16" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <div className="form-group">
+                  <label className="form-label">Last Name</label>
+                  <input className="form-input" name="last_name" value={registerForm.last_name} onChange={handleRegisterChange} required />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Username</label>
+                <input className="form-input" name="username" value={registerForm.username} onChange={handleRegisterChange} required />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input className="form-input" name="email" type="email" value={registerForm.email} onChange={handleRegisterChange} required />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <input className="form-input" name="password" type="password" value={registerForm.password} onChange={handleRegisterChange} required minLength={8} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Confirm Password</label>
+                  <input className="form-input" name="confirm_password" type="password" value={registerForm.confirm_password} onChange={handleRegisterChange} required minLength={8} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Role</label>
+                  <select className="form-input" name="role" value={registerForm.role} onChange={handleRegisterChange}>
+                    <option value="trainee">Trainee</option>
+                    <option value="instructor">Trainer</option>
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Super Admin</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Department</label>
+                  <input className="form-input" name="department" value={registerForm.department} onChange={handleRegisterChange} placeholder="Optional" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Company / Tenant</label>
+                <input className="form-input" name="tenant_name" value={registerForm.tenant_name} onChange={handleRegisterChange} placeholder="Optional" />
+              </div>
+              <button className="btn btn-primary login-submit" type="submit" disabled={loading}>
+                {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Creating account...</> : 'Create Account'}
               </button>
-            ))}
-          </div>
+            </form>
+          )}
+
+          <p className="login-footer" style={{ marginTop: 24 }}>
+            © 2026 LearnSphere — Training & Compliance Portal
+          </p>
         </div>
       </div>
     </div>
