@@ -1,16 +1,22 @@
 from django.core.cache import cache
 from django.utils import timezone
-from rest_framework.permissions import BasePermission
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import ComplianceAlert
+from accounts.models import User
+from .models import TrainingSession
+from .serializers import TrainingSessionSerializer
 from .services import (
     get_dashboard_summary,
     get_department_completion,
     get_training_trend,
     get_upcoming_sessions,
+    get_calendar_sessions,
     get_compliance_alerts,
     get_recent_training_history,
+    get_my_training_history,
     get_dashboard_overview,
 )
 
@@ -21,6 +27,15 @@ class IsAdminOrSuperAdmin(BasePermission):
             request.user
             and request.user.is_authenticated
             and getattr(request.user, "role", None) in {"admin", "superadmin"}
+        )
+
+
+class CanManageSessions(BasePermission):
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "role", None) in {"superadmin", "admin", "instructor"}
         )
 
 
@@ -75,6 +90,77 @@ class UpcomingSessionsView(CachedAPIView):
         return Response(get_upcoming_sessions(request.user, request.query_params))
 
 
+class CalendarSessionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_calendar_sessions(request.user, request.query_params))
+
+
+class SessionListCreateView(APIView):
+    permission_classes = [CanManageSessions]
+
+    def get_queryset(self, request):
+        qs = TrainingSession.objects.filter(is_active=True).select_related("trainer", "tenant")
+        if request.user.role != "superadmin":
+            qs = qs.filter(tenant=request.user.tenant)
+        elif request.query_params.get("tenant"):
+            qs = qs.filter(tenant_id=request.query_params.get("tenant"))
+        return qs
+
+    def get(self, request):
+        qs = self.get_queryset(request)
+        serializer = TrainingSessionSerializer(qs.order_by("date_time"), many=True)
+        return Response({"count": len(serializer.data), "results": serializer.data})
+
+    def post(self, request):
+        serializer = TrainingSessionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(tenant=request.user.tenant)
+        return Response(serializer.data, status=201)
+
+
+class SessionDetailView(APIView):
+    permission_classes = [CanManageSessions]
+
+    def get_object(self, request, session_id):
+        qs = TrainingSession.objects.select_related("trainer", "tenant")
+        if request.user.role != "superadmin":
+            qs = qs.filter(tenant=request.user.tenant)
+        return get_object_or_404(qs, id=session_id)
+
+    def patch(self, request, session_id):
+        session = self.get_object(request, session_id)
+        serializer = TrainingSessionSerializer(session, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, session_id):
+        session = self.get_object(request, session_id)
+        session.is_active = False
+        session.save(update_fields=["is_active", "updated_at"])
+        return Response(status=204)
+
+
+class SessionTrainersView(APIView):
+    permission_classes = [CanManageSessions]
+
+    def get(self, request):
+        qs = User.objects.filter(role="instructor", is_active=True)
+        if request.user.role != "superadmin":
+            qs = qs.filter(tenant=request.user.tenant)
+        rows = [
+            {
+                "id": u.id,
+                "name": f"{u.first_name} {u.last_name}".strip() or u.username,
+                "username": u.username,
+            }
+            for u in qs.order_by("first_name", "last_name", "username")
+        ]
+        return Response(rows)
+
+
 class ComplianceAlertsView(CachedAPIView):
     cache_ttl = 60
     cache_prefix = "dashboard:compliance-alerts"
@@ -113,3 +199,10 @@ class DashboardOverviewView(CachedAPIView):
 
     def get(self, request):
         return Response(self._get_or_compute(request, get_dashboard_overview))
+
+
+class MyTrainingHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_my_training_history(request.user, request.query_params))

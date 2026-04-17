@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { mockTrainers, mockSites, mockClients, mockTrainingModules } from '../data/mockData';
+import { mockSites, mockClients, mockTrainingModules } from '../data/mockData';
+import { sessionsAPI } from '../services/api';
 import './SessionSchedulerPage.css';
 
 const PLATFORMS = [
@@ -53,6 +54,9 @@ export default function SessionSchedulerPage() {
   const [activeTab, setActiveTab] = useState(isVirtual ? 'virtual' : 'classroom');
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [trainers, setTrainers] = useState([]);
 
   const [classroomForm, setClassroomForm] = useState({
     topic: '',
@@ -88,6 +92,18 @@ export default function SessionSchedulerPage() {
     const merged = [...mockTrainingModules, ...TECH_TRAINING_TOPICS];
     return [...new Set(merged)];
   });
+
+  useEffect(() => {
+    const fetchTrainers = async () => {
+      try {
+        const { data } = await sessionsAPI.trainers();
+        setTrainers(data || []);
+      } catch {
+        setTrainers([]);
+      }
+    };
+    fetchTrainers();
+  }, []);
 
   const form = activeTab === 'classroom' ? classroomForm : virtualForm;
   const setForm = activeTab === 'classroom' ? setClassroomForm : setVirtualForm;
@@ -135,14 +151,49 @@ export default function SessionSchedulerPage() {
     return e;
   };
 
-  const handleSubmit = (e) => {
+  const buildPayload = (targetStatus = 'scheduled') => {
+    const dateTime = new Date(`${form.date}T${form.startTime}:00`);
+    return {
+      topic: form.topic,
+      session_type: activeTab,
+      trainer: form.trainerId ? Number(form.trainerId) : null,
+      date_time: dateTime.toISOString(),
+      duration_minutes: Number(form.durationMinutes || 60),
+      attendee_count: form.participants.length,
+      max_participants: Number(form.maxParticipants || 30),
+      status: targetStatus,
+      site: activeTab === 'classroom'
+        ? (filteredSites.find(s => s.id === form.siteId)?.name || '')
+        : 'Online',
+      venue: activeTab === 'classroom' ? form.venue : '',
+      platform: activeTab === 'virtual' ? form.platform : '',
+      meeting_link: activeTab === 'virtual' ? form.meetingLink : '',
+      notes: form.notes || '',
+    };
+  };
+
+  const createSession = async (targetStatus = 'scheduled') => {
+    setSaving(true);
+    setSubmitError('');
+    try {
+      await sessionsAPI.create(buildPayload(targetStatus));
+      setSubmitted(true);
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Failed to schedule session.';
+      setSubmitError(typeof detail === 'string' ? detail : 'Failed to schedule session.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
-    setSubmitted(true);
+    await createSession('scheduled');
   };
 
   const filteredSites = mockSites.filter(s => s.clientId === form.clientId);
@@ -184,6 +235,11 @@ export default function SessionSchedulerPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
+          {submitError && (
+            <div className="card" style={{ marginBottom: 12, padding: '10px 14px', color: 'var(--accent-red)' }}>
+              {submitError}
+            </div>
+          )}
           <div className="card scheduler-card">
 
             {/* === SECTION: Basic Info === */}
@@ -213,7 +269,7 @@ export default function SessionSchedulerPage() {
                   <label className="form-label">Trainer *</label>
                   <select className="form-select" name="trainerId" value={form.trainerId} onChange={handleChange}>
                     <option value="">Select Trainer...</option>
-                    {mockTrainers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.id})</option>)}
+                    {trainers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.username})</option>)}
                   </select>
                   {errors.trainerId && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.trainerId}</span>}
                 </div>
@@ -392,9 +448,11 @@ export default function SessionSchedulerPage() {
 
           <div className="scheduler-footer">
             <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
-            <button type="button" className="btn btn-secondary">Save as Draft</button>
-            <button type="submit" className="btn btn-primary">
-              {activeTab === 'classroom' ? '🏫 Schedule Classroom Session' : '💻 Schedule Virtual Session'}
+            <button type="button" className="btn btn-secondary" onClick={() => createSession('draft')} disabled={saving}>
+              {saving ? 'Saving...' : 'Save as Draft'}
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Scheduling...' : (activeTab === 'classroom' ? '🏫 Schedule Classroom Session' : '💻 Schedule Virtual Session')}
             </button>
           </div>
         </form>
