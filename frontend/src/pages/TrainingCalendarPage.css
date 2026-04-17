@@ -105,7 +105,7 @@
 .calendar-cell:nth-child(7n) { border-right: none; }
 .calendar-cell:hover { background: var(--bg-secondary); }
 .calendar-cell.other-month { opacity: 0.4; }
-.calendar-cell.today { background: rgba(59, 130, 246, 0.06); }
+.calendar-cell.today { background: var(--accent-blue-light); }
 .calendar-cell.today .cell-date { color: var(--accent-blue); background: var(--accent-blue-light); border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
 
 .cell-date {
@@ -129,9 +129,9 @@
   text-overflow: ellipsis;
   cursor: pointer;
 }
-.cell-event.classroom { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.cell-event.virtual { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
-.cell-event.completed { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.cell-event.classroom { background: var(--accent-blue-light); color: var(--accent-blue); }
+.cell-event.virtual { background: var(--accent-purple-light, rgba(168, 85, 247, 0.2)); color: var(--accent-purple); }
+.cell-event.completed { background: var(--accent-green-light); color: var(--accent-green); }
 .cell-more { font-size: 0.72rem; color: var(--text-muted); }
 
 /* Week View */
@@ -197,8 +197,8 @@
   overflow: hidden;
   cursor: pointer;
 }
-.week-event.classroom { background: rgba(59, 130, 246, 0.3); color: #93c5fd; border-left: 2px solid #3b82f6; }
-.week-event.virtual { background: rgba(168, 85, 247, 0.3); color: #d8b4fe; border-left: 2px solid #a855f7; }
+.week-event.classroom { background: var(--accent-blue-light); color: var(--accent-blue); border-left: 2px solid var(--accent-blue); }
+.week-event.virtual { background: var(--accent-purple-light, rgba(168, 85, 247, 0.3)); color: var(--accent-purple); border-left: 2px solid var(--accent-purple); }
 
 /* Legend */
 .calendar-legend {

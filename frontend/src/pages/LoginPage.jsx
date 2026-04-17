@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import './Login.css'
 
 const ROLE_REDIRECT = {
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const { login, register } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleLoginChange = (e) => {
@@ -85,6 +87,32 @@ export default function LoginPage() {
         <div className="login-orb login-orb-2" />
         <div className="login-orb login-orb-3" />
       </div>
+
+      <button 
+        className="theme-toggle-login" 
+        onClick={toggleTheme}
+        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        style={{
+          position: 'absolute',
+          top: '24px',
+          right: '24px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '50%',
+          width: '44px',
+          height: '44px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          fontSize: '1.2rem',
+          zIndex: 100,
+          boxShadow: 'var(--shadow-md)',
+          transition: 'all var(--transition-fast)'
+        }}
+      >
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
 
       <div className="login-container">
         {/* Branding */}

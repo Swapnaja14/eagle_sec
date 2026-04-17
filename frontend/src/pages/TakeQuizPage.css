@@ -1,6 +1,6 @@
 .take-quiz-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--bg-primary);
   padding: 2rem;
 }
 
@@ -8,18 +8,19 @@
   text-align: center;
   padding: 4rem;
   font-size: 1.25rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .quiz-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: white;
+  background: var(--bg-card);
   padding: 2rem;
   border-radius: 12px;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
 }
 
 .quiz-info h1 {
@@ -38,8 +39,9 @@
   flex-direction: column;
   align-items: flex-end;
   padding: 1rem 1.5rem;
-  background: #f9fafb;
+  background: var(--bg-secondary);
   border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 .timer-label {
@@ -66,11 +68,12 @@
 }
 
 .quiz-progress {
-  background: white;
+  background: var(--bg-card);
   padding: 1.5rem 2rem;
   border-radius: 12px;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
 }
 
 .progress-bar {
@@ -102,10 +105,11 @@
 }
 
 .question-card {
-  background: white;
+  background: var(--bg-card);
   padding: 2rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
 }
 
 .question-header {
@@ -132,23 +136,23 @@
 }
 
 .difficulty-badge.easy {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--accent-green-light);
+  color: var(--accent-green);
 }
 
 .difficulty-badge.medium {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--accent-yellow-light);
+  color: var(--accent-yellow);
 }
 
 .difficulty-badge.hard {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--accent-red-light);
+  color: var(--accent-red);
 }
 
 .question-text {
   font-size: 1.25rem;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0 0 2rem 0;
   line-height: 1.6;
 }
@@ -165,20 +169,21 @@
   align-items: center;
   gap: 1rem;
   padding: 1.25rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
+  background: var(--bg-card);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .option-item:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--accent-blue);
+  background: var(--bg-card-hover);
 }
 
 .option-item.selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--accent-blue);
+  background: var(--accent-blue-light);
 }
 
 .option-item input[type="radio"] {
@@ -193,10 +198,10 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 50%;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .option-item.selected .option-label {
@@ -206,7 +211,7 @@
 
 .option-text {
   flex: 1;
-  color: #1a1a1a;
+  color: var(--text-primary);
   font-size: 1rem;
   line-height: 1.5;
 }
@@ -237,13 +242,13 @@
 }
 
 .btn-secondary {
-  background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #f9fafb;
+  background: var(--bg-tertiary);
 }
 
 .btn-secondary:disabled {
@@ -266,10 +271,11 @@
 }
 
 .question-navigator {
-  background: white;
+  background: var(--bg-card);
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
   height: fit-content;
   position: sticky;
   top: 2rem;
@@ -277,7 +283,7 @@
 
 .question-navigator h3 {
   font-size: 1rem;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0 0 1rem 0;
 }
 
@@ -289,11 +295,11 @@
 
 .question-nav-btn {
   aspect-ratio: 1;
-  border: 2px solid #e5e7eb;
-  background: white;
+  border: 2px solid var(--border-color);
+  background: var(--bg-card);
   border-radius: 6px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -310,9 +316,9 @@
 }
 
 .question-nav-btn.answered {
-  background: #d1fae5;
-  border-color: #10b981;
-  color: #065f46;
+  background: var(--accent-green-light);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
 }
 
 .question-nav-btn.answered.active {
