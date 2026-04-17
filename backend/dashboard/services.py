@@ -26,11 +26,11 @@ def _parse_date_range(params):
         except ValueError:
             pass
 
-    return now - timedelta(days=30), now
+    return now - timedelta(days=30), now + timedelta(minutes=1)
 
 
 def _scope_submissions(user, params, start, end):
-    qs = Submission.objects.select_related("user", "quiz", "quiz__tenant").filter(created_at__gte=start, created_at__lte=end)
+    qs = Submission.objects.select_related("user", "quiz", "quiz__tenant").filter(created_at__gte=start, created_at__lt=end)
 
     if user.role != "superadmin":
         qs = qs.filter(quiz__tenant=user.tenant)
