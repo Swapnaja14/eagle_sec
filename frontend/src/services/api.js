@@ -130,3 +130,28 @@ export const sessionsAPI = {
   remove: (id) => api.delete(`/sessions/${id}/`),
   trainers: () => api.get('/sessions/trainers/'),
 }
+
+// ===================== SITES & CLIENTS =====================
+export const sitesAPI = {
+  list: (params) => api.get('/auth/sites/', { params }),
+  create: (data) => api.post('/auth/sites/', data),
+  update: (id, data) => api.patch(`/auth/sites/${id}/`, data),
+  delete: (id) => api.delete(`/auth/sites/${id}/`),
+}
+
+export const clientsAPI = {
+  list: (params) => api.get('/auth/clients/', { params }),
+  create: (data) => api.post('/auth/clients/', data),
+  update: (id, data) => api.patch(`/auth/clients/${id}/`, data),
+  delete: (id) => api.delete(`/auth/clients/${id}/`),
+}
+
+// ===================== EMPLOYEES =====================
+export const employeesAPI = {
+  list: (params) => api.get('/auth/employees/', { params }),
+}
+
+// ===================== TRAINING TOPICS =====================
+export const trainingTopicsAPI = {
+  list: () => api.get('/courses/training-topics/'),
+}
