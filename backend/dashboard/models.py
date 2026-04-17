@@ -7,13 +7,26 @@ class TrainingSession(models.Model):
         ("classroom", "Classroom"),
         ("virtual", "Virtual"),
     ]
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("scheduled", "Scheduled"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+    ]
 
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="training_sessions")
     trainer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="training_sessions")
     topic = models.CharField(max_length=255)
     session_type = models.CharField(max_length=20, choices=SESSION_TYPE_CHOICES, default="classroom")
     date_time = models.DateTimeField(db_index=True)
+    duration_minutes = models.PositiveIntegerField(default=60)
     attendee_count = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="scheduled", db_index=True)
+    max_participants = models.PositiveIntegerField(default=30)
+    venue = models.CharField(max_length=255, blank=True)
+    platform = models.CharField(max_length=50, blank=True)
+    meeting_link = models.URLField(blank=True)
+    notes = models.TextField(blank=True)
     department = models.CharField(max_length=100, blank=True, db_index=True)
     site = models.CharField(max_length=120, blank=True, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
