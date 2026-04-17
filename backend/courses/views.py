@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
@@ -273,3 +273,50 @@ class CertificationViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(certification=cert)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def training_topics_view(request):
+    """Get list of training topics for session scheduling"""
+    user = request.user
+    
+    # Get active courses as training topics
+    if user.tenant:
+        courses = Course.objects.filter(tenant=user.tenant, status='active')
+    else:
+        courses = Course.objects.filter(status='active')
+    
+    # Extract course names as topics
+    topics = list(courses.values_list('display_name', flat=True).distinct())
+    
+    # Add some default tech training topics if no courses exist
+    if not topics:
+        topics = [
+            'Cybersecurity Fundamentals',
+            'Network Security & Firewalls',
+            'Cloud Security Best Practices',
+            'AWS Security Essentials',
+            'Azure Security & Identity',
+            'Google Cloud Security',
+            'SIEM & Security Monitoring',
+            'SOC Operations Basics',
+            'Incident Response & Forensics',
+            'Threat Hunting Techniques',
+            'Vulnerability Management',
+            'Penetration Testing Basics',
+            'Application Security (OWASP Top 10)',
+            'API Security',
+            'Secure Coding in Python',
+            'DevSecOps Pipeline Security',
+            'Container Security (Docker/Kubernetes)',
+            'Linux Hardening',
+            'Identity & Access Management (IAM)',
+            'Zero Trust Security Model',
+            'Data Privacy & Protection',
+            'Endpoint Detection & Response',
+            'Email & Phishing Defense',
+            'Business Continuity & Disaster Recovery',
+        ]
+    
+    return Response(topics)

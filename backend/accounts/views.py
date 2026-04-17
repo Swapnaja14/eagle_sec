@@ -5,7 +5,10 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
-from .serializers import RegisterSerializer, UserSerializer
+from django.db import models
+from django_filters.rest_framework import DjangoFilterBackend
+from .serializers import RegisterSerializer, UserSerializer, SiteSerializer, ClientSerializer, EmployeeSerializer
+from .models import Site, Client
 
 User = get_user_model()
 
@@ -52,4 +55,61 @@ def update_profile_view(request):
     serializer = UserSerializer(request.user, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
+    return Response(serializer.data)
+
+
+class SiteListCreateView(generics.ListCreateAPIView):
+    serializer_class = SiteSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['is_active']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'superadmin':
+            return Site.objects.all()
+        return Site.objects.filter(tenant=user.tenant, is_active=True)
+
+
+class ClientListCreateView(generics.ListCreateAPIView):
+    serializer_class = ClientSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['is_active']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'superadmin':
+            return Client.objects.all()
+        return Client.objects.filter(tenant=user.tenant, is_active=True)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def employees_view(request):
+    """Get list of employees (trainees) for session scheduling"""
+    user = request.user
+    
+    # Filter by tenant unless superadmin
+    if user.role == 'superadmin':
+        employees = User.objects.filter(role='trainee')
+    else:
+        employees = User.objects.filter(role='trainee', tenant=user.tenant)
+    
+    # Filter by search query if provided
+    search = request.query_params.get('search', '')
+    if search:
+        employees = employees.filter(
+            models.Q(username__icontains=search) |
+            models.Q(first_name__icontains=search) |
+            models.Q(last_name__icontains=search) |
+            models.Q(email__icontains=search)
+        )
+    
+    # Filter by department if provided
+    department = request.query_params.get('department', '')
+    if department:
+        employees = employees.filter(department__iexact=department)
+    
+    serializer = EmployeeSerializer(employees, many=True)
     return Response(serializer.data)
