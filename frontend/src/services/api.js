@@ -115,3 +115,18 @@ export const questionsAPI = {
   delete: (id) => api.delete(`/questions/${id}/`),
   byLanguage: () => api.get('/questions/by_language/'),
 }
+
+// ===================== TRAINING HISTORY =====================
+export const trainingHistoryAPI = {
+  myHistory: (params) => api.get('/training-history/my/', { params }),
+}
+
+// ===================== SESSIONS =====================
+export const sessionsAPI = {
+  calendar: (params) => api.get('/sessions/calendar/', { params }),
+  list: (params) => api.get('/sessions/', { params }),
+  create: (data) => api.post('/sessions/', data),
+  update: (id, data) => api.patch(`/sessions/${id}/`, data),
+  remove: (id) => api.delete(`/sessions/${id}/`),
+  trainers: () => api.get('/sessions/trainers/'),
+}

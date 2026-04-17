@@ -1,45 +1,62 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { mockTrainingModules } from '../data/mockData';
-
-const MY_RECORDS = [
-  { id: 1, module: 'PSARA Foundation Course', type: 'classroom', date: '2026-03-20', trainer: 'Rajesh Kumar', duration: 120, score: 88, status: 'passed', certId: 'LS-PSARA-2026-0042' },
-  { id: 2, module: 'Fire Safety & Evacuation', type: 'classroom', date: '2026-02-14', trainer: 'Priya Sharma', duration: 60, score: 92, status: 'passed', certId: 'LS-FIRE-2026-0018' },
-  { id: 3, module: 'Emergency Response Protocol', type: 'virtual', date: '2026-01-30', trainer: 'Amit Patel', duration: 90, score: 74, status: 'passed', certId: 'LS-ERP-2025-0091' },
-  { id: 4, module: 'Access Control Procedures', type: 'virtual', date: '2026-04-10', trainer: 'Sunita Rao', duration: 120, score: null, status: 'in-progress', certId: null },
-  { id: 5, module: 'Customer Service Excellence', type: 'classroom', date: '2025-11-05', trainer: 'Rajesh Kumar', duration: 240, score: 65, status: 'passed', certId: null },
-  { id: 6, module: 'First Aid & CPR Certification', type: 'classroom', date: '2025-09-12', trainer: 'Priya Sharma', duration: 480, score: 55, status: 'failed', certId: null },
-];
+import { trainingHistoryAPI } from '../services/api';
 
 export default function MyTrainingHistoryPage() {
   const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const filtered = MY_RECORDS.filter(r => {
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const { data } = await trainingHistoryAPI.myHistory({ limit: 200 });
+        setRecords(data.results || []);
+      } catch (err) {
+        const detail = err.response?.data?.detail || 'Failed to load training history.';
+        setError(typeof detail === 'string' ? detail : 'Failed to load training history.');
+        setRecords([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, []);
+
+  const filtered = records.filter(r => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
     if (search && !r.module.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const passed = MY_RECORDS.filter(r => r.status === 'passed').length;
-  const avgScore = Math.round(MY_RECORDS.filter(r => r.score).reduce((s, r) => s + r.score, 0) / MY_RECORDS.filter(r => r.score).length);
-  const totalHours = Math.round(MY_RECORDS.reduce((s, r) => s + r.duration, 0) / 60);
+  const passed = records.filter(r => r.status === 'passed').length;
+  const avgScore = useMemo(() => {
+    const withScore = records.filter(r => r.score !== null && r.score !== undefined);
+    if (withScore.length === 0) return 0;
+    return Math.round(withScore.reduce((s, r) => s + r.score, 0) / withScore.length);
+  }, [records]);
+  const totalHours = Math.round(records.reduce((s, r) => s + (r.duration_minutes || 0), 0) / 60);
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px' }}>My Training History</h1>
         <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-          All training sessions you have attended — {user?.first_name} {user?.last_name} • {user?.employeeId || 'EMP-10042'}
+          All training sessions you have attended — {user?.first_name} {user?.last_name} • {user?.username || 'EMP-10042'}
         </p>
       </div>
 
       {/* Personal Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Modules Attended', value: MY_RECORDS.length, color: 'var(--accent-blue)', icon: '📚' },
-          { label: 'Passed', value: `${passed}/${MY_RECORDS.length}`, color: 'var(--accent-green)', icon: '✅' },
+          { label: 'Modules Attended', value: records.length, color: 'var(--accent-blue)', icon: '📚' },
+          { label: 'Passed', value: `${passed}/${records.length}`, color: 'var(--accent-green)', icon: '✅' },
           { label: 'Avg Score', value: `${avgScore}%`, color: avgScore >= 80 ? 'var(--accent-green)' : 'var(--accent-yellow)', icon: '📊' },
           { label: 'Total Training Hours', value: `${totalHours}h`, color: 'var(--accent-cyan)', icon: '⏱️' },
         ].map(kpi => (
@@ -89,12 +106,12 @@ export default function MyTrainingHistoryPage() {
                   <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{r.module}</td>
                   <td>
                     <span style={{ textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
-                      {r.type === 'virtual' ? '💻' : '🏫'} {r.type}
+                      {r.type === 'virtual' ? '💻' : '🏫'} {r.type || 'assessment'}
                     </span>
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>{new Date(r.date).toLocaleDateString()}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{r.trainer}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{r.duration >= 60 ? `${r.duration / 60}h` : `${r.duration}m`}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{r.trainer || '—'}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{(r.duration_minutes || 0) >= 60 ? `${Math.round((r.duration_minutes || 0) / 60)}h` : `${r.duration_minutes || 0}m`}</td>
                   <td>
                     {r.score !== null ? (
                       <span style={{ fontWeight: 800, color: r.score >= 80 ? 'var(--accent-green)' : r.score >= 60 ? 'var(--accent-yellow)' : 'var(--accent-red)' }}>
@@ -108,22 +125,28 @@ export default function MyTrainingHistoryPage() {
                     </span>
                   </td>
                   <td>
-                    {r.certId ? (
-                      <button className="btn btn-ghost btn-sm" onClick={() => alert(`Downloading: ${r.certId}`)}>🎓 Download</button>
+                    {r.cert_id ? (
+                      <button className="btn btn-ghost btn-sm" onClick={() => alert(`Certificate ID: ${r.cert_id}`)}>🎓 Download</button>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
                     )}
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {!loading && filtered.length === 0 && (
                 <tr><td colSpan="9" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No records found.</td></tr>
+              )}
+              {loading && (
+                <tr><td colSpan="9" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading training history...</td></tr>
+              )}
+              {!loading && error && (
+                <tr><td colSpan="9" style={{ textAlign: 'center', padding: 20, color: 'var(--accent-red)' }}>{error}</td></tr>
               )}
             </tbody>
           </table>
         </div>
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Showing {filtered.length} of {MY_RECORDS.length} records
+          Showing {filtered.length} of {records.length} records
         </div>
       </div>
     </div>
