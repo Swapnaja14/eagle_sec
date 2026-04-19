@@ -79,6 +79,7 @@ const SIDEBAR_NAV = {
       { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
       { to: '/content/upload', icon: '📁', label: 'Content Hub' },
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
+      { to: '/forum', icon: '💬', label: 'Discussion Forum' },
     ]},
     { section: 'Assessments', items: [
       { to: '/assessments', icon: '📝', label: 'Assessments' },
@@ -95,6 +96,7 @@ const SIDEBAR_NAV = {
       { to: '/trainee/assessments', icon: '📝', label: 'Take Assessment' },
       { to: '/trainee/certificates', icon: '🎓', label: 'My Certificates' },
       { to: '/admin/calendar', icon: '📅', label: 'Session Calendar' },
+      { to: '/forum', icon: '💬', label: 'Discussion Forum' },
     ]},
     { section: 'Feedback', items: [
       { to: '/sessions/evaluate', icon: '⭐', label: 'Rate a Session' },

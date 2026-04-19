@@ -41,6 +41,7 @@ import AssessmentCreationPage from './pages/AssessmentCreationPage'
 import AssessmentDetailPage from './pages/AssessmentDetailPage'
 import TakeQuizPage from './pages/TakeQuizPage'
 import QuizResultsPage from './pages/QuizResultsPage'
+import DiscussionForumPage from './pages/DiscussionForumPage'
 
 import './index.css'
 
@@ -116,6 +117,7 @@ function AppRoutes() {
       <Route path="/assessments/:id/edit"   element={<P roles={['superadmin','admin','trainer']}><AssessmentCreationPage /></P>} />
       <Route path="/quiz/:quizId/take"      element={<P roles={['superadmin','admin','trainer','trainee']}><TakeQuizPage /></P>} />
       <Route path="/quiz-results/:submissionId" element={<P roles={['superadmin','admin','trainer','trainee']}><QuizResultsPage /></P>} />
+      <Route path="/forum"                  element={<P roles={['superadmin','admin','trainer','trainee']}><DiscussionForumPage /></P>} />
 
       {/* ─── TRAINER PORTAL ────────────────────────────────────────────── */}
       <Route path="/trainer/dashboard" element={<P roles={['trainer']}><TrainerDashboardPage /></P>} />
