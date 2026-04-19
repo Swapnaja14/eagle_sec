@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { trainersAPI } from '../services/api';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -35,6 +36,37 @@ const MY_FEEDBACK = [
 export default function TrainerDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [announcements, setAnnouncements] = React.useState([]);
+  const [showAnnForm, setShowAnnForm] = React.useState(false);
+  const [newTitle, setNewTitle] = React.useState('');
+  const [newContent, setNewContent] = React.useState('');
+
+  React.useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const fetchAnnouncements = async () => {
+    try {
+      const res = await trainersAPI.listAnnouncements();
+      setAnnouncements(res.data.results || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePostAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newContent.trim()) return;
+    try {
+      const res = await trainersAPI.createAnnouncement({ title: newTitle, content: newContent });
+      setAnnouncements([res.data, ...announcements]);
+      setNewTitle('');
+      setNewContent('');
+      setShowAnnForm(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const upcoming = MY_SESSIONS.filter(s => s.status === 'upcoming');
   const completed = MY_SESSIONS.filter(s => s.status === 'completed');
@@ -76,8 +108,11 @@ export default function TrainerDashboardPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 24 }}>
-        {/* Upcoming Sessions */}
-        <div className="card" style={{ padding: '24px' }}>
+        {/* Left Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Upcoming Sessions */}
+          <div className="card" style={{ padding: '24px' }}>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <h3 style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>Upcoming Sessions</h3>
             <button className="btn btn-secondary btn-sm" onClick={() => navigate('/trainer/sessions')}>View All</button>
@@ -98,6 +133,38 @@ export default function TrainerDashboardPage() {
             </div>
           ))}
           {upcoming.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>No upcoming sessions.</p>}
+          </div>
+
+          {/* Announcements module */}
+          <div className="card" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <h3 style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>📢 Announcements</h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowAnnForm(!showAnnForm)}>
+                {showAnnForm ? 'Cancel' : '+ New Announcement'}
+              </button>
+            </div>
+            
+            {showAnnForm && (
+              <form onSubmit={handlePostAnnouncement} style={{ background: 'var(--bg-tertiary)', padding: '16px', borderRadius: 10, marginBottom: 16 }}>
+                <input type="text" placeholder="Announcement Title" className="form-input" style={{ marginBottom: 10 }} value={newTitle} onChange={e => setNewTitle(e.target.value)} required />
+                <textarea placeholder="Write announcement details..." className="form-textarea" style={{ marginBottom: 10, minHeight: 60 }} value={newContent} onChange={e => setNewContent(e.target.value)} required />
+                <button type="submit" className="btn btn-primary btn-sm">Post to Trainees</button>
+              </form>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {announcements.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No announcements yet.</p>}
+              {announcements.map(ann => (
+                <div key={ann.id} style={{ padding: '14px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <strong>{ann.title}</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(ann.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{ann.content}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Feedback Ratings */}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { trainersAPI } from '../services/api';
 import { RadialBarChart, RadialBar, ResponsiveContainer } from 'recharts';
 
 const MY_TRAINING = [
@@ -23,6 +24,19 @@ const PENDING_ASSESSMENTS = [
 export default function TraineeDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [announcements, setAnnouncements] = React.useState([]);
+
+  React.useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const res = await trainersAPI.listAnnouncements();
+        setAnnouncements(res.data.results || []);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchAnnouncements();
+  }, []);
 
   const passed = MY_TRAINING.filter(t => t.status === 'passed').length;
   const total = MY_TRAINING.length;
@@ -102,6 +116,24 @@ export default function TraineeDashboardPage() {
               </button>
             </div>
           ))}
+        </div>
+
+        {/* Announcements */}
+        <div className="card" style={{ padding: '24px' }}>
+          <h3 style={{ margin: '0 0 16px', fontWeight: 700, color: 'var(--text-primary)' }}>📢 Announcements</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '350px', overflowY: 'auto' }} className="custom-scrollbar">
+            {announcements.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No announcements yet.</p>}
+            {announcements.map(ann => (
+              <div key={ann.id} style={{ padding: '14px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <strong>{ann.title}</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(ann.created_at).toLocaleDateString()}</span>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 6 }}>{ann.content}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-blue)', fontWeight: 600 }}>By {ann.trainer_details?.first_name || 'Trainer'}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Upcoming Sessions */}

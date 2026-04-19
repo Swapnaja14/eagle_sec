@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import './AppLayout.css';
 
 // ─── SIDEBAR CONFIG PER ROLE ─────────────────────────────────────────────────
@@ -78,6 +79,7 @@ const SIDEBAR_NAV = {
       { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
       { to: '/content/upload', icon: '📁', label: 'Content Hub' },
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
+      { to: '/forum', icon: '💬', label: 'Discussion Forum' },
     ]},
     { section: 'Assessments', items: [
       { to: '/assessments', icon: '📝', label: 'Assessments' },
@@ -94,6 +96,7 @@ const SIDEBAR_NAV = {
       { to: '/trainee/assessments', icon: '📝', label: 'Take Assessment' },
       { to: '/trainee/certificates', icon: '🎓', label: 'My Certificates' },
       { to: '/admin/calendar', icon: '📅', label: 'Session Calendar' },
+      { to: '/forum', icon: '💬', label: 'Discussion Forum' },
     ]},
     { section: 'Feedback', items: [
       { to: '/sessions/evaluate', icon: '⭐', label: 'Rate a Session' },
@@ -110,6 +113,7 @@ const ROLE_BADGE = {
 
 export default function AppLayout({ children }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const navigate = useNavigate();
@@ -202,6 +206,10 @@ export default function AppLayout({ children }) {
           </div>
 
           <div className="topheader-right">
+            <button className="header-icon-btn" title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`} onClick={toggleTheme} style={{ fontSize: '1.2rem' }}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+
             <button className="header-icon-btn" title="Notifications">
               🔔
               <span className="notification-badge"></span>

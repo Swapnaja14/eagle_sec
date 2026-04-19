@@ -13,7 +13,7 @@
 
 .page-header h1 {
   font-size: 2rem;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -21,25 +21,26 @@
   text-align: center;
   padding: 4rem;
   font-size: 1.25rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .empty-state {
   text-align: center;
   padding: 4rem;
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
 }
 
 .empty-state h2 {
   font-size: 1.5rem;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
 
 .empty-state p {
-  color: #6b7280;
+  color: var(--text-secondary);
   margin: 0 0 2rem 0;
 }
 
@@ -50,16 +51,18 @@
 }
 
 .assessment-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
   transition: all 0.2s;
 }
 
 .assessment-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
+  border-color: var(--accent-blue);
 }
 
 .card-header {
@@ -71,7 +74,7 @@
 
 .card-header h3 {
   font-size: 1.25rem;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0;
   flex: 1;
 }
@@ -84,17 +87,17 @@
 }
 
 .status-badge.active {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--accent-green-light);
+  color: var(--accent-green);
 }
 
 .status-badge.inactive {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--accent-red-light);
+  color: var(--accent-red);
 }
 
 .card-description {
-  color: #6b7280;
+  color: var(--text-secondary);
   margin: 0 0 1rem 0;
   line-height: 1.5;
   display: -webkit-box;
@@ -106,16 +109,16 @@
 .assigned-trainers {
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background: #f0f9ff;
+  background: var(--accent-blue-light);
   border-radius: 6px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--accent-blue);
 }
 
 .trainers-label {
   display: block;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #1e40af;
+  color: var(--accent-blue);
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -129,7 +132,7 @@
 
 .trainer-tag {
   padding: 0.25rem 0.75rem;
-  background: #3b82f6;
+  background: var(--accent-blue);
   color: white;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -141,7 +144,7 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   padding: 1rem;
-  background: #f9fafb;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   margin-bottom: 1.5rem;
 }
@@ -155,14 +158,14 @@
 
 .stat-label {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin-bottom: 0.25rem;
 }
 
 .stat-value {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-primary);
 }
 
 .card-actions {
@@ -199,8 +202,8 @@
 }
 
 .btn-secondary:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-tertiary);
+  border-color: var(--accent-blue);
 }
 
 .btn-danger {
@@ -216,8 +219,9 @@
 }
 
 .btn-danger:hover {
-  background: #fecaca;
-  border-color: #fca5a5;
+  background: var(--accent-red);
+  color: white;
+  border-color: var(--accent-red);
 }
 
 @media (max-width: 768px) {

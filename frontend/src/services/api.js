@@ -155,3 +155,27 @@ export const employeesAPI = {
 export const trainingTopicsAPI = {
   list: () => api.get('/courses/training-topics/'),
 }
+
+// ===================== TRAINER FEATURES =====================
+export const trainersAPI = {
+  // Announcements
+  listAnnouncements: (params) => api.get('/trainers/announcements/', { params }),
+  createAnnouncement: (data) => api.post('/trainers/announcements/', data),
+  getAnnouncement: (id) => api.get(`/trainers/announcements/${id}/`),
+  
+  // Discussion Forum
+  listThreads: (params) => api.get('/trainers/threads/', { params }),
+  createThread: (data) => api.post('/trainers/threads/', data),
+  getThread: (id) => api.get(`/trainers/threads/${id}/`),
+  
+  listMessages: (params) => api.get('/trainers/messages/', { params }),
+  createMessage: (data) => api.post('/trainers/messages/', data),
+  
+  // Feedback
+  listFeedback: (params) => api.get('/trainers/feedback/', { params }),
+  submitFeedback: (data) => api.post('/trainers/feedback/', data),
+  
+  // Ratings
+  listRatings: (params) => api.get('/trainers/ratings/', { params }),
+  submitRating: (data) => api.post('/trainers/ratings/', data),
+}

@@ -1,0 +1,85 @@
+/* ===================== LIGHT MODE OVERRIDES ===================== */
+body.light {
+  /* Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f9fafb;
+  --bg-input: #ffffff;
+  --bg-modal: #ffffff;
+  --bg-hero-gradient: linear-gradient(135deg, #f9fafb 0%, #ffffff 50%, #f9fafb 100%);
+
+  --border-color: #e5e7eb;
+  --border-subtle: #f3f4f6;
+  --border-active: #2563eb;
+
+  --accent-blue: #2563eb;
+  --accent-blue-hover: #1d4ed8;
+  --accent-blue-light: rgba(37, 99, 235, 0.1);
+  --accent-cyan: #0891b2;
+  --accent-green: #16a34a;
+  --accent-green-light: rgba(22, 163, 74, 0.1);
+  --accent-red: #dc2626;
+  --accent-red-light: rgba(220, 38, 38, 0.1);
+  --accent-yellow: #d97706;
+  --accent-purple: #9333ea;
+  --accent-orange: #ea580c;
+
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --text-link: #2563eb;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 15px rgba(37, 99, 235, 0.15);
+}
+
+/* Global specific overrides for Light Mode */
+body.light ::-webkit-scrollbar-track { background: #f3f4f6; }
+body.light ::-webkit-scrollbar-thumb { background: #d1d5db; }
+body.light ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Navbar text/logo gradient overrides */
+body.light .navbar {
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid #e5e7eb;
+}
+body.light .navbar-logo-text {
+  background: linear-gradient(135deg, #111827, #2563eb);
+  -webkit-background-clip: text;
+}
+
+/* Login Page Overrides */
+body.light .login-brand-name {
+  background: linear-gradient(135deg, #111827, #2563eb);
+  -webkit-background-clip: text;
+}
+body.light .login-card {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: #e5e7eb;
+}
+body.light .login-tab:not(.active) {
+  color: #6b7280;
+}
+
+/* Dashboard Overrides */
+body.light .dashboard-hero {
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 50%, #f9fafb 100%);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Fix for transparent backgrounds in dark mode that look bad in light mode */
+body.light .data-table tr:hover td { background: rgba(0, 0, 0, 0.02); }
+body.light .cb-nav-item:hover { background: #f3f4f6; }
+body.light .cb-lesson-header:hover { background: rgba(0, 0, 0, 0.01); }
+
+/* Ensure icons and other hardcoded dark items are visible */
+body.light .spinner { border-color: #e5e7eb; border-top-color: #2563eb; }
+body.light .skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200px 100%;
+}

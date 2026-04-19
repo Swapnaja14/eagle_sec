@@ -10,6 +10,7 @@
   --bg-card-hover: #1c2433;
   --bg-input: #0d1117;
   --bg-modal: #161b22;
+  --bg-hero-gradient: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
 
   --border-color: #30363d;
   --border-subtle: #21262d;
@@ -18,10 +19,12 @@
   --accent-blue: #3b82f6;
   --accent-blue-hover: #2563eb;
   --accent-blue-light: rgba(59, 130, 246, 0.1);
-  --accent-cyan: #06b6d4;
-  --accent-green: #22c55e;
-  --accent-red: #ef4444;
-  --accent-yellow: #f59e0b;
+  --accent-cyan: #17cf48;
+  --accent-green: #238636;
+  --accent-green-light: rgba(35, 134, 54, 0.1);
+  --accent-red: #da3633;
+  --accent-red-light: rgba(218, 54, 51, 0.1);
+  --accent-yellow: #d29922;
   --accent-purple: #a855f7;
   --accent-orange: #f97316;
 

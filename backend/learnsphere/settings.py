@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'questions',
     'assessments',
     'dashboard',
+    'trainers',
 ]
 
 MIDDLEWARE = [
