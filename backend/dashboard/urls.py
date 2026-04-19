@@ -8,6 +8,7 @@ from .views import (
     ComplianceAlertNotifyView,
     RecentTrainingHistoryView,
     DashboardOverviewView,
+    TraineeDashboardView,
 )
 
 
@@ -20,4 +21,5 @@ urlpatterns = [
     path("dashboard/compliance-alerts/<int:alert_id>/notify/", ComplianceAlertNotifyView.as_view(), name="dashboard-compliance-alert-notify"),
     path("training-history/recent/", RecentTrainingHistoryView.as_view(), name="training-history-recent"),
     path("dashboard/overview/", DashboardOverviewView.as_view(), name="dashboard-overview"),
+    path("trainee/dashboard/", TraineeDashboardView.as_view(), name="trainee-dashboard"),
 ]

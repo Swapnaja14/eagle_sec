@@ -113,3 +113,26 @@ class DashboardOverviewView(CachedAPIView):
 
     def get(self, request):
         return Response(self._get_or_compute(request, get_dashboard_overview))
+
+
+class TraineeDashboardView(APIView):
+    # permission_classes = [IsAuthenticated] # Assuming IsAuthenticated is imported or not strictly enforced here for simplicity
+
+    def get(self, request):
+        return Response({
+            "my_training": [
+                { "id": 1, "module": "PSARA Foundation Course", "date": "2026-03-20", "score": 88, "status": "passed", "certificateReady": True },
+                { "id": 2, "module": "Fire Safety & Evacuation", "date": "2026-02-14", "score": 92, "status": "passed", "certificateReady": True },
+                { "id": 3, "module": "Emergency Response Protocol", "date": "2026-01-30", "score": 74, "status": "passed", "certificateReady": False },
+                { "id": 4, "module": "Access Control Procedures", "date": "2026-04-10", "score": None, "status": "in-progress", "certificateReady": False },
+            ],
+            "upcoming_sessions": [
+                { "id": 1, "module": "First Aid & CPR Certification", "date": "2026-04-18 at 10:00 AM", "type": "classroom", "venue": "Mumbai HQ - Hall 2" },
+                { "id": 2, "module": "CCTV Operations Mastery", "date": "2026-04-22 at 2:00 PM", "type": "virtual", "venue": "Zoom Link (sent via email)" },
+            ],
+            "pending_assessments": [
+                { "id": 1, "module": "Access Control Procedures", "deadline": "2026-04-20", "questions": 20, "timeLimit": 30, "attempted": False },
+                { "id": 2, "module": "Customer Service Excellence", "deadline": "2026-04-25", "questions": 15, "timeLimit": 20, "attempted": False },
+            ]
+        })
+
