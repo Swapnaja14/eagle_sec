@@ -54,9 +54,12 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class SiteSerializer(serializers.ModelSerializer):
+    client_id = serializers.IntegerField(source='client.id', read_only=True, allow_null=True)
+
     class Meta:
         model = Site
-        fields = ['id', 'name', 'address', 'city', 'state', 'country', 'postal_code', 'is_active']
+        fields = ['id', 'name', 'address', 'city', 'state', 'country',
+                  'postal_code', 'is_active', 'client_id']
 
 
 class ClientSerializer(serializers.ModelSerializer):
