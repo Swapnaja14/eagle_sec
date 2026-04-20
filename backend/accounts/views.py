@@ -12,6 +12,8 @@ from .models import Site, Client
 
 User = get_user_model()
 
+User = get_user_model()
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -86,6 +88,18 @@ class ClientListCreateView(generics.ListCreateAPIView):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def departments_view(request):
+    """GET /api/auth/departments/ — distinct department list for the tenant."""
+    user = request.user
+    qs = User.objects.exclude(department='').exclude(department__isnull=True)
+    if user.role != 'superadmin':
+        qs = qs.filter(tenant=user.tenant)
+    depts = sorted(set(qs.values_list('department', flat=True)))
+    return Response(depts)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def employees_view(request):
     """Get list of employees (trainees) for session scheduling"""
     user = request.user
@@ -113,3 +127,103 @@ def employees_view(request):
     
     serializer = EmployeeSerializer(employees, many=True)
     return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def employee_history(request, employee_id):
+    """
+    GET /api/auth/employees/{id}/history/
+    Returns complete history for an employee:
+    details, attendance records, training sessions, assessment submissions,
+    and issued certificates.
+    """
+    from attendance.models import Attendance
+    from assessments.models import Submission
+    from certificates.models import IssuedCertificate
+
+    # Scope by tenant unless superadmin
+    qs = User.objects.filter(id=employee_id)
+    if request.user.role != "superadmin":
+        qs = qs.filter(tenant=request.user.tenant)
+
+    try:
+        employee = qs.get()
+    except User.DoesNotExist:
+        return Response({"detail": "Employee not found."}, status=404)
+
+    # Attendance records
+    attendances = Attendance.objects.filter(employee=employee).select_related("session").order_by("-date")
+    attendance_data = [
+        {
+            "id": a.id,
+            "session_id": a.session_id,
+            "session_topic": a.session.topic,
+            "date": a.date,
+            "status": a.status,
+            "marked_at": a.marked_at,
+        }
+        for a in attendances
+    ]
+
+    # Training sessions (via attendance)
+    session_ids = attendances.values_list("session_id", flat=True).distinct()
+    from dashboard.models import TrainingSession
+    sessions = TrainingSession.objects.filter(id__in=session_ids).select_related("trainer")
+    training_data = [
+        {
+            "id": s.id,
+            "topic": s.topic,
+            "session_type": s.session_type,
+            "status": s.status,
+            "date_time": s.date_time,
+            "trainer": (
+                f"{s.trainer.first_name} {s.trainer.last_name}".strip() or s.trainer.username
+            ) if s.trainer else None,
+        }
+        for s in sessions
+    ]
+
+    # Assessment submissions
+    submissions = (
+        Submission.objects.filter(user=employee)
+        .select_related("quiz", "quiz__course")
+        .order_by("-created_at")
+    )
+    assessment_data = [
+        {
+            "id": sub.id,
+            "quiz_id": sub.quiz_id,
+            "quiz_title": sub.quiz.title,
+            "course": sub.quiz.course.display_name if sub.quiz.course else None,
+            "score": sub.score,
+            "percentage": sub.percentage,
+            "passed": sub.passed,
+            "status": sub.status,
+            "attempt_number": sub.attempt_number,
+            "submitted_at": sub.submitted_at,
+        }
+        for sub in submissions
+    ]
+
+    # Issued certificates
+    certs = IssuedCertificate.objects.filter(employee=employee).select_related("course").order_by("-issued_at")
+    cert_data = [
+        {
+            "id": c.id,
+            "course_id": c.course_id,
+            "course_title": c.course.display_name,
+            "file_path": c.file_path,
+            "issued_at": c.issued_at,
+            "download_url": request.build_absolute_uri(f"/api/certificates/{c.id}/download/"),
+        }
+        for c in certs
+    ]
+
+    return Response({
+        "employee": UserSerializer(employee).data,
+        "attendance": attendance_data,
+        "trainings": training_data,
+        "assessments": assessment_data,
+        "certificates": cert_data,
+    })

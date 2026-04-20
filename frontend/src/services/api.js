@@ -151,7 +151,21 @@ export const employeesAPI = {
   list: (params) => api.get('/auth/employees/', { params }),
 }
 
+// ===================== DEPARTMENTS =====================
+export const departmentsAPI = {
+  list: () => api.get('/auth/departments/'),
+}
+
 // ===================== TRAINING TOPICS =====================
 export const trainingTopicsAPI = {
   list: () => api.get('/courses/training-topics/'),
+}
+
+// ===================== ANALYTICS =====================
+export const analyticsAPI = {
+  summary: () => api.get('/analytics/summary/'),
+  employeeProgress: (id) => api.get(`/analytics/employee/${id}/`),
+  trainerPerformance: (id) => api.get(`/analytics/trainer/${id}/`),
+  gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
+  report: () => api.get('/analytics/report/', { responseType: 'blob' }),
 }
