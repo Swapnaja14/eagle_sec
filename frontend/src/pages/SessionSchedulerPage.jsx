@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { sessionsAPI, sitesAPI, clientsAPI, employeesAPI, trainingTopicsAPI } from '../services/api';
+import { mockSites, mockClients, mockTrainingModules } from '../data/mockData';
+import { sessionsAPI } from '../services/api';
 import './SessionSchedulerPage.css';
 
 const PLATFORMS = [
@@ -56,15 +57,11 @@ export default function SessionSchedulerPage() {
   const [submitError, setSubmitError] = useState('');
   const [saving, setSaving] = useState(false);
   const [trainers, setTrainers] = useState([]);
-  const [sites, setSites] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [trainingTopics, setTrainingTopics] = useState([]);
 
   const [classroomForm, setClassroomForm] = useState({
     topic: '',
     trainerId: '',
-    clientId: '',
+    clientId: mockClients[0]?.id || '',
     siteId: '',
     date: '',
     startTime: '',
@@ -91,48 +88,21 @@ export default function SessionSchedulerPage() {
 
   const [participantSearch, setParticipantSearch] = useState('');
   const [customTopic, setCustomTopic] = useState('');
-  const [topicOptions, setTopicOptions] = useState([]);
-
-  // Update topic options when training topics are loaded
-  useEffect(() => {
-    if (trainingTopics.length > 0) {
-      setTopicOptions(trainingTopics);
-    }
-  }, [trainingTopics]);
+  const [topicOptions, setTopicOptions] = useState(() => {
+    const merged = [...mockTrainingModules, ...TECH_TRAINING_TOPICS];
+    return [...new Set(merged)];
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTrainers = async () => {
       try {
-        // Fetch all data in parallel
-        const [trainersRes, sitesRes, clientsRes, employeesRes, topicsRes] = await Promise.all([
-          sessionsAPI.trainers(),
-          sitesAPI.list(),
-          clientsAPI.list(),
-          employeesAPI.list(),
-          trainingTopicsAPI.list(),
-        ]);
-
-        setTrainers(trainersRes.data || []);
-        setSites(sitesRes.data || []);
-        setClients(clientsRes.data || []);
-        setEmployees(employeesRes.data || []);
-        setTrainingTopics(topicsRes.data || []);
-
-        // Set default client if available
-        if (clientsRes.data && clientsRes.data.length > 0) {
-          setClassroomForm(prev => ({ ...prev, clientId: clientsRes.data[0].id }));
-        }
-      } catch (error) {
-        console.error('Error fetching session data:', error);
-        // Set empty arrays on error
+        const { data } = await sessionsAPI.trainers();
+        setTrainers(data || []);
+      } catch {
         setTrainers([]);
-        setSites([]);
-        setClients([]);
-        setEmployees([]);
-        setTrainingTopics([]);
       }
     };
-    fetchData();
+    fetchTrainers();
   }, []);
 
   const form = activeTab === 'classroom' ? classroomForm : virtualForm;
@@ -144,9 +114,9 @@ export default function SessionSchedulerPage() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  const filteredEmployees = employees.filter(emp =>
+  const filteredEmployees = MOCK_EMPLOYEES.filter(emp =>
     (emp.name.toLowerCase().includes(participantSearch.toLowerCase()) ||
-      emp.employee_id.toLowerCase().includes(participantSearch.toLowerCase())) &&
+      emp.id.toLowerCase().includes(participantSearch.toLowerCase())) &&
     !form.participants.find(p => p.id === emp.id)
   );
 
@@ -193,7 +163,7 @@ export default function SessionSchedulerPage() {
       max_participants: Number(form.maxParticipants || 30),
       status: targetStatus,
       site: activeTab === 'classroom'
-        ? (sites.find(s => s.id === form.siteId)?.name || '')
+        ? (mockSites.find(s => s.id === form.siteId)?.name || '')
         : 'Online',
       venue: activeTab === 'classroom' ? form.venue : '',
       platform: activeTab === 'virtual' ? form.platform : '',
@@ -226,7 +196,7 @@ export default function SessionSchedulerPage() {
     await createSession('scheduled');
   };
 
-  const filteredSites = sites.filter(s => s.client === form.clientId);
+  const filteredSites = mockSites.filter(s => s.clientId === form.clientId);
 
   return (
     <div className="scheduler-page">
@@ -346,8 +316,7 @@ export default function SessionSchedulerPage() {
                   <div className="form-group">
                     <label className="form-label">Client</label>
                     <select className="form-select" name="clientId" value={form.clientId} onChange={handleChange}>
-                      <option value="">Select Client...</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {mockClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
@@ -446,7 +415,7 @@ export default function SessionSchedulerPage() {
                       onClick={() => { addParticipant(emp); setParticipantSearch(''); }}
                     >
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{emp.name}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{emp.employee_id}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{emp.id}</span>
                     </div>
                   ))}
                 </div>
