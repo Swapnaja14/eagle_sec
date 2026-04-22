@@ -28,6 +28,7 @@ const SIDEBAR_NAV = {
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
       { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
       { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
+      { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
     ]},
     { section: 'Reports', items: [
       { to: '/reports/export', icon: '📦', label: 'Bulk Export' },
@@ -59,6 +60,7 @@ const SIDEBAR_NAV = {
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
       { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
       { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
+      { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
     ]},
     { section: 'Reports', items: [
       { to: '/reports/export', icon: '📦', label: 'Bulk Export' },

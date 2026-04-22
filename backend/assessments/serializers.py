@@ -77,7 +77,10 @@ class SubmissionSerializer(serializers.ModelSerializer):
     answers = AnswerSerializer(many=True, read_only=True)
     user_name = serializers.CharField(source='user.username', read_only=True)
     quiz_title = serializers.CharField(source='quiz.title', read_only=True)
-    
+    # Nested user info for certificate issuing page
+    user = serializers.SerializerMethodField()
+    quiz = serializers.SerializerMethodField()
+
     class Meta:
         model = Submission
         fields = [
@@ -86,6 +89,25 @@ class SubmissionSerializer(serializers.ModelSerializer):
             'submitted_at', 'time_taken_seconds', 'passed', 'answers'
         ]
         read_only_fields = ['score', 'total_points', 'percentage', 'passed', 'started_at', 'submitted_at']
+
+    def get_user(self, obj):
+        u = obj.user
+        return {
+            'id': u.id,
+            'username': u.username,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'department': u.department,
+        }
+
+    def get_quiz(self, obj):
+        q = obj.quiz
+        return {
+            'id': q.id,
+            'title': q.title,
+            'passing_score': q.passing_score,
+            'course_id': q.course_id,
+        }
 
 
 class SubmitAnswerSerializer(serializers.Serializer):
