@@ -4,11 +4,15 @@ from .views import (
     DepartmentCompletionView,
     TrainingTrendView,
     UpcomingSessionsView,
+    CalendarSessionsView,
+    SessionListCreateView,
+    SessionDetailView,
+    SessionTrainersView,
     ComplianceAlertsView,
     ComplianceAlertNotifyView,
     RecentTrainingHistoryView,
+    MyTrainingHistoryView,
     DashboardOverviewView,
-    TraineeDashboardView,
 )
 
 
@@ -17,9 +21,13 @@ urlpatterns = [
     path("dashboard/department-completion/", DepartmentCompletionView.as_view(), name="dashboard-department-completion"),
     path("dashboard/training-trend/", TrainingTrendView.as_view(), name="dashboard-training-trend"),
     path("sessions/upcoming/", UpcomingSessionsView.as_view(), name="sessions-upcoming"),
+    path("sessions/calendar/", CalendarSessionsView.as_view(), name="sessions-calendar"),
+    path("sessions/", SessionListCreateView.as_view(), name="sessions-list-create"),
+    path("sessions/<int:session_id>/", SessionDetailView.as_view(), name="sessions-detail"),
+    path("sessions/trainers/", SessionTrainersView.as_view(), name="sessions-trainers"),
     path("dashboard/compliance-alerts/", ComplianceAlertsView.as_view(), name="dashboard-compliance-alerts"),
     path("dashboard/compliance-alerts/<int:alert_id>/notify/", ComplianceAlertNotifyView.as_view(), name="dashboard-compliance-alert-notify"),
     path("training-history/recent/", RecentTrainingHistoryView.as_view(), name="training-history-recent"),
+    path("training-history/my/", MyTrainingHistoryView.as_view(), name="training-history-my"),
     path("dashboard/overview/", DashboardOverviewView.as_view(), name="dashboard-overview"),
-    path("trainee/dashboard/", TraineeDashboardView.as_view(), name="trainee-dashboard"),
 ]

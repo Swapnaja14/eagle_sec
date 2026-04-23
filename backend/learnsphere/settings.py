@@ -31,6 +31,11 @@ INSTALLED_APPS = [
     'questions',
     'assessments',
     'dashboard',
+    # HRM feature apps
+    'attendance',
+    'feedback',
+    'analytics',
+    'certificates',
 ]
 
 MIDDLEWARE = [
@@ -79,7 +84,7 @@ else:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': config('DB_NAME', default='learnsphere_db'),
             'USER': config('DB_USER', default='postgres'),
-            'PASSWORD': config('DB_PASSWORD', default='Varad@210'),
+            'PASSWORD': config('DB_PASSWORD'),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
         }
@@ -140,3 +145,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+
+# Certificate storage
+CERTIFICATES_DIR = BASE_DIR / 'certificates'

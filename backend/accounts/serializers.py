@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Tenant
+from .models import Tenant, Site, Client
 
 User = get_user_model()
 
@@ -51,3 +51,34 @@ class RegisterSerializer(serializers.ModelSerializer):
             **validated_data
         )
         return user
+
+
+class SiteSerializer(serializers.ModelSerializer):
+    client_id = serializers.IntegerField(source='client.id', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Site
+        fields = ['id', 'name', 'address', 'city', 'state', 'country',
+                  'postal_code', 'is_active', 'client_id']
+
+
+class ClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = ['id', 'name', 'contact_email', 'contact_phone', 'industry', 'is_active']
+
+
+class EmployeeSerializer(serializers.ModelSerializer):
+    """Serializer for employees (trainees) to be used in session scheduling"""
+    tenant = TenantSerializer(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'department', 'tenant']
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Format employee ID and full name for frontend
+        data['employee_id'] = instance.username
+        data['name'] = f"{instance.first_name} {instance.last_name}".strip() or instance.username
+        return data

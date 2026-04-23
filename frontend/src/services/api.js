@@ -115,3 +115,57 @@ export const questionsAPI = {
   delete: (id) => api.delete(`/questions/${id}/`),
   byLanguage: () => api.get('/questions/by_language/'),
 }
+
+// ===================== TRAINING HISTORY =====================
+export const trainingHistoryAPI = {
+  myHistory: (params) => api.get('/training-history/my/', { params }),
+}
+
+// ===================== SESSIONS =====================
+export const sessionsAPI = {
+  calendar: (params) => api.get('/sessions/calendar/', { params }),
+  list: (params) => api.get('/sessions/', { params }),
+  create: (data) => api.post('/sessions/', data),
+  update: (id, data) => api.patch(`/sessions/${id}/`, data),
+  remove: (id) => api.delete(`/sessions/${id}/`),
+  trainers: () => api.get('/sessions/trainers/'),
+}
+
+// ===================== SITES & CLIENTS =====================
+export const sitesAPI = {
+  list: (params) => api.get('/auth/sites/', { params }),
+  create: (data) => api.post('/auth/sites/', data),
+  update: (id, data) => api.patch(`/auth/sites/${id}/`, data),
+  delete: (id) => api.delete(`/auth/sites/${id}/`),
+}
+
+export const clientsAPI = {
+  list: (params) => api.get('/auth/clients/', { params }),
+  create: (data) => api.post('/auth/clients/', data),
+  update: (id, data) => api.patch(`/auth/clients/${id}/`, data),
+  delete: (id) => api.delete(`/auth/clients/${id}/`),
+}
+
+// ===================== EMPLOYEES =====================
+export const employeesAPI = {
+  list: (params) => api.get('/auth/employees/', { params }),
+}
+
+// ===================== DEPARTMENTS =====================
+export const departmentsAPI = {
+  list: () => api.get('/auth/departments/'),
+}
+
+// ===================== TRAINING TOPICS =====================
+export const trainingTopicsAPI = {
+  list: () => api.get('/courses/training-topics/'),
+}
+
+// ===================== ANALYTICS =====================
+export const analyticsAPI = {
+  summary: () => api.get('/analytics/summary/'),
+  employeeProgress: (id) => api.get(`/analytics/employee/${id}/`),
+  trainerPerformance: (id) => api.get(`/analytics/trainer/${id}/`),
+  gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
+  report: () => api.get('/analytics/report/', { responseType: 'blob' }),
+}

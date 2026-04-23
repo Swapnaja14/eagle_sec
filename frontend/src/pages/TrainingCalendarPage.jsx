@@ -1,44 +1,21 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { sessionsAPI } from '../services/api';
 import './TrainingCalendarPage.css';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 7 AM to 7 PM
-
-// Seed mock sessions across the current month
 const TODAY = new Date();
-const generateSessions = () => {
-  const sessions = [];
-  const monthStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
-  const daysInMonth = new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 0).getDate();
-  const topics = ['PSARA Foundation', 'Fire Safety & Evacuation', 'Emergency Response', 'CCTV Operations', 'First Aid', 'Access Control'];
-  const trainers = ['Rajesh Kumar', 'Priya Sharma', 'Amit Patel', 'Sunita Rao'];
-
-  for (let i = 0; i < 18; i++) {
-    const day = Math.floor(Math.random() * daysInMonth) + 1;
-    const hour = Math.floor(Math.random() * 8) + 9; // 9 AM to 5 PM
-    const type = Math.random() > 0.5 ? 'classroom' : 'virtual';
-    sessions.push({
-      id: `S-${i}`,
-      topic: topics[i % topics.length],
-      type,
-      trainer: trainers[i % trainers.length],
-      date: new Date(TODAY.getFullYear(), TODAY.getMonth(), day),
-      hour,
-      duration: Math.random() > 0.5 ? 2 : 1,
-    });
-  }
-  return sessions;
-};
-
-const ALL_SESSIONS = generateSessions();
 
 export default function TrainingCalendarPage() {
   const navigate = useNavigate();
   const [view, setView] = useState('month');
   const [currentDate, setCurrentDate] = useState(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1));
+  const [allSessions, setAllSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const navigate_prev = () => {
     if (view === 'month') setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
@@ -88,14 +65,64 @@ export default function TrainingCalendarPage() {
     });
   }, [currentDate]);
 
+  useEffect(() => {
+    const fetchCalendarSessions = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        let fromDate;
+        let toDate;
+
+        if (view === 'month') {
+          fromDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1, 0, 0, 0, 0);
+          toDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+        } else {
+          fromDate = new Date(weekDays[0]);
+          fromDate.setHours(0, 0, 0, 0);
+          toDate = new Date(weekDays[6]);
+          toDate.setHours(23, 59, 59, 999);
+        }
+
+        const { data } = await sessionsAPI.calendar({
+          from: fromDate.toISOString(),
+          to: toDate.toISOString(),
+        });
+
+        const normalized = (data.results || []).map((s) => {
+          const d = new Date(s.date_time);
+          return {
+            id: s.id,
+            topic: s.topic,
+            type: s.type,
+            status: s.status,
+            trainer: s.trainer_name,
+            date: d,
+            hour: d.getHours(),
+            duration: Math.max(1, Math.round((s.duration_minutes || 60) / 60)),
+          };
+        });
+
+        setAllSessions(normalized);
+      } catch (err) {
+        const detail = err.response?.data?.detail || 'Failed to load calendar sessions.';
+        setError(typeof detail === 'string' ? detail : 'Failed to load calendar sessions.');
+        setAllSessions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCalendarSessions();
+  }, [currentDate, view, weekDays]);
+
   const getSessionsForDate = (date) =>
-    ALL_SESSIONS.filter(s => s.date.toDateString() === date.toDateString());
+    allSessions.filter(s => s.date.toDateString() === date.toDateString());
 
   const isToday = (date) => date.toDateString() === TODAY.toDateString();
 
-  const totalSessions = ALL_SESSIONS.length;
-  const classroomCount = ALL_SESSIONS.filter(s => s.type === 'classroom').length;
-  const virtualCount = ALL_SESSIONS.filter(s => s.type === 'virtual').length;
+  const totalSessions = allSessions.length;
+  const classroomCount = allSessions.filter(s => s.type === 'classroom').length;
+  const virtualCount = allSessions.filter(s => s.type === 'virtual').length;
 
   return (
     <div className="calendar-page">
@@ -122,6 +149,8 @@ export default function TrainingCalendarPage() {
           </div>
         ))}
       </div>
+      {loading && <div style={{ marginBottom: 12, color: 'var(--text-muted)' }}>Loading sessions...</div>}
+      {!loading && error && <div style={{ marginBottom: 12, color: 'var(--accent-red)' }}>{error}</div>}
 
       {/* Toolbar */}
       <div className="calendar-toolbar">
@@ -190,7 +219,7 @@ export default function TrainingCalendarPage() {
               <React.Fragment key={hour}>
                 <div className="time-slot">{hour}:00</div>
                 {weekDays.map((day, dayIdx) => {
-                  const session = ALL_SESSIONS.find(s => s.date.toDateString() === day.toDateString() && s.hour === hour);
+                  const session = allSessions.find(s => s.date.toDateString() === day.toDateString() && s.hour === hour);
                   return (
                     <div key={dayIdx} className="day-slot">
                       {session && (

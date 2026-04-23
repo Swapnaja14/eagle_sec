@@ -24,6 +24,7 @@ import SiteManagementPage from './pages/SiteManagementPage'
 import BulkUserUploadPage from './pages/BulkUserUploadPage'
 import RBACManagementPage from './pages/RBACManagementPage'
 import AuditLogPage from './pages/AuditLogPage'
+import CertificateIssuingPage from './pages/CertificateIssuingPage'
 
 // ─── TRAINER PAGES ────────────────────────────────────────────────────────────
 import TrainerDashboardPage from './pages/TrainerDashboardPage'
@@ -97,6 +98,7 @@ function AppRoutes() {
       {/* SUPER ADMIN ONLY */}
       <Route path="/admin/rbac"       element={<P roles={['superadmin']}><RBACManagementPage /></P>} />
       <Route path="/admin/audit-logs" element={<P roles={['superadmin']}><AuditLogPage /></P>} />
+      <Route path="/admin/certificates" element={<P roles={['superadmin','admin']}><CertificateIssuingPage /></P>} />
 
       {/* ─── SHARED: ADMIN + TRAINER ───────────────────────────────────── */}
       <Route path="/sessions/classroom/new" element={<P roles={['superadmin','admin','trainer']}><SessionSchedulerPage /></P>} />

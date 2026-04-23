@@ -11,4 +11,9 @@ urlpatterns = [
     path('api/questions/', include('questions.urls')),
     path('api/assessments/', include('assessments.urls')),
     path('api/', include('dashboard.urls')),
+    # HRM feature routes
+    path('api/attendance/', include('attendance.urls')),
+    path('api/feedback/', include('feedback.urls')),
+    path('api/analytics/', include('analytics.urls')),
+    path('api/certificates/', include('certificates.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
