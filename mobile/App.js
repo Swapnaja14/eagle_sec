@@ -75,6 +75,16 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    const clearStorage = async () => {
+      if (Platform.OS === 'web') {
+        localStorage.clear();
+      } else {
+        await AsyncStorage.clear();
+      }
+      console.log("🧹 Storage cleared");
+    };
+
+    clearStorage();   // 👈 add this
     checkAuth();
   }, []);
 
@@ -87,6 +97,7 @@ export default function App() {
 
   const checkAuth = async () => {
     const token = await getToken();
+    console.log("TOKEN VALUE:", token);
 
     if (token) {
       console.log("✅ Token found");
@@ -112,7 +123,7 @@ export default function App() {
       <NavigationContainer theme={AppTheme}>
         <StatusBar style="light" />
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          
+
           {!isLoggedIn ? (
             <Stack.Screen name="Login">
               {(props) => <LoginScreen {...props} setIsLoggedIn={setIsLoggedIn} />}

@@ -23,7 +23,7 @@ export default function LoginScreen({ navigation, setIsLoggedIn }) {
         placeholder="Username"
         value={username}
         onChangeText={setUsername}
-        style={{ marginBottom: 10, borderWidth: 1, padding: 10 }}
+        style={{ marginBottom: 10, borderWidth: 1, padding: 10, backgroundColor: 'white' }}
       />
 
       <TextInput
@@ -31,7 +31,7 @@ export default function LoginScreen({ navigation, setIsLoggedIn }) {
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        style={{ marginBottom: 10, borderWidth: 1, padding: 10 }}
+        style={{ marginBottom: 10, borderWidth: 1, padding: 10, backgroundColor: 'white' }}
       />
 
       <Button title="Login" onPress={handleLogin} />
