@@ -1,18 +1,54 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen } from 'lucide-react-native';
-
-const AVAILABLE_COURSES = [
-  { id: 1, title: 'PSARA Foundation Course', duration: '4h 30m', category: 'Compliance' },
-  { id: 2, title: 'Fire Safety & Evacuation', duration: '2h 15m', category: 'Safety' },
-  { id: 3, title: 'Emergency Response Protocol', duration: '3h 0m', category: 'Safety' },
-  { id: 4, title: 'Access Control Procedures', duration: '1h 45m', category: 'Security' },
-];
+import { coursesAPI } from '../services/api';
 
 export default function CatalogScreen() {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const mapCourse = (course) => ({
+    id: course.id,
+    title: course.display_name || 'Untitled Course',
+    duration: course.lesson_count ? `${course.lesson_count} lessons` : 'Self-paced',
+    category: course.category || 'General',
+    progress: course.progress?.percent ?? 0,
+    recommendation: course.recommendation?.message || 'Keep progressing with your training plan.',
+  });
+
+  const loadCourses = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError('');
+      const response = await coursesAPI.getAllocatedForTrainee();
+      const allocatedCourses = response.data?.results || [];
+      setCourses(allocatedCourses.map(mapCourse));
+    } catch (e) {
+      setError('Unable to fetch courses right now.');
+      setCourses([]);
+      console.log('Failed to fetch trainee courses', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCourses();
+    const intervalId = setInterval(() => loadCourses(true), 30000);
+    return () => clearInterval(intervalId);
+  }, [loadCourses]);
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
@@ -23,8 +59,23 @@ export default function CatalogScreen() {
           <Text style={styles.headerDesc}>Explore and enroll in new training modules</Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {AVAILABLE_COURSES.map(course => (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadCourses(true)} tintColor="#3b82f6" />}
+        >
+          {loading ? (
+            <ActivityIndicator size="large" color="#3b82f6" style={styles.loader} />
+          ) : null}
+
+          {!loading && error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : null}
+
+          {!loading && !error && courses.length === 0 ? (
+            <Text style={styles.emptyText}>No allocated courses available yet.</Text>
+          ) : null}
+
+          {courses.map(course => (
             <BlurView intensity={30} tint="dark" style={styles.card} key={course.id}>
               <View style={styles.iconBox}>
                 <BookOpen color="#3b82f6" size={24} />
@@ -37,6 +88,8 @@ export default function CatalogScreen() {
                     <Text style={styles.categoryText}>{course.category}</Text>
                   </View>
                 </View>
+                <Text style={styles.progressText}>Progress: {course.progress}%</Text>
+                <Text style={styles.recommendationText}>{course.recommendation}</Text>
                 <TouchableOpacity style={styles.enrollBtn}>
                   <Text style={styles.enrollText}>View Details</Text>
                 </TouchableOpacity>
@@ -57,6 +110,9 @@ const styles = StyleSheet.create({
   headerDesc: { fontSize: 15, color: '#94a3b8' },
   
   scrollContent: { padding: 20, paddingBottom: 100 },
+  loader: { marginTop: 24 },
+  errorText: { color: '#ef4444', textAlign: 'center', marginTop: 20 },
+  emptyText: { color: '#94a3b8', textAlign: 'center', marginTop: 20 },
   
   card: {
     flexDirection: 'row',
@@ -77,6 +133,8 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 13, color: '#94a3b8', marginRight: 12 },
   categoryBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   categoryText: { color: '#cbd5e1', fontSize: 11, fontWeight: '600' },
+  progressText: { fontSize: 12, color: '#60a5fa', marginBottom: 4 },
+  recommendationText: { fontSize: 12, color: '#cbd5e1', marginBottom: 10 },
   
   enrollBtn: { backgroundColor: 'rgba(59,130,246,0.15)', borderWidth: 1, borderColor: '#3b82f6', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   enrollText: { color: '#3b82f6', fontWeight: '700', fontSize: 14 }

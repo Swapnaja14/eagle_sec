@@ -227,3 +227,10 @@ def employee_history(request, employee_id):
         "assessments": assessment_data,
         "certificates": cert_data,
     })
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
