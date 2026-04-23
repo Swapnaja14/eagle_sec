@@ -23,9 +23,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third-party
+    'corsheaders',                  # ✅ only once
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders',
     'django_filters',
 
     # Local apps
@@ -35,8 +35,6 @@ INSTALLED_APPS = [
     'questions',
     'assessments',
     'dashboard',
-
-    # HRM feature apps
     'attendance',
     'feedback',
     'analytics',
@@ -156,12 +154,13 @@ SIMPLE_JWT = {
 }
 
 # CORS SETTINGS
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'content-type',
+]
 
 # CERTIFICATE STORAGE
 CERTIFICATES_DIR = BASE_DIR / 'certificates'

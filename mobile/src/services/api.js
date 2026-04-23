@@ -2,44 +2,124 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const baseURL = Platform.OS === 'android' ? 'http://10.0.2.2:8000/api' : 'http://localhost:8000/api';
+// ✅ Base URL
+const baseURL =
+  Platform.OS === 'android'
+    ? 'http://10.0.2.2:8000/api'
+    : 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL,
   headers: { 'Content-Type': 'application/json' },
 });
 
+// ===============================
+// 🔐 TOKEN HELPERS
+// ===============================
+
+const getAccessToken = async () => {
+  if (Platform.OS === 'web') {
+    return localStorage.getItem('access_token');
+  }
+  return await AsyncStorage.getItem('access_token');
+};
+
+const getRefreshToken = async () => {
+  if (Platform.OS === 'web') {
+    return localStorage.getItem('refresh_token');
+  }
+  return await AsyncStorage.getItem('refresh_token');
+};
+
+const setAccessToken = async (token) => {
+  if (Platform.OS === 'web') {
+    localStorage.setItem('access_token', token);
+  } else {
+    await AsyncStorage.setItem('access_token', token);
+  }
+};
+
+const setRefreshToken = async (token) => {
+  if (Platform.OS === 'web') {
+    localStorage.setItem('refresh_token', token);
+  } else {
+    await AsyncStorage.setItem('refresh_token', token);
+  }
+};
+
+const clearTokens = async () => {
+  if (Platform.OS === 'web') {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+  } else {
+    await AsyncStorage.removeItem('access_token');
+    await AsyncStorage.removeItem('refresh_token');
+  }
+};
+
+// ===============================
+// 📤 REQUEST INTERCEPTOR
+// ===============================
+
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('access_token');
+  const token = await getAccessToken();
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  console.log("🚀 TOKEN SENT:", token); // DEBUG
+
   return config;
 });
+
+// ===============================
+// 📥 RESPONSE INTERCEPTOR
+// ===============================
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
+
       try {
-        const refresh = await AsyncStorage.getItem('refresh_token');
+        const refresh = await getRefreshToken();
+
         if (!refresh) throw new Error('No refresh token');
 
-        const { data } = await api.post('/auth/refresh/', { refresh });
-        await AsyncStorage.setItem('access_token', data.access);
+        console.log("🔄 Refreshing token...");
+
+        const { data } = await api.post('/token/refresh/', {
+          refresh,
+        });
+
+        await setAccessToken(data.access);
+
         original.headers.Authorization = `Bearer ${data.access}`;
+
         return api(original);
-      } catch {
-        await AsyncStorage.removeItem('access_token');
-        await AsyncStorage.removeItem('refresh_token');
-        // Handle logout
+      } catch (err) {
+        console.log("❌ Refresh failed → logging out");
+
+        await clearTokens();
+
+        // Optional: redirect to login
+        // window.location.href = "/login";
+
+        return Promise.reject(err);
       }
     }
+
     return Promise.reject(error);
   }
 );
+
+// ===============================
+// 📦 EXPORTS
+// ===============================
 
 export default api;
 
@@ -55,4 +135,21 @@ export const coursesAPI = {
 
 export const assessmentsAPI = {
   list: (params) => api.get('/assessments/quizzes/', { params }),
+};
+
+// ===============================
+// 🔑 LOGIN HELPER (IMPORTANT)
+// ===============================
+
+export const authAPI = {
+  login: async (credentials) => {
+    const { data } = await api.post('/token/', credentials);
+
+    await setAccessToken(data.access);
+    await setRefreshToken(data.refresh);
+
+    console.log("✅ Tokens stored");
+
+    return data;
+  },
 };
