@@ -50,6 +50,7 @@ export const dashboardAPI = {
 export const coursesAPI = {
   list: (params) => api.get('/courses/', { params }),
   get: (id) => api.get(`/courses/${id}/`),
+  getAllocatedForTrainee: () => api.get('/trainee/courses/'),
 };
 
 export const assessmentsAPI = {

@@ -164,3 +164,48 @@ class BatchExpiry(models.Model):
 
     def __str__(self):
         return f"{self.target_group} → {self.expiry_date}"
+
+
+class TrainingAssignment(models.Model):
+    STATUS_ASSIGNED = "assigned"
+    STATUS_IN_PROGRESS = "in_progress"
+    STATUS_COMPLETED = "completed"
+    STATUS_OVERDUE = "overdue"
+    STATUS_CHOICES = [
+        (STATUS_ASSIGNED, "Assigned"),
+        (STATUS_IN_PROGRESS, "In Progress"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_OVERDUE, "Overdue"),
+    ]
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="training_assignments")
+    trainee = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="training_assignments",
+        limit_choices_to={"role": User.ROLE_TRAINEE},
+    )
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="training_assignments")
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_trainings",
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ASSIGNED, db_index=True)
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-assigned_at"]
+        unique_together = ["trainee", "course"]
+        indexes = [
+            models.Index(fields=["tenant", "trainee", "status"]),
+            models.Index(fields=["tenant", "due_date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.trainee.username} -> {self.course.display_name} ({self.status})"

@@ -8,10 +8,12 @@ from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# SECURITY
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
+# APPLICATIONS
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -19,11 +21,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
+
     # Local apps
     'accounts',
     'content',
@@ -31,6 +35,7 @@ INSTALLED_APPS = [
     'questions',
     'assessments',
     'dashboard',
+
     # HRM feature apps
     'attendance',
     'feedback',
@@ -38,6 +43,7 @@ INSTALLED_APPS = [
     'certificates',
 ]
 
+# MIDDLEWARE
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -51,6 +57,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'learnsphere.urls'
 
+# TEMPLATES
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -69,9 +76,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'learnsphere.wsgi.application'
 
+# DATABASE CONFIGURATION
 # Use SQLite for quick local dev by default.
-# Set USE_SQLITE=false in .env to force PostgreSQL.
-if config('USE_SQLITE', default=False, cast=bool):
+# Set USE_SQLITE=false in .env to use PostgreSQL.
+
+USE_SQLITE = config('USE_SQLITE', default=True, cast=bool)
+
+if USE_SQLITE:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -79,17 +90,18 @@ if config('USE_SQLITE', default=False, cast=bool):
         }
     }
 else:
-    'DATABASES': {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='learnsphere_db'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='learnsphere_db'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default='postgres'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
     }
-}
 
+# PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -97,22 +109,27 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# INTERNATIONALIZATION
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# STATIC FILES
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# MEDIA FILES
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# DEFAULT PRIMARY KEY
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# CUSTOM USER MODEL
 AUTH_USER_MODEL = 'accounts.User'
 
-# REST Framework
+# DJANGO REST FRAMEWORK
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -129,7 +146,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
 
-# JWT Settings
+# JWT SETTINGS
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -138,7 +155,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# CORS
+# CORS SETTINGS
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
@@ -146,6 +163,5 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-
-# Certificate storage
+# CERTIFICATE STORAGE
 CERTIFICATES_DIR = BASE_DIR / 'certificates'
