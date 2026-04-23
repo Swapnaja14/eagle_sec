@@ -66,17 +66,17 @@ class GenerateCertificateView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        # Create placeholder to get an ID
+        # Create placeholder certificate record (needed to get the ID for the filename)
         cert = IssuedCertificate(
             tenant=submission.quiz.tenant,
             employee=submission.user,
             course=course,
             submission=submission,
-            file_path="pending",
+            file_path="",
         )
         cert.save()
 
-        # Generate PDF
+        # Generate the PDF now that we have an ID
         employee_name = (
             f"{submission.user.first_name} {submission.user.last_name}".strip()
             or submission.user.username
@@ -88,7 +88,6 @@ class GenerateCertificateView(APIView):
             completion_date=completion_date,
             certificate_id=cert.id,
         )
-
         cert.file_path = file_path
         cert.save(update_fields=["file_path"])
 

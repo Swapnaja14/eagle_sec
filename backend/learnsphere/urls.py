@@ -8,6 +8,11 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from accounts.views import CustomTokenObtainPairView
+from rest_framework.routers import DefaultRouter
+from courses.assignment_views import TrainingAssignmentViewSet
+
+_assignments_router = DefaultRouter()
+_assignments_router.register(r'', TrainingAssignmentViewSet, basename='training-assignment')
 
 urlpatterns = [
     # JWT Auth
@@ -25,6 +30,8 @@ urlpatterns = [
     path('api/questions/', include('questions.urls')),
     path('api/assessments/', include('assessments.urls')),
     path('api/', include('dashboard.urls')),
+
+    path('api/assignments/', include(_assignments_router.urls)),
 
     # HRM features
     path('api/attendance/', include('attendance.urls')),

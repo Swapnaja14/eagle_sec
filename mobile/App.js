@@ -32,7 +32,7 @@ const AppTheme = {
 };
 
 // Tabs
-function MainTabs() {
+function MainTabs({ setIsLoggedIn }) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -62,9 +62,10 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
         options={{ tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }}
-      />
+      >
+        {(props) => <ProfileScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }
@@ -117,7 +118,9 @@ export default function App() {
               {(props) => <LoginScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
             </Stack.Screen>
           ) : (
-            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="MainTabs">
+              {(props) => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
+            </Stack.Screen>
           )}
 
         </Stack.Navigator>

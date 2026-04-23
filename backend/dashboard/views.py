@@ -204,7 +204,6 @@ class DashboardOverviewView(CachedAPIView):
         return Response(self._get_or_compute(request, get_dashboard_overview))
 
 
-
 class MyTrainingHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 

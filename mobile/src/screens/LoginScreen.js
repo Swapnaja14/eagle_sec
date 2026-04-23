@@ -9,12 +9,9 @@ export default function LoginScreen({ navigation, setIsLoggedIn }) {
   const handleLogin = async () => {
     try {
       await authAPI.login({ username, password });
+      // App.js conditional rendering swaps Stack.Screen automatically
+      // once isLoggedIn flips to true — no manual navigation needed.
       setIsLoggedIn(true);
-
-      Alert.alert("Success", "Logged in!");
-
-      navigation.replace('MainTabs'); // go to dashboard
-
     } catch (error) {
       Alert.alert("Error", "Invalid credentials");
     }

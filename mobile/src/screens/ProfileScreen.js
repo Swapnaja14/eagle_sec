@@ -1,58 +1,128 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, Shield, Award, LogOut } from 'lucide-react-native';
+import { authAPI, certificatesAPI } from '../services/api';
 
-const CERTIFICATES = [
-  { id: 1, title: 'PSARA Foundation Course', date: 'March 2026' },
-  { id: 2, title: 'Fire Safety & Evacuation', date: 'February 2026' },
-];
+export default function ProfileScreen({ navigation, setIsLoggedIn }) {
+  const [me, setMe] = useState(null);
+  const [certificates, setCertificates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-export default function ProfileScreen() {
+  const load = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) setRefreshing(true); else setLoading(true);
+      const { data: user } = await authAPI.me();
+      setMe(user);
+      try {
+        const { data: certs } = await certificatesAPI.forEmployee(user.id);
+        const list = Array.isArray(certs) ? certs : (certs?.results || []);
+        setCertificates(list);
+      } catch {
+        setCertificates([]);
+      }
+    } catch (e) {
+      console.log('Failed to load profile', e?.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const doLogout = async () => {
+    await authAPI.logout();
+    // App.js conditional rendering shows Login automatically when flag flips.
+    if (setIsLoggedIn) setIsLoggedIn(false);
+  };
+
+  const handleLogout = () => {
+    // Alert.alert on React Native Web does NOT invoke button callbacks,
+    // so on web we use window.confirm instead.
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to sign out?')) {
+        doLogout();
+      }
+      return;
+    }
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: doLogout },
+      ]
+    );
+  };
+
+  const displayName = me
+    ? (`${me.first_name || ''} ${me.last_name || ''}`.trim() || me.username)
+    : '—';
+  const roleLine = me
+    ? `${me.role?.toUpperCase() || 'USER'}${me.department ? ' • ' + me.department : ''}${me.username ? ' • ' + me.username : ''}`
+    : 'Loading…';
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
       
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#3b82f6" />}
+        >
+
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
               <User color="#fff" size={40} />
             </View>
-            <Text style={styles.name}>Alex Trainee</Text>
-            <Text style={styles.role}>Security Officer • ID: EMP-001</Text>
+            <Text style={styles.name}>{displayName}</Text>
+            <Text style={styles.role}>{roleLine}</Text>
+            {me?.email ? <Text style={[styles.role, { marginTop: 4 }]}>{me.email}</Text> : null}
           </View>
 
-          <BlurView intensity={30} tint="dark" style={styles.psaraCard}>
-            <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
-              <Shield color="#22c55e" size={24} style={{marginRight: 10}} />
-              <Text style={styles.psaraTitle}>PSARA Status: Active</Text>
-            </View>
-            <Text style={styles.psaraText}>Expires in: 22 Days (May 10, 2026)</Text>
-            <TouchableOpacity style={styles.renewBtn}>
-              <Text style={styles.renewText}>Request Renewal</Text>
-            </TouchableOpacity>
-          </BlurView>
-
           <Text style={styles.sectionTitle}>My Certificates</Text>
-          {CERTIFICATES.map(cert => (
-            <BlurView intensity={30} tint="dark" style={styles.certCard} key={cert.id}>
-              <Award color="#f59e0b" size={24} style={{marginRight: 16}} />
-              <View style={{flex: 1}}>
-                <Text style={styles.certTitle}>{cert.title}</Text>
-                <Text style={styles.certDate}>Issued: {cert.date}</Text>
-              </View>
-              <TouchableOpacity>
-                <Text style={{color: '#3b82f6', fontWeight: 'bold'}}>Download</Text>
-              </TouchableOpacity>
-            </BlurView>
-          ))}
+          {certificates.length === 0 ? (
+            <Text style={{ color: '#94a3b8', marginBottom: 20 }}>
+              No certificates issued yet. Pass a course assessment to earn one.
+            </Text>
+          ) : (
+            certificates.map(cert => (
+              <BlurView intensity={30} tint="dark" style={styles.certCard} key={cert.id}>
+                <Award color="#f59e0b" size={24} style={{ marginRight: 16 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.certTitle}>{cert.course_title || `Course #${cert.course}`}</Text>
+                  <Text style={styles.certDate}>
+                    Issued: {cert.issued_at ? new Date(cert.issued_at).toLocaleDateString() : '—'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={async () => {
+                    const { Linking } = await import('react-native');
+                    if (cert.download_url) Linking.openURL(cert.download_url);
+                  }}
+                >
+                  <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Download</Text>
+                </TouchableOpacity>
+              </BlurView>
+            ))
+          )}
 
-          <TouchableOpacity style={styles.logoutBtn}>
-            <LogOut color="#ef4444" size={20} style={{marginRight: 8}} />
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <LogOut color="#ef4444" size={20} style={{ marginRight: 8 }} />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
 

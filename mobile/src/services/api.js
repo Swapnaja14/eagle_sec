@@ -152,4 +152,21 @@ export const authAPI = {
 
     return data;
   },
+  me: () => api.get('/auth/me/'),
+  logout: async () => {
+    const refresh = await getRefreshToken();
+    try {
+      if (refresh) {
+        await api.post('/auth/logout/', { refresh });
+      }
+    } catch (e) {
+      // Still clear locally even if blacklist call fails
+      console.log('Logout call failed (clearing local anyway):', e?.message);
+    }
+    await clearTokens();
+  },
+};
+
+export const certificatesAPI = {
+  forEmployee: (userId) => api.get(`/certificates/employee/${userId}/`),
 };

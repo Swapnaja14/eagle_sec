@@ -19,7 +19,11 @@ class IssuedCertificate(models.Model):
         Course, on_delete=models.CASCADE, related_name="issued_certificates"
     )
     submission = models.OneToOneField(
-        Submission, on_delete=models.CASCADE, related_name="certificate"
+        Submission,
+        on_delete=models.CASCADE,
+        related_name="certificate",
+        null=True,
+        blank=True,
     )
     file_path = models.CharField(max_length=500)
     issued_at = models.DateTimeField(auto_now_add=True)
