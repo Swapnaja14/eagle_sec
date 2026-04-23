@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from utils.pdf import generate_analytics_report_pdf
-
+# PDF generation temporarily disabled - reportlab not installed
+# from utils.pdf import generate_analytics_report_pdf
 
 class EmployeeProgressView(APIView):
     """
@@ -64,28 +64,12 @@ def analytics_report(request):
     """
     GET /analytics/report
     Generates and streams a downloadable PDF analytics report.
+    NOTE: PDF generation temporarily disabled - reportlab not installed
     """
-    tenant = None if request.user.role == "superadmin" else request.user.tenant
-
-    summary = services.get_overall_summary(tenant=tenant)
-    employee_progress = services.get_all_employee_progress(tenant=tenant)
-    trainer_performance = services.get_all_trainer_performance(tenant=tenant)
-
-    filepath = generate_analytics_report_pdf(
-        summary=summary,
-        employee_progress=employee_progress,
-        trainer_performance=trainer_performance,
-    )
-
-    if not os.path.exists(filepath):
-        return Response({"detail": "Failed to generate report."}, status=500)
-
-    return FileResponse(
-        open(filepath, "rb"),
-        as_attachment=True,
-        filename=os.path.basename(filepath),
-        content_type="application/pdf",
-    )
+    return Response({
+        "detail": "PDF generation temporarily unavailable. Install reportlab and Pillow to enable this feature.",
+        "install_command": "pip install reportlab Pillow"
+    }, status=503)
 
 
 class GapAnalysisView(APIView):

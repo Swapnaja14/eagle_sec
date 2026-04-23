@@ -4,13 +4,12 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import get_user_model
 from django.db import models
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RegisterSerializer, UserSerializer, SiteSerializer, ClientSerializer, EmployeeSerializer
 from .models import Site, Client
-
-User = get_user_model()
 
 User = get_user_model()
 
@@ -58,6 +57,41 @@ def update_profile_view(request):
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    """
+    POST /api/auth/logout/
+    Blacklist the refresh token to invalidate it.
+    Mobile and web clients should also remove tokens from local storage.
+    """
+    try:
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response(
+                {'detail': 'Refresh token is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+        
+        return Response(
+            {'detail': 'Successfully logged out.'},
+            status=status.HTTP_200_OK
+        )
+    except TokenError:
+        return Response(
+            {'detail': 'Invalid or expired token.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'detail': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class SiteListCreateView(generics.ListCreateAPIView):
@@ -227,3 +261,10 @@ def employee_history(request, employee_id):
         "assessments": assessment_data,
         "certificates": cert_data,
     })
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer

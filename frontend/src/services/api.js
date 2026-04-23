@@ -47,6 +47,7 @@ export const authAPI = {
   register: (data) => api.post('/auth/register/', data),
   me: () => api.get('/auth/me/'),
   refresh: (refresh) => api.post('/auth/refresh/', { refresh }),
+  logout: (refresh) => api.post('/auth/logout/', { refresh }),
 }
 
 // ===================== CONTENT =====================

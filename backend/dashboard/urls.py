@@ -13,6 +13,8 @@ from .views import (
     RecentTrainingHistoryView,
     MyTrainingHistoryView,
     DashboardOverviewView,
+    TraineeDashboardView,
+    TraineeCoursesView,
 )
 
 
@@ -30,4 +32,6 @@ urlpatterns = [
     path("training-history/recent/", RecentTrainingHistoryView.as_view(), name="training-history-recent"),
     path("training-history/my/", MyTrainingHistoryView.as_view(), name="training-history-my"),
     path("dashboard/overview/", DashboardOverviewView.as_view(), name="dashboard-overview"),
+    path("trainee/dashboard/", TraineeDashboardView.as_view(), name="trainee-dashboard"),
+    path("trainee/courses/", TraineeCoursesView.as_view(), name="trainee-courses"),
 ]
