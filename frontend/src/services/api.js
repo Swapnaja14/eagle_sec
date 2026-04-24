@@ -106,6 +106,11 @@ export const coursesAPI = {
   getCertification: (courseId) => api.get(`/courses/${courseId}/certification/`),
   updateCertification: (courseId, _id, data) => api.patch(`/courses/${courseId}/certification/${_id}/`, data),
   addBatchExpiry: (courseId, data) => api.post(`/courses/${courseId}/certification/add_batch_expiry/`, data),
+
+  // Course Stats & Enrollments
+  getStats: (courseId) => api.get(`/courses/${courseId}/stats/`),
+  getEnrollments: (courseId) => api.get(`/courses/${courseId}/enrollments/`),
+  enrollTrainees: (courseId, data) => api.post(`/courses/${courseId}/enroll/`, data),
 }
 
 // ===================== QUESTIONS =====================
@@ -130,6 +135,7 @@ export const sessionsAPI = {
   update: (id, data) => api.patch(`/sessions/${id}/`, data),
   remove: (id) => api.delete(`/sessions/${id}/`),
   trainers: () => api.get('/sessions/trainers/'),
+  getMySessions: (params) => api.get('/trainer/sessions/', { params }),
 }
 
 // ===================== SITES & CLIENTS =====================
@@ -169,4 +175,11 @@ export const analyticsAPI = {
   trainerPerformance: (id) => api.get(`/analytics/trainer/${id}/`),
   gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
   report: () => api.get('/analytics/report/', { responseType: 'blob' }),
+}
+
+// ===================== DASHBOARD =====================
+export const dashboardAPI = {
+  trainerDashboard: () => api.get('/trainer/dashboard/'),
+  traineeDashboard: () => api.get('/trainee/dashboard/'),
+  traineeCourses: () => api.get('/trainee/courses/'),
 }

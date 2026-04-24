@@ -118,6 +118,7 @@ class LessonFile(models.Model):
     FILE_TYPE_CHOICES = [
         ('video', 'Video'),
         ('document', 'Document'),
+        ('pdf', 'PDF'),
         ('presentation', 'Presentation'),
     ]
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='files')
