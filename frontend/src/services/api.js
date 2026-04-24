@@ -106,6 +106,11 @@ export const coursesAPI = {
   getCertification: (courseId) => api.get(`/courses/${courseId}/certification/`),
   updateCertification: (courseId, _id, data) => api.patch(`/courses/${courseId}/certification/${_id}/`, data),
   addBatchExpiry: (courseId, data) => api.post(`/courses/${courseId}/certification/add_batch_expiry/`, data),
+
+  // Course Stats & Enrollments
+  getStats: (courseId) => api.get(`/courses/${courseId}/stats/`),
+  getEnrollments: (courseId) => api.get(`/courses/${courseId}/enrollments/`),
+  enrollTrainees: (courseId, data) => api.post(`/courses/${courseId}/enroll/`, data),
 }
 
 // ===================== QUESTIONS =====================
@@ -153,6 +158,7 @@ export const sessionsAPI = {
   update: (id, data) => api.patch(`/sessions/${id}/`, data),
   remove: (id) => api.delete(`/sessions/${id}/`),
   trainers: () => api.get('/sessions/trainers/'),
+  getMySessions: (params) => api.get('/trainer/sessions/', { params }),
 }
 
 // ===================== SITES & CLIENTS =====================
@@ -211,4 +217,11 @@ export const bulkUploadAPI = {
 // ===================== BULK EXPORT =====================
 export const bulkExportAPI = {
   generate: (params) => api.post('/analytics/bulk-export/', params, { responseType: 'blob' }),
+}
+
+// ===================== TRAINER / TRAINEE DASHBOARD =====================
+export const trainerDashboardAPI = {
+  trainerDashboard: () => api.get('/trainer/dashboard/'),
+  traineeDashboard: () => api.get('/trainee/dashboard/'),
+  traineeCourses: () => api.get('/trainee/courses/'),
 }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { coursesAPI, questionsAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import QuestionBankModal from '../components/course/QuestionBankModal'
+import QuestionCreationModal from '../components/course/QuestionCreationModal'
 import './CourseBuilderPage.css'
 
 const LEVELS = [
@@ -69,6 +70,9 @@ export default function CourseBuilderPage() {
 
   // Question Bank Modal
   const [qbModal, setQbModal] = useState({ open: false, for: null }) // 'pre' | 'post'
+
+  // Question Creation Modal
+  const [qcModal, setQcModal] = useState({ open: false, for: null }) // 'pre' | 'post'
 
   const fileInputRef = useRef()
   const [lessonFileTarget, setLessonFileTarget] = useState(null)
@@ -170,7 +174,8 @@ export default function CourseBuilderPage() {
           if (c.post_assessment) setPostAssess(prev => ({ ...prev, ...c.post_assessment, questions: c.post_assessment.questions || [] }))
           if (c.certification) setCert(prev => ({ ...prev, ...c.certification }))
           navigate(`/courses/${c.id}/builder`, { replace: true })
-          showNotif('Course created!')
+          showNotif('Course created! Redirecting to courses list...')
+          setTimeout(() => navigate('/courses'), 1500)
         } else {
           const cid = course?.id || id
           const res = await coursesAPI.update(cid, meta)
@@ -323,6 +328,39 @@ export default function CourseBuilderPage() {
     } catch { /* silent */ }
   }
 
+  const handleReorderLesson = async (lessonId, direction) => {
+    const currentIndex = lessons.findIndex(l => l.id === lessonId)
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (newIndex < 0 || newIndex >= lessons.length) return
+
+    const reordered = [...lessons]
+    const [moved] = reordered.splice(currentIndex, 1)
+    reordered.splice(newIndex, 0, moved)
+
+    const updatedLessons = reordered.map((l, i) => ({ ...l, order: i + 1 }))
+    setLessons(updatedLessons)
+
+    if (!isRealUser) {
+      showNotif('Lesson reordered! (Demo mode)')
+      return
+    }
+
+    const cid = course?.id || id
+    try {
+      await coursesAPI.reorderLessons(cid, updatedLessons.map(l => ({ id: l.id, order: l.order })))
+      showNotif('Lesson reordered!')
+    } catch {
+      showNotif('Failed to reorder lesson.', 'error')
+      setLessons(lessons) // Revert on error
+    }
+  }
+
+  const handleDiscardDraft = () => {
+    if (window.confirm('Are you sure you want to discard this draft? Any unsaved changes will be lost.')) {
+      navigate('/courses')
+    }
+  }
+
   const handleRetire = async () => {
     const cid = course?.id || id
     if (!cid) return
@@ -380,17 +418,27 @@ export default function CourseBuilderPage() {
 
   const handleQbSelect = (selectedQuestions) => {
     if (qbModal.for === 'pre') {
-      setPreAssess(prev => ({ ...prev, questions: selectedQuestions }))
+      setPreAssess(prev => ({ ...prev, questions: [...prev.questions, ...selectedQuestions] }))
     } else {
-      setPostAssess(prev => ({ ...prev, questions: selectedQuestions }))
+      setPostAssess(prev => ({ ...prev, questions: [...prev.questions, ...selectedQuestions] }))
     }
     setQbModal({ open: false, for: null })
     showNotif(`${selectedQuestions.length} questions selected.`)
   }
 
+  const handleQcSave = (newQuestion) => {
+    if (qcModal.for === 'pre') {
+      setPreAssess(prev => ({ ...prev, questions: [...prev.questions, newQuestion] }))
+    } else {
+      setPostAssess(prev => ({ ...prev, questions: [...prev.questions, newQuestion] }))
+    }
+    setQcModal({ open: false, for: null })
+    showNotif('Question created and added!')
+  }
+
   if (loading) return (
     <div className="cb-loading">
-      <div className="spinner" style={{width:40,height:40,borderWidth:3}} />
+      <div className="spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
       <p>Loading course...</p>
     </div>
   )
@@ -413,6 +461,13 @@ export default function CourseBuilderPage() {
           selectedIds={(qbModal.for === 'pre' ? preAssess : postAssess).questions.map(q => q.id)}
           onSelect={handleQbSelect}
           onClose={() => setQbModal({ open: false, for: null })}
+        />
+      )}
+
+      {qcModal.open && (
+        <QuestionCreationModal
+          onSave={handleQcSave}
+          onClose={() => setQcModal({ open: false, for: null })}
         />
       )}
 
@@ -456,17 +511,20 @@ export default function CourseBuilderPage() {
               <h1 className="cb-course-name">{meta.display_name || 'New Course'}</h1>
               <p className="cb-course-sub">
                 {course?.course_id && <span>Course ID: {course.course_id} &nbsp;•&nbsp;</span>}
-                {course ? `Last modified ${new Date(course.updated_at).toLocaleString('en-US', {hour:'numeric',minute:'2-digit',hour12:true})} ago` : 'New course'}
+                {course ? `Last modified ${new Date(course.updated_at).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} ago` : 'New course'}
               </p>
             </div>
             <div className="cb-course-actions">
+              <button className="btn btn-ghost" onClick={() => navigate('/courses')}>
+                📚 All Courses
+              </button>
               {cid && (
                 <button className="btn btn-secondary" onClick={handleClone}>
                   📋 Clone
                 </button>
               )}
               <button className="btn btn-primary" onClick={handleSaveLevel} disabled={saving}>
-                {saving ? <><span className="spinner" style={{width:14,height:14}} /> Saving...</> : 'Save Changes'}
+                {saving ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Saving...</> : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -483,32 +541,35 @@ export default function CourseBuilderPage() {
                     <h2>Level 1: Global Metadata</h2>
                   </div>
                   <div className="cb-level-actions">
-                    <button className="btn btn-sm btn-danger" onClick={handleRetire}>Retire Course</button>
-                    <button className="btn btn-sm btn-success" onClick={handleActivate}>Re-Activate</button>
+                    {course?.status === 'active' ? (
+                      <button className="btn btn-sm btn-danger" onClick={handleRetire}>Retire Course</button>
+                    ) : (
+                      <button className="btn btn-sm btn-success" onClick={handleActivate}>Re-Activate</button>
+                    )}
                   </div>
                 </div>
 
                 <div className="cb-form-grid">
                   <div className="form-group cb-span-full">
                     <label className="form-label">Course Display Name</label>
-                    <input className="form-input" value={meta.display_name} onChange={e => setMeta(p => ({...p, display_name: e.target.value}))} placeholder="e.g. Advanced Cybersecurity Compliance" />
+                    <input className="form-input" value={meta.display_name} onChange={e => setMeta(p => ({ ...p, display_name: e.target.value }))} placeholder="e.g. Advanced Cybersecurity Compliance" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Start Date</label>
-                    <input className="form-input" type="date" value={meta.start_date} onChange={e => setMeta(p => ({...p, start_date: e.target.value}))} />
+                    <input className="form-input" type="date" value={meta.start_date} onChange={e => setMeta(p => ({ ...p, start_date: e.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">End Date</label>
-                    <input className="form-input" type="date" value={meta.end_date} onChange={e => setMeta(p => ({...p, end_date: e.target.value}))} />
+                    <input className="form-input" type="date" value={meta.end_date} onChange={e => setMeta(p => ({ ...p, end_date: e.target.value }))} />
                   </div>
                   <div className="form-group cb-span-full">
                     <label className="form-label">Description</label>
-                    <textarea className="form-textarea" rows={3} value={meta.description} onChange={e => setMeta(p => ({...p, description: e.target.value}))} placeholder="Describe the course objectives and learning outcomes..." />
+                    <textarea className="form-textarea" rows={3} value={meta.description} onChange={e => setMeta(p => ({ ...p, description: e.target.value }))} placeholder="Describe the course objectives and learning outcomes..." />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Taxonomy: Compliance</label>
                     <div className="cb-taxonomy-row">
-                      <select className="form-select" value={meta.compliance_taxonomy} onChange={e => setMeta(p => ({...p, compliance_taxonomy: e.target.value}))}>
+                      <select className="form-select" value={meta.compliance_taxonomy} onChange={e => setMeta(p => ({ ...p, compliance_taxonomy: e.target.value }))}>
                         {COMPLIANCE_OPTIONS.map(o => <option key={o} value={o}>{o === 'none' ? 'None' : o}</option>)}
                       </select>
                       <button className="btn btn-secondary btn-icon">+</button>
@@ -517,7 +578,7 @@ export default function CourseBuilderPage() {
                   <div className="form-group">
                     <label className="form-label">Taxonomy: Skills</label>
                     <div className="cb-taxonomy-row">
-                      <select className="form-select" value={meta.skills_taxonomy} onChange={e => setMeta(p => ({...p, skills_taxonomy: e.target.value}))}>
+                      <select className="form-select" value={meta.skills_taxonomy} onChange={e => setMeta(p => ({ ...p, skills_taxonomy: e.target.value }))}>
                         {SKILL_OPTIONS.map(o => <option key={o} value={o}>{o === 'none' ? 'None' : o}</option>)}
                       </select>
                       <button className="btn btn-secondary btn-icon">+</button>
@@ -542,12 +603,12 @@ export default function CourseBuilderPage() {
                   {/* Single Attempt */}
                   <div className="cb-assess-card card">
                     <label className="form-label">Single-Attempt</label>
-                    <label className="toggle-wrapper" style={{marginTop: 12}}>
+                    <label className="toggle-wrapper" style={{ marginTop: 12 }}>
                       <label className="toggle">
-                        <input type="checkbox" checked={preAssess.single_attempt} onChange={e => setPreAssess(p => ({...p, single_attempt: e.target.checked}))} />
+                        <input type="checkbox" checked={preAssess.single_attempt} onChange={e => setPreAssess(p => ({ ...p, single_attempt: e.target.checked }))} />
                         <span className="toggle-slider" />
                       </label>
-                      <span style={{color: preAssess.single_attempt ? 'var(--accent-blue)' : 'var(--text-muted)', fontWeight: 600}}>
+                      <span style={{ color: preAssess.single_attempt ? 'var(--accent-blue)' : 'var(--text-muted)', fontWeight: 600 }}>
                         {preAssess.single_attempt ? 'Enabled' : 'Disabled'}
                       </span>
                     </label>
@@ -562,7 +623,7 @@ export default function CourseBuilderPage() {
                         <input
                           type="range" min={15} max={180} step={5}
                           value={preAssess.time_limit_minutes}
-                          onChange={e => setPreAssess(p => ({...p, time_limit_minutes: +e.target.value}))}
+                          onChange={e => setPreAssess(p => ({ ...p, time_limit_minutes: +e.target.value }))}
                           className="cb-slider"
                         />
                         <span className="cb-slider-current">Current: {preAssess.time_limit_minutes}m</span>
@@ -574,7 +635,7 @@ export default function CourseBuilderPage() {
                   {/* Language */}
                   <div className="cb-assess-card card">
                     <label className="form-label">Quiz Language</label>
-                    <select className="form-select" style={{marginTop:8}} value={preAssess.language} onChange={e => setPreAssess(p => ({...p, language: e.target.value}))}>
+                    <select className="form-select" style={{ marginTop: 8 }} value={preAssess.language} onChange={e => setPreAssess(p => ({ ...p, language: e.target.value }))}>
                       {LANGUAGE_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
@@ -586,18 +647,18 @@ export default function CourseBuilderPage() {
                   <div className="card cb-q-source-card">
                     <div className="cb-q-source-icon">📚</div>
                     <h4>Browse Question Bank</h4>
-                    <div className="form-group" style={{marginTop:12}}>
+                    <div className="form-group" style={{ marginTop: 12 }}>
                       <label className="form-label">Filter by Language</label>
-                      <select className="form-select" value={preAssess.language} onChange={e => setPreAssess(p => ({...p, language: e.target.value}))}>
+                      <select className="form-select" value={preAssess.language} onChange={e => setPreAssess(p => ({ ...p, language: e.target.value }))}>
                         <option value="">All Languages</option>
                         {LANGUAGE_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                       </select>
                     </div>
-                    <button className="btn btn-secondary" style={{width:'100%', marginTop:12, justifyContent:'center'}} onClick={() => setQbModal({open:true, for:'pre'})}>
+                    <button className="btn btn-secondary" style={{ width: '100%', marginTop: 12, justifyContent: 'center' }} onClick={() => setQbModal({ open: true, for: 'pre' })}>
                       Open Selector
                     </button>
                     {preAssess.questions.length > 0 && (
-                      <p style={{fontSize:'0.78rem',color:'var(--accent-green)',marginTop:8,textAlign:'center'}}>✓ {preAssess.questions.length} questions selected</p>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--accent-green)', marginTop: 8, textAlign: 'center' }}>✓ {preAssess.questions.length} questions selected</p>
                     )}
                   </div>
 
@@ -605,21 +666,21 @@ export default function CourseBuilderPage() {
                   <div className="card cb-q-source-card">
                     <div className="cb-q-source-icon">✨</div>
                     <h4>Automated Randomization</h4>
-                    <div className="form-group" style={{marginTop:12}}>
+                    <div className="form-group" style={{ marginTop: 12 }}>
                       <label className="form-label">Question Count:</label>
-                      <input className="form-input" type="number" min={1} max={100} value={preAssess.question_count} onChange={e => setPreAssess(p => ({...p, question_count: +e.target.value}))} style={{width:80}} />
+                      <input className="form-input" type="number" min={1} max={100} value={preAssess.question_count} onChange={e => setPreAssess(p => ({ ...p, question_count: +e.target.value }))} style={{ width: 80 }} />
                     </div>
-                    <div className="toggle-wrapper" style={{marginTop:10}}>
+                    <div className="toggle-wrapper" style={{ marginTop: 10 }}>
                       <label className="toggle">
-                        <input type="checkbox" checked={preAssess.randomize} onChange={e => setPreAssess(p => ({...p, randomize: e.target.checked}))} />
+                        <input type="checkbox" checked={preAssess.randomize} onChange={e => setPreAssess(p => ({ ...p, randomize: e.target.checked }))} />
                         <span className="toggle-slider" />
                       </label>
-                      <span style={{fontSize:'0.82rem',color:'var(--text-secondary)'}}>Trainee Shuffle</span>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Trainee Shuffle</span>
                     </div>
                   </div>
 
                   {/* Instant Creation */}
-                  <div className="card cb-q-source-card cb-q-instant">
+                  <div className="card cb-q-source-card cb-q-instant" onClick={() => setQcModal({ open: true, for: 'pre' })}>
                     <div className="cb-q-instant-icon">+</div>
                     <h4>Instant Creation</h4>
                     <p>Direct question entry</p>
@@ -666,13 +727,27 @@ export default function CourseBuilderPage() {
                   <div className="cb-lessons-list">
                     {lessons.map((lesson, idx) => (
                       <div key={lesson.id} className="cb-lesson card">
-                        <div className="cb-lesson-header" onClick={() => setExpandedLessons(prev => ({...prev, [lesson.id]: !prev[lesson.id]}))}>
+                        <div className="cb-lesson-header" onClick={() => setExpandedLessons(prev => ({ ...prev, [lesson.id]: !prev[lesson.id] }))}>
                           <div className="cb-lesson-left">
                             <span className="cb-lesson-drag">⋮⋮</span>
                             <span className="cb-lesson-num">{String(idx + 1).padStart(2, '0')}</span>
                             <h4 className="cb-lesson-title">{lesson.title}</h4>
                           </div>
                           <div className="cb-lesson-right">
+                            <div className="cb-lesson-reorder" onClick={e => e.stopPropagation()}>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                disabled={idx === 0}
+                                onClick={() => handleReorderLesson(lesson.id, 'up')}
+                                title="Move up"
+                              >↑</button>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                disabled={idx === lessons.length - 1}
+                                onClick={() => handleReorderLesson(lesson.id, 'down')}
+                                title="Move down"
+                              >↓</button>
+                            </div>
                             <span className="cb-lesson-count">
                               {(lesson.files || []).length > 0 ? `${lesson.files.length} ${lesson.files.length === 1 ? 'File' : 'Files'} Uploaded` : 'No content yet'}
                             </span>
@@ -697,19 +772,27 @@ export default function CourseBuilderPage() {
                                   {lesson.files.map(file => (
                                     <tr key={file.id}>
                                       <td>
-                                        <div style={{display:'flex',alignItems:'center',gap:8}}>
-                                          {file.file_type === 'video' ? '🎥' : '📄'}
-                                          <span>{file.original_filename}</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          {file.file_type === 'video' ? '🎬' : file.file_type === 'presentation' ? '📊' : file.file_type === 'pdf' ? '📕' : '📄'}
+                                          <a
+                                            href={file.file}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="cb-file-link"
+                                            title="View/Download file"
+                                          >
+                                            {file.original_filename}
+                                          </a>
                                         </div>
                                       </td>
-                                      <td style={{color:'var(--text-secondary)',fontSize:'0.82rem',textTransform:'capitalize'}}>{file.file_type}</td>
+                                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', textTransform: 'capitalize' }}>{file.file_type}</td>
                                       <td>
                                         <input
                                           type="checkbox"
                                           className="cb-checkbox"
                                           checked={file.language === 'en'}
                                           readOnly
-                                          style={{accentColor:'var(--accent-blue)'}}
+                                          style={{ accentColor: 'var(--accent-blue)' }}
                                         />
                                       </td>
                                       <td>
@@ -718,11 +801,18 @@ export default function CourseBuilderPage() {
                                           className="cb-checkbox"
                                           checked={file.allow_offline_download}
                                           onChange={() => handleToggleOffline(lesson.id, file.id, file.allow_offline_download)}
-                                          style={{accentColor:'var(--accent-blue)'}}
+                                          style={{ accentColor: 'var(--accent-blue)' }}
                                         />
                                       </td>
                                       <td>
-                                        <button className="btn btn-ghost btn-sm" onClick={() => handleDeleteLessonFile(lesson.id, file.id)}>🗑</button>
+                                        <a
+                                          href={file.file}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="btn btn-ghost btn-sm"
+                                          title="View/Download"
+                                        >👁</a>
+                                        <button className="btn btn-ghost btn-sm" onClick={() => handleDeleteLessonFile(lesson.id, file.id)} title="Delete">🗑</button>
                                       </td>
                                     </tr>
                                   ))}
@@ -734,7 +824,7 @@ export default function CourseBuilderPage() {
                               <input
                                 ref={fileInputRef}
                                 type="file"
-                                style={{display:'none'}}
+                                style={{ display: 'none' }}
                                 accept=".mp4,.mov,.pdf,.ppt,.pptx,.docx"
                                 onChange={e => {
                                   if (e.target.files[0]) handleUploadLessonFile(lessonFileTarget, e.target.files[0])
@@ -747,7 +837,7 @@ export default function CourseBuilderPage() {
                               >
                                 + Upload Multi-Format Assets
                               </button>
-                              <button className="btn btn-ghost btn-sm" style={{color:'var(--accent-red)'}} onClick={() => handleDeleteLesson(lesson.id)}>
+                              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--accent-red)' }} onClick={() => handleDeleteLesson(lesson.id)}>
                                 Delete Lesson
                               </button>
                             </div>
@@ -768,7 +858,7 @@ export default function CourseBuilderPage() {
                     <span className="cb-level-icon">✅</span>
                     <h2>Level 5: Post-Assessment (Competency Gate)</h2>
                   </div>
-                  <div style={{display:'flex',alignItems:'center',gap:6,color:'var(--text-muted)',fontSize:'0.8rem'}}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                     🔒 Visibility locked until content completion
                   </div>
                 </div>
@@ -778,10 +868,10 @@ export default function CourseBuilderPage() {
                   <div className="card cb-threshold-card">
                     <div className="cb-threshold-circle">
                       <svg viewBox="0 0 100 100" width="90" height="90">
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--bg-tertiary)" strokeWidth="8"/>
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--bg-tertiary)" strokeWidth="8" />
                         <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent-blue)" strokeWidth="8"
                           strokeDasharray={`${2.51 * postAssess.passing_threshold} ${251 - 2.51 * postAssess.passing_threshold}`}
-                          strokeDashoffset="63" strokeLinecap="round"/>
+                          strokeDashoffset="63" strokeLinecap="round" />
                         <text x="50" y="55" textAnchor="middle" fontSize="20" fontWeight="800" fill="var(--accent-blue)">
                           {postAssess.passing_threshold}%
                         </text>
@@ -789,16 +879,16 @@ export default function CourseBuilderPage() {
                     </div>
                     <div>
                       <label className="form-label">Passing Threshold</label>
-                      <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8}}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
                         <input
                           className="form-input"
                           type="number"
                           min={1} max={100}
                           value={postAssess.passing_threshold}
-                          onChange={e => setPostAssess(p => ({...p, passing_threshold: +e.target.value}))}
-                          style={{width:80}}
+                          onChange={e => setPostAssess(p => ({ ...p, passing_threshold: +e.target.value }))}
+                          style={{ width: 80 }}
                         />
-                        <span style={{color:'var(--text-secondary)'}}>%</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>%</span>
                       </div>
                     </div>
                   </div>
@@ -807,7 +897,7 @@ export default function CourseBuilderPage() {
                   <div className="card cb-assess-card">
                     <div className="cb-refresh-icon">🔄</div>
                     <label className="form-label">Max Attempts Allowed</label>
-                    <select className="form-select" style={{marginTop:8}} value={postAssess.max_attempts} onChange={e => setPostAssess(p => ({...p, max_attempts: +e.target.value}))}>
+                    <select className="form-select" style={{ marginTop: 8 }} value={postAssess.max_attempts} onChange={e => setPostAssess(p => ({ ...p, max_attempts: +e.target.value }))}>
                       <option value={1}>1 Attempt</option>
                       <option value={2}>2 Attempts</option>
                       <option value={3}>3 Attempts</option>
@@ -820,7 +910,7 @@ export default function CourseBuilderPage() {
                   <div className="card cb-assess-card">
                     <div className="cb-globe-icon">🌐</div>
                     <label className="form-label">Quiz Language</label>
-                    <select className="form-select" style={{marginTop:8}} value={postAssess.language} onChange={e => setPostAssess(p => ({...p, language: e.target.value}))}>
+                    <select className="form-select" style={{ marginTop: 8 }} value={postAssess.language} onChange={e => setPostAssess(p => ({ ...p, language: e.target.value }))}>
                       {LANGUAGE_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
@@ -831,38 +921,38 @@ export default function CourseBuilderPage() {
                   <div className="card cb-q-source-card">
                     <div className="cb-q-source-icon">📚</div>
                     <h4>Browse Question Bank</h4>
-                    <div className="form-group" style={{marginTop:12}}>
+                    <div className="form-group" style={{ marginTop: 12 }}>
                       <label className="form-label">Filter by Language</label>
-                      <select className="form-select" value={postAssess.language} onChange={e => setPostAssess(p => ({...p, language: e.target.value}))}>
+                      <select className="form-select" value={postAssess.language} onChange={e => setPostAssess(p => ({ ...p, language: e.target.value }))}>
                         <option value="">All Languages</option>
                         {LANGUAGE_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                       </select>
                     </div>
-                    <button className="btn btn-secondary" style={{width:'100%', marginTop:12, justifyContent:'center'}} onClick={() => setQbModal({open:true, for:'post'})}>
+                    <button className="btn btn-secondary" style={{ width: '100%', marginTop: 12, justifyContent: 'center' }} onClick={() => setQbModal({ open: true, for: 'post' })}>
                       Open Selector
                     </button>
                     {postAssess.questions.length > 0 && (
-                      <p style={{fontSize:'0.78rem',color:'var(--accent-green)',marginTop:8,textAlign:'center'}}>✓ {postAssess.questions.length} questions selected</p>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--accent-green)', marginTop: 8, textAlign: 'center' }}>✓ {postAssess.questions.length} questions selected</p>
                     )}
                   </div>
 
                   <div className="card cb-q-source-card">
                     <div className="cb-q-source-icon">✨</div>
                     <h4>Randomized Generator</h4>
-                    <div className="form-group" style={{marginTop:12}}>
+                    <div className="form-group" style={{ marginTop: 12 }}>
                       <label className="form-label">Question Count</label>
-                      <input className="form-input" type="number" min={1} value={postAssess.question_count} onChange={e => setPostAssess(p => ({...p, question_count: +e.target.value}))} style={{width:80}} />
+                      <input className="form-input" type="number" min={1} value={postAssess.question_count} onChange={e => setPostAssess(p => ({ ...p, question_count: +e.target.value }))} style={{ width: 80 }} />
                     </div>
-                    <div className="toggle-wrapper" style={{marginTop:10}}>
+                    <div className="toggle-wrapper" style={{ marginTop: 10 }}>
                       <label className="toggle">
-                        <input type="checkbox" checked={postAssess.randomize} onChange={e => setPostAssess(p => ({...p, randomize: e.target.checked}))} />
+                        <input type="checkbox" checked={postAssess.randomize} onChange={e => setPostAssess(p => ({ ...p, randomize: e.target.checked }))} />
                         <span className="toggle-slider" />
                       </label>
-                      <span style={{fontSize:'0.82rem',color:'var(--text-secondary)'}}>Shuffle for each trainee</span>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Shuffle for each trainee</span>
                     </div>
                   </div>
 
-                  <div className="card cb-q-source-card cb-q-instant">
+                  <div className="card cb-q-source-card cb-q-instant" onClick={() => setQcModal({ open: true, for: 'post' })}>
                     <div className="cb-q-instant-icon">+</div>
                     <h4>Manual Entry</h4>
                     <p>Write questions directly</p>
@@ -895,7 +985,7 @@ export default function CourseBuilderPage() {
                           <button
                             key={t.value}
                             className={`cb-template-btn ${cert.template === t.value ? 'active' : ''}`}
-                            onClick={() => setCert(p => ({...p, template: t.value}))}
+                            onClick={() => setCert(p => ({ ...p, template: t.value }))}
                           >
                             {t.label}
                           </button>
@@ -920,11 +1010,11 @@ export default function CourseBuilderPage() {
                       <div className="cb-cert-footer">
                         <div>
                           <p className="cb-cert-footer-label">ISSUE DATE</p>
-                          <p className="cb-cert-footer-val">{new Date().toLocaleDateString('en-US', {month:'long',day:'numeric',year:'numeric'}).toUpperCase()}</p>
+                          <p className="cb-cert-footer-val">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}</p>
                         </div>
                         <div>
                           <p className="cb-cert-footer-label">CERTIFICATE ID</p>
-                          <p className="cb-cert-footer-val">#LMS-{Math.floor(Math.random() * 10000).toString().padStart(6,'0')}-X</p>
+                          <p className="cb-cert-footer-val">#LMS-{Math.floor(Math.random() * 10000).toString().padStart(6, '0')}-X</p>
                         </div>
                       </div>
                     </div>
@@ -947,12 +1037,12 @@ export default function CourseBuilderPage() {
                   {/* Batch Expiry */}
                   <div className="card cb-timeline-card">
                     <h4 className="cb-timeline-subtitle">Batch Expiry Management</h4>
-                    <div className="form-group" style={{marginTop:16}}>
+                    <div className="form-group" style={{ marginTop: 16 }}>
                       <div className="cb-batch-row">
                         <span className="cb-batch-icon">👥</span>
                         <div>
                           <label className="form-label">Target Group</label>
-                          <select className="form-select" style={{marginTop:6}} value={batchExpiry.target_group} onChange={e => setBatchExpiry(p => ({...p, target_group: e.target.value}))}>
+                          <select className="form-select" style={{ marginTop: 6 }} value={batchExpiry.target_group} onChange={e => setBatchExpiry(p => ({ ...p, target_group: e.target.value }))}>
                             <option value="">Select Group</option>
                             <option value="IT Department (Q3 cohort)">IT Department (Q3 cohort)</option>
                             <option value="Engineering Team">Engineering Team</option>
@@ -961,12 +1051,12 @@ export default function CourseBuilderPage() {
                           </select>
                         </div>
                       </div>
-                      <div className="cb-batch-row" style={{marginTop:12}}>
+                      <div className="cb-batch-row" style={{ marginTop: 12 }}>
                         <span className="cb-batch-icon">📅</span>
-                        <div style={{flex:1}}>
+                        <div style={{ flex: 1 }}>
                           <label className="form-label">New Expiry Date</label>
-                          <div style={{display:'flex',gap:8,marginTop:6}}>
-                            <input className="form-input" type="date" value={batchExpiry.expiry_date} onChange={e => setBatchExpiry(p => ({...p, expiry_date: e.target.value}))} />
+                          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                            <input className="form-input" type="date" value={batchExpiry.expiry_date} onChange={e => setBatchExpiry(p => ({ ...p, expiry_date: e.target.value }))} />
                             <button className="btn btn-primary" onClick={handleSaveLevel} disabled={saving}>Apply Update</button>
                           </div>
                         </div>
@@ -981,9 +1071,9 @@ export default function CourseBuilderPage() {
                       <label className="cb-policy-item">
                         <input
                           type="checkbox"
-                          style={{accentColor:'var(--accent-blue)', width:16, height:16}}
+                          style={{ accentColor: 'var(--accent-blue)', width: 16, height: 16 }}
                           checked={cert.enable_soft_expiry}
-                          onChange={e => setCert(p => ({...p, enable_soft_expiry: e.target.checked}))}
+                          onChange={e => setCert(p => ({ ...p, enable_soft_expiry: e.target.checked }))}
                         />
                         <div>
                           <p className="cb-policy-title">Enable Soft Expiry</p>
@@ -993,9 +1083,9 @@ export default function CourseBuilderPage() {
                       <label className="cb-policy-item">
                         <input
                           type="checkbox"
-                          style={{accentColor:'var(--accent-blue)', width:16, height:16}}
+                          style={{ accentColor: 'var(--accent-blue)', width: 16, height: 16 }}
                           checked={cert.enable_recertification_reminder}
-                          onChange={e => setCert(p => ({...p, enable_recertification_reminder: e.target.checked}))}
+                          onChange={e => setCert(p => ({ ...p, enable_recertification_reminder: e.target.checked }))}
                         />
                         <div>
                           <p className="cb-policy-title">Automated Re-certification Reminders</p>
@@ -1003,7 +1093,7 @@ export default function CourseBuilderPage() {
                         </div>
                       </label>
                     </div>
-                    <button className="btn btn-primary" style={{marginTop:16}} onClick={handleSaveLevel} disabled={saving}>
+                    <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={handleSaveLevel} disabled={saving}>
                       Save Policy
                     </button>
                   </div>
@@ -1028,7 +1118,7 @@ export default function CourseBuilderPage() {
           <span className="cb-progress-label">LEVEL {activeLevel} OF {LEVELS.length} COMPLETE</span>
         </div>
         <div className="cb-bottom-actions">
-          <button className="btn btn-ghost" onClick={() => navigate('/courses')}>Discard Draft</button>
+          <button className="btn btn-ghost" onClick={handleDiscardDraft}>Discard Draft</button>
           <button className="btn btn-primary" onClick={activeLevel < LEVELS.length ? () => setActiveLevel(prev => Math.min(LEVELS.length, prev + 1)) : handleFinish} disabled={saving}>
             {activeLevel < LEVELS.length ? 'Next Level →' : 'Finish Builder'}
           </button>

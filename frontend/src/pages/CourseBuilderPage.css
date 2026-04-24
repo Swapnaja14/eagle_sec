@@ -339,3 +339,35 @@
 .cb-progress-dot.active { background: var(--accent-blue); border-color: var(--accent-blue); }
 .cb-progress-label { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.05em; margin-left: 12px; text-transform: uppercase; }
 .cb-bottom-actions { display: flex; gap: 10px; }
+
+/* Lesson Reordering */
+.cb-lesson-reorder {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+}
+.cb-lesson-header:hover .cb-lesson-reorder {
+  opacity: 1;
+}
+.cb-lesson-reorder button {
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+.cb-lesson-reorder button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* File Links */
+.cb-file-link {
+  color: var(--accent-blue);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+.cb-file-link:hover {
+  color: var(--accent-blue-dark);
+  text-decoration: underline;
+}

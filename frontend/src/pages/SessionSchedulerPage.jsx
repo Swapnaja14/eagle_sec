@@ -60,6 +60,7 @@ export default function SessionSchedulerPage() {
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [trainingTopics, setTrainingTopics] = useState([]);
+  const [pageError, setPageError] = useState(null);
 
   const [classroomForm, setClassroomForm] = useState({
     topic: '',
@@ -124,6 +125,7 @@ export default function SessionSchedulerPage() {
         }
       } catch (error) {
         console.error('Error fetching session data:', error);
+        setPageError('Failed to load session data. Please refresh the page.');
         // Set empty arrays on error
         setTrainers([]);
         setSites([]);
@@ -144,11 +146,17 @@ export default function SessionSchedulerPage() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  const filteredEmployees = employees.filter(emp =>
-    (emp.name.toLowerCase().includes(participantSearch.toLowerCase()) ||
-      emp.employee_id.toLowerCase().includes(participantSearch.toLowerCase())) &&
-    !form.participants.find(p => p.id === emp.id)
-  );
+  const filteredEmployees = employees.filter(emp => {
+    // Defensive checks to prevent crash on malformed data
+    const name = emp?.name || '';
+    const empId = emp?.employee_id || emp?.id || '';
+    const searchLower = (participantSearch || '').toLowerCase();
+    return (
+      (name.toLowerCase().includes(searchLower) ||
+        empId.toLowerCase().includes(searchLower)) &&
+      !form.participants.find(p => p.id === emp.id)
+    );
+  });
 
   const addParticipant = (emp) => {
     setForm(prev => ({ ...prev, participants: [...prev.participants, emp] }));
@@ -226,7 +234,19 @@ export default function SessionSchedulerPage() {
     await createSession('scheduled');
   };
 
-  const filteredSites = sites.filter(s => s.client === form.clientId);
+  const filteredSites = Array.isArray(sites) ? sites.filter(s => s?.client === form.clientId) : [];
+
+  // Show error state if data fetch failed
+  if (pageError) {
+    return (
+      <div className="scheduler-page" style={{ padding: '40px 24px', textAlign: 'center' }}>
+        <div style={{ color: 'var(--accent-red)', marginBottom: 16, fontSize: '1.1rem' }}>{pageError}</div>
+        <button className="btn btn-primary" onClick={() => window.location.reload()}>
+          Refresh Page
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="scheduler-page">
@@ -280,7 +300,7 @@ export default function SessionSchedulerPage() {
                   <label className="form-label">Training Topic *</label>
                   <select className="form-select" name="topic" value={form.topic} onChange={handleChange}>
                     <option value="">Select Topic...</option>
-                    {topicOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                    {Array.isArray(topicOptions) ? topicOptions.map(m => <option key={m} value={m}>{m}</option>) : null}
                   </select>
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <input
@@ -299,7 +319,7 @@ export default function SessionSchedulerPage() {
                   <label className="form-label">Trainer *</label>
                   <select className="form-select" name="trainerId" value={form.trainerId} onChange={handleChange}>
                     <option value="">Select Trainer...</option>
-                    {trainers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.username})</option>)}
+                    {Array.isArray(trainers) ? trainers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.username})</option>) : null}
                   </select>
                   {errors.trainerId && <span style={{ color: 'var(--accent-red)', fontSize: '0.8rem' }}>{errors.trainerId}</span>}
                 </div>
@@ -347,14 +367,14 @@ export default function SessionSchedulerPage() {
                     <label className="form-label">Client</label>
                     <select className="form-select" name="clientId" value={form.clientId} onChange={handleChange}>
                       <option value="">Select Client...</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {Array.isArray(clients) ? clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>) : null}
                     </select>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Site</label>
                     <select className="form-select" name="siteId" value={form.siteId} onChange={handleChange}>
                       <option value="">Select Site...</option>
-                      {filteredSites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {Array.isArray(filteredSites) ? filteredSites.map(s => <option key={s.id} value={s.id}>{s.name}</option>) : null}
                     </select>
                   </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>

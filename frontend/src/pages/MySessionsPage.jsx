@@ -1,30 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const ALL_SESSIONS = [
-  { id: 1, topic: 'PSARA Foundation Course', type: 'classroom', date: '2026-04-15', time: '2:00 PM', site: 'Mumbai HQ', enrolled: 45, attended: null, status: 'upcoming', passPct: null },
-  { id: 2, topic: 'Fire Safety & Evacuation', type: 'classroom', date: '2026-04-16', time: '9:00 AM', site: 'Pune Campus', enrolled: 20, attended: null, status: 'upcoming', passPct: null },
-  { id: 3, topic: 'Emergency Response Protocol', type: 'virtual', date: '2026-04-16', time: '11:00 AM', site: 'Online', enrolled: 30, attended: null, status: 'upcoming', passPct: null },
-  { id: 4, topic: 'CCTV Operations Mastery', type: 'classroom', date: '2026-04-10', time: '9:00 AM', site: 'Delhi Office', enrolled: 25, attended: 24, status: 'completed', passPct: 88 },
-  { id: 5, topic: 'Access Control Procedures', type: 'virtual', date: '2026-04-07', time: '2:00 PM', site: 'Online', enrolled: 38, attended: 35, status: 'completed', passPct: 77 },
-  { id: 6, topic: 'Customer Service Excellence', type: 'classroom', date: '2026-03-28', time: '10:00 AM', site: 'Bangalore Tech Park', enrolled: 50, attended: 48, status: 'completed', passPct: 92 },
-  { id: 7, topic: 'First Aid & CPR Certification', type: 'classroom', date: '2026-03-21', time: '9:00 AM', site: 'Hyderabad Zone', enrolled: 30, attended: 28, status: 'completed', passPct: 85 },
-  { id: 8, topic: 'Digital Security Awareness', type: 'virtual', date: '2026-03-15', time: '3:00 PM', site: 'Online', enrolled: 60, attended: 55, status: 'completed', passPct: 80 },
-];
+import { sessionsAPI } from '../services/api';
 
 export default function MySessionsPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({ count: 0, upcoming_count: 0, completed_count: 0 });
 
-  const filtered = ALL_SESSIONS.filter(s => {
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        setLoading(true);
+        const response = await sessionsAPI.getMySessions();
+        setSessions(response.data?.results || []);
+        setStats({
+          count: response.data?.count || 0,
+          upcoming_count: response.data?.upcoming_count || 0,
+          completed_count: response.data?.completed_count || 0,
+        });
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch trainer sessions:', err);
+        setError('Failed to load sessions. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSessions();
+  }, []);
+
+  const filtered = Array.isArray(sessions) ? sessions.filter(s => {
     if (statusFilter !== 'all' && s.status !== statusFilter) return false;
     if (typeFilter !== 'all' && s.type !== typeFilter) return false;
     return true;
-  });
+  }) : [];
 
-  const upcoming = ALL_SESSIONS.filter(s => s.status === 'upcoming').length;
-  const completed = ALL_SESSIONS.filter(s => s.status === 'completed').length;
+  const upcoming = stats.upcoming_count;
+  const completed = stats.completed_count;
+  const total = stats.count;
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
@@ -37,18 +54,33 @@ export default function MySessionsPage() {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Upcoming', value: upcoming, color: 'var(--accent-blue)' },
-          { label: 'Completed', value: completed, color: 'var(--accent-green)' },
-          { label: 'Total', value: ALL_SESSIONS.length, color: 'var(--text-primary)' },
-        ].map(s => (
-          <div key={s.label} className="card" style={{ padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: '1.5rem', fontWeight: 900, color: s.color }}>{s.value}</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{s.label}</span>
+      {loading ? (
+        <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+          <div className="card" style={{ padding: '14px 22px' }}>
+            <span style={{ color: 'var(--text-muted)' }}>Loading sessions...</span>
           </div>
-        ))}
-      </div>
+        </div>
+      ) : error ? (
+        <div className="card" style={{ padding: '14px 22px', marginBottom: 24, color: 'var(--accent-red)' }}>
+          {error}
+          <button className="btn btn-primary btn-sm" style={{ marginLeft: 12 }} onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Upcoming', value: upcoming, color: 'var(--accent-blue)' },
+            { label: 'Completed', value: completed, color: 'var(--accent-green)' },
+            { label: 'Total', value: total, color: 'var(--text-primary)' },
+          ].map(s => (
+            <div key={s.label} className="card" style={{ padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: '1.5rem', fontWeight: 900, color: s.color }}>{s.value}</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card" style={{ padding: '12px 20px', marginBottom: 20, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>

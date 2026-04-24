@@ -2,13 +2,14 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
+from django.db import transaction, models
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as dj_filters
-from .models import Course, Lesson, LessonFile, PreAssessment, PostAssessment, Certification, BatchExpiry
+from .models import Course, Lesson, LessonFile, PreAssessment, PostAssessment, Certification, BatchExpiry, TrainingAssignment
 from .serializers import (CourseSerializer, LessonSerializer, LessonFileSerializer,
                            PreAssessmentSerializer, PostAssessmentSerializer,
                            CertificationSerializer, BatchExpirySerializer)
+from accounts.models import User
 
 
 class CourseFilter(dj_filters.FilterSet):
@@ -51,6 +52,114 @@ class CourseViewSet(viewsets.ModelViewSet):
         course.save()
         return Response({'status': 'active'})
 
+    @action(detail=True, methods=['get'])
+    def stats(self, request, pk=None):
+        """Get course statistics: enrollment count, completion rate, avg score"""
+        course = self.get_object()
+        
+        # Get all training assignments for this course
+        assignments = course.training_assignments.all()
+        
+        total_enrolled = assignments.count()
+        completed = assignments.filter(status=TrainingAssignment.STATUS_COMPLETED).count()
+        in_progress = assignments.filter(status=TrainingAssignment.STATUS_IN_PROGRESS).count()
+        not_started = assignments.filter(status=TrainingAssignment.STATUS_ASSIGNED).count()
+        overdue = assignments.filter(status=TrainingAssignment.STATUS_OVERDUE).count()
+        
+        completion_rate = (completed / total_enrolled * 100) if total_enrolled > 0 else 0
+        
+        # Calculate average score from post-assessment submissions
+        avg_score = None
+        if hasattr(course, 'post_assessment'):
+            from submissions.models import Submission
+            submissions = Submission.objects.filter(
+                assessment_type='post',
+                assessment_id=course.post_assessment.id
+            )
+            if submissions.exists():
+                avg_score = submissions.filter(score__isnull=False).aggregate(
+                    avg=models.Avg('score')
+                )['avg']
+        
+        return Response({
+            'total_enrolled': total_enrolled,
+            'completed': completed,
+            'in_progress': in_progress,
+            'not_started': not_started,
+            'overdue': overdue,
+            'completion_rate': round(completion_rate, 2),
+            'average_score': round(avg_score, 2) if avg_score else None,
+        })
+    
+    @action(detail=True, methods=['get'])
+    def enrollments(self, request, pk=None):
+        """Get list of enrolled trainees with their status"""
+        course = self.get_object()
+        assignments = course.training_assignments.select_related('trainee').all()
+        
+        data = []
+        for assignment in assignments:
+            trainee = assignment.trainee
+            data.append({
+                'id': assignment.id,
+                'trainee_id': trainee.id,
+                'trainee_name': trainee.get_full_name() or trainee.username,
+                'trainee_email': trainee.email,
+                'status': assignment.status,
+                'assigned_at': assignment.assigned_at,
+                'due_date': assignment.due_date,
+                'notes': assignment.notes,
+            })
+        
+        return Response(data)
+    
+    @action(detail=True, methods=['post'])
+    def enroll(self, request, pk=None):
+        """Bulk enroll trainees to course"""
+        course = self.get_object()
+        trainee_ids = request.data.get('trainee_ids', [])
+        due_date = request.data.get('due_date')
+        notes = request.data.get('notes', '')
+        
+        if not trainee_ids:
+            return Response(
+                {'detail': 'trainee_ids is required.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        enrolled = []
+        errors = []
+        
+        for trainee_id in trainee_ids:
+            try:
+                trainee = User.objects.get(id=trainee_id, role=User.ROLE_TRAINEE)
+                assignment, created = TrainingAssignment.objects.get_or_create(
+                    trainee=trainee,
+                    course=course,
+                    defaults={
+                        'tenant': course.tenant,
+                        'assigned_by': request.user,
+                        'due_date': due_date,
+                        'notes': notes,
+                    }
+                )
+                if created:
+                    enrolled.append({
+                        'id': assignment.id,
+                        'trainee_id': trainee.id,
+                        'trainee_name': trainee.get_full_name() or trainee.username,
+                    })
+            except User.DoesNotExist:
+                errors.append(f"Trainee {trainee_id} not found")
+            except Exception as e:
+                errors.append(str(e))
+        
+        return Response({
+            'enrolled': enrolled,
+            'enrolled_count': len(enrolled),
+            'errors': errors,
+        })
+    
     @action(detail=True, methods=['post'])
     def clone(self, request, pk=None):
         original = self.get_object()
@@ -171,10 +280,14 @@ class LessonFileViewSet(viewsets.ModelViewSet):
         file_type = 'document'
         if file_obj:
             name = file_obj.name.lower()
-            if any(name.endswith(ext) for ext in ['.mp4', '.mov', '.avi']):
+            if any(name.endswith(ext) for ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']):
                 file_type = 'video'
             elif any(name.endswith(ext) for ext in ['.ppt', '.pptx']):
                 file_type = 'presentation'
+            elif any(name.endswith(ext) for ext in ['.pdf']):
+                file_type = 'pdf'
+            elif any(name.endswith(ext) for ext in ['.doc', '.docx']):
+                file_type = 'document'
         serializer.save(
             lesson_id=lesson_pk,
             original_filename=file_obj.name if file_obj else '',
@@ -281,42 +394,44 @@ def training_topics_view(request):
     """Get list of training topics for session scheduling"""
     user = request.user
     
-    # Get active courses as training topics
+    # Get active and draft courses as training topics (exclude retired)
     if user.tenant:
-        courses = Course.objects.filter(tenant=user.tenant, status='active')
+        courses = Course.objects.filter(tenant=user.tenant, status__in=['active', 'draft'])
     else:
-        courses = Course.objects.filter(status='active')
+        courses = Course.objects.filter(status__in=['active', 'draft'])
     
     # Extract course names as topics
-    topics = list(courses.values_list('display_name', flat=True).distinct())
+    course_topics = list(courses.values_list('display_name', flat=True).distinct())
     
-    # Add some default tech training topics if no courses exist
-    if not topics:
-        topics = [
-            'Cybersecurity Fundamentals',
-            'Network Security & Firewalls',
-            'Cloud Security Best Practices',
-            'AWS Security Essentials',
-            'Azure Security & Identity',
-            'Google Cloud Security',
-            'SIEM & Security Monitoring',
-            'SOC Operations Basics',
-            'Incident Response & Forensics',
-            'Threat Hunting Techniques',
-            'Vulnerability Management',
-            'Penetration Testing Basics',
-            'Application Security (OWASP Top 10)',
-            'API Security',
-            'Secure Coding in Python',
-            'DevSecOps Pipeline Security',
-            'Container Security (Docker/Kubernetes)',
-            'Linux Hardening',
-            'Identity & Access Management (IAM)',
-            'Zero Trust Security Model',
-            'Data Privacy & Protection',
-            'Endpoint Detection & Response',
-            'Email & Phishing Defense',
-            'Business Continuity & Disaster Recovery',
-        ]
+    # Default tech training topics (always included)
+    default_topics = [
+        'Cybersecurity Fundamentals',
+        'Network Security & Firewalls',
+        'Cloud Security Best Practices',
+        'AWS Security Essentials',
+        'Azure Security & Identity',
+        'Google Cloud Security',
+        'SIEM & Security Monitoring',
+        'SOC Operations Basics',
+        'Incident Response & Forensics',
+        'Threat Hunting Techniques',
+        'Vulnerability Management',
+        'Penetration Testing Basics',
+        'Application Security (OWASP Top 10)',
+        'API Security',
+        'Secure Coding in Python',
+        'DevSecOps Pipeline Security',
+        'Container Security (Docker/Kubernetes)',
+        'Linux Hardening',
+        'Identity & Access Management (IAM)',
+        'Zero Trust Security Model',
+        'Data Privacy & Protection',
+        'Endpoint Detection & Response',
+        'Email & Phishing Defense',
+        'Business Continuity & Disaster Recovery',
+    ]
     
-    return Response(topics)
+    # Combine course topics and default topics, remove duplicates
+    all_topics = list(dict.fromkeys(course_topics + default_topics))
+    
+    return Response(all_topics)
