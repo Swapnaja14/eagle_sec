@@ -4,7 +4,7 @@ from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -121,15 +121,19 @@ class CertificateDetailView(APIView):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def download_certificate(request, cert_id):
     """
     GET /api/certificates/{id}/download/
     Streams the PDF file as a download.
     """
     qs = IssuedCertificate.objects.all()
-    if request.user.role != "superadmin":
-        qs = qs.filter(tenant=request.user.tenant)
+    
+    # Only apply tenant filtering if the user is authenticated.
+    # For anonymous users (public links), we allow access by ID.
+    if request.user.is_authenticated:
+        if request.user.role != "superadmin":
+            qs = qs.filter(tenant=request.user.tenant)
 
     try:
         cert = qs.get(id=cert_id)

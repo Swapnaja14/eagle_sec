@@ -12,6 +12,7 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import CourseDetailScreen from './src/screens/CourseDetailScreen';
 
 // Storage
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -118,9 +119,12 @@ export default function App() {
               {(props) => <LoginScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
             </Stack.Screen>
           ) : (
-            <Stack.Screen name="MainTabs">
-              {(props) => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
-            </Stack.Screen>
+            <>
+              <Stack.Screen name="MainTabs">
+                {(props) => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
+              </Stack.Screen>
+              <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+            </>
           )}
 
         </Stack.Navigator>

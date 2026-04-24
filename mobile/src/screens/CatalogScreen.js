@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen } from 'lucide-react-native';
-import { coursesAPI } from '../services/api';
+import { coursesAPI, baseURL } from '../services/api';
 
-export default function CatalogScreen() {
+export default function CatalogScreen({ navigation }) {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,6 +19,7 @@ export default function CatalogScreen() {
     category: course.category || 'General',
     progress: course.progress?.percent ?? 0,
     recommendation: course.recommendation?.message || 'Keep progressing with your training plan.',
+    certificateUrl: course.certificate_url || null,
   });
 
   const loadCourses = useCallback(async (isRefresh = false) => {
@@ -90,7 +91,20 @@ export default function CatalogScreen() {
                 </View>
                 <Text style={styles.progressText}>Progress: {course.progress}%</Text>
                 <Text style={styles.recommendationText}>{course.recommendation}</Text>
-                <TouchableOpacity style={styles.enrollBtn}>
+                
+                {course.certificateUrl ? (
+                  <TouchableOpacity 
+                    style={[styles.enrollBtn, { borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.15)', marginBottom: 8 }]} 
+                    onPress={() => Linking.openURL(`${baseURL.replace('/api', '')}/api${course.certificateUrl}`)}
+                  >
+                    <Text style={[styles.enrollText, { color: '#10b981' }]}>View Certificate</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                <TouchableOpacity 
+                  style={styles.enrollBtn} 
+                  onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
+                >
                   <Text style={styles.enrollText}>View Details</Text>
                 </TouchableOpacity>
               </View>

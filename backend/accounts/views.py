@@ -268,3 +268,13 @@ from .serializers import CustomTokenObtainPairSerializer
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        print(f"DEBUG: Login attempt for user: {request.data.get('username')}")
+        try:
+            response = super().post(request, *args, **kwargs)
+            print(f"DEBUG: Login successful for user: {request.data.get('username')}")
+            return response
+        except Exception as e:
+            print(f"DEBUG: Login failed for user: {request.data.get('username')}. Error: {str(e)}")
+            raise e

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // ✅ Base URL
-const baseURL =
+export const baseURL =
   Platform.OS === 'android'
     ? 'http://10.0.2.2:8000/api'
     : 'http://localhost:8000/api';
@@ -81,6 +81,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+
+    // Skip refresh logic for login endpoint
+    if (original.url.includes('/token/') && !original.url.includes('/refresh/')) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;

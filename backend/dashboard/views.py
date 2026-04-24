@@ -11,6 +11,7 @@ from .models import TrainingSession
 from .serializers import TrainingSessionSerializer
 from courses.models import TrainingAssignment
 from assessments.models import Submission
+from certificates.models import IssuedCertificate
 from .services import (
     get_dashboard_summary,
     get_department_completion,
@@ -285,6 +286,7 @@ class TraineeCoursesView(APIView):
                 status__in=[
                     TrainingAssignment.STATUS_ASSIGNED,
                     TrainingAssignment.STATUS_IN_PROGRESS,
+                    TrainingAssignment.STATUS_COMPLETED,
                 ],
             )
             .annotate(
@@ -319,6 +321,15 @@ class TraineeCoursesView(APIView):
             )
         }
 
+        certificates = IssuedCertificate.objects.filter(
+            employee=user,
+            course_id__in=assigned_course_ids,
+        )
+        if user.tenant:
+            certificates = certificates.filter(tenant=user.tenant)
+        
+        cert_map = {cert.course_id: cert.id for cert in certificates}
+
         upcoming_sessions = TrainingSession.objects.filter(
             is_active=True,
             date_time__gte=timezone.now(),
@@ -341,9 +352,8 @@ class TraineeCoursesView(APIView):
             )
             best_score = stats.get("best_score")
 
-            if progress_percent >= 100:
+            if progress_percent >= 100 and assignment.status != TrainingAssignment.STATUS_COMPLETED:
                 completed_assignment_ids.append(assignment.id)
-                continue
 
             has_upcoming_session = course.display_name in upcoming_topics
             recommendation = self._recommendation_for(progress_percent, best_score, has_upcoming_session)
@@ -370,6 +380,7 @@ class TraineeCoursesView(APIView):
                         "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
                         "assigned_at": assignment.assigned_at.isoformat(),
                     },
+                    "certificate_url": f"/certificates/{cert_map[course.id]}/download/" if course.id in cert_map else None,
                 }
             )
 
