@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { dashboardAPI } from '../services/api';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -8,38 +9,60 @@ import {
 
 const TOOLTIP_STYLE = { backgroundColor: '#161b22', borderColor: '#30363d', color: '#f0f6fc', borderRadius: 8, fontSize: '0.85rem' };
 
-const MY_SESSIONS = [
-  { id: 1, topic: 'PSARA Foundation Course', type: 'classroom', date: 'Today, 2:00 PM', site: 'Mumbai HQ', enrolled: 45, attended: 0, status: 'upcoming' },
-  { id: 2, topic: 'Fire Safety & Evacuation', type: 'classroom', date: 'Tomorrow, 9:00 AM', site: 'Pune Campus', enrolled: 20, attended: 0, status: 'upcoming' },
-  { id: 3, topic: 'Emergency Response Protocol', type: 'virtual', date: 'Apr 16, 11:00 AM', site: 'Online', enrolled: 30, attended: 0, status: 'upcoming' },
-  { id: 4, topic: 'CCTV Operations Mastery', type: 'classroom', date: 'Apr 10, 9:00 AM', site: 'Delhi Office', enrolled: 25, attended: 24, status: 'completed' },
-  { id: 5, topic: 'Access Control Procedures', type: 'virtual', date: 'Apr 7, 2:00 PM', site: 'Online', enrolled: 38, attended: 35, status: 'completed' },
-];
-
-const SCORE_TREND = [
-  { month: 'Nov', avg: 74 }, { month: 'Dec', avg: 79 }, { month: 'Jan', avg: 81 },
-  { month: 'Feb', avg: 83 }, { month: 'Mar', avg: 87 }, { month: 'Apr', avg: 88 },
-];
-
-const SESSION_TREND = [
-  { month: 'Nov', sessions: 4 }, { month: 'Dec', sessions: 5 }, { month: 'Jan', sessions: 6 },
-  { month: 'Feb', sessions: 5 }, { month: 'Mar', sessions: 7 }, { month: 'Apr', sessions: 5 },
-];
-
-const MY_FEEDBACK = [
-  { session: 'PSARA Foundation Course', rating: 4.7, responses: 41, trend: '↑' },
-  { session: 'Fire Safety & Evacuation', rating: 4.4, responses: 19, trend: '→' },
-  { session: 'CCTV Operations', rating: 4.9, responses: 22, trend: '↑' },
-];
-
 export default function TrainerDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const upcoming = MY_SESSIONS.filter(s => s.status === 'upcoming');
-  const completed = MY_SESSIONS.filter(s => s.status === 'completed');
-  const totalTrained = completed.reduce((s, x) => s + x.attended, 0);
-  const avgRating = (MY_FEEDBACK.reduce((s, f) => s + f.rating, 0) / MY_FEEDBACK.length).toFixed(1);
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await dashboardAPI.trainerDashboard();
+        setData(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch trainer dashboard:', err);
+        setError('Failed to load dashboard data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ color: 'var(--text-muted)' }}>Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ color: 'var(--accent-red)', marginBottom: 16 }}>{error}</div>
+        <button className="btn btn-primary" onClick={() => window.location.reload()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // Use real data or fallback to empty arrays
+  const upcoming = data?.upcoming_sessions || [];
+  const completed = data?.completed_sessions || [];
+  const totalTrained = data?.total_trained || 0;
+  const avgRating = data?.average_rating?.toFixed(1) || '0.0';
+  const sessionTrend = data?.session_trend || [];
+  const scoreTrend = data?.score_trend || [];
+  const feedback = data?.feedback || [];
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
@@ -60,9 +83,9 @@ export default function TrainerDashboardPage() {
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         {[
-          { label: 'Sessions This Month', value: SESSION_TREND[SESSION_TREND.length - 1].sessions, icon: '🏫', color: 'var(--accent-blue)', bg: 'rgba(59,130,246,0.12)' },
+          { label: 'Sessions This Month', value: data?.current_month_sessions || 0, icon: '🏫', color: 'var(--accent-blue)', bg: 'rgba(59,130,246,0.12)' },
           { label: 'Trainees Trained', value: totalTrained, icon: '👥', color: 'var(--accent-green)', bg: 'rgba(34,197,94,0.12)' },
-          { label: 'Avg Trainee Score', value: `${SCORE_TREND[SCORE_TREND.length-1].avg}%`, icon: '📊', color: 'var(--accent-cyan)', bg: 'rgba(6,182,212,0.12)' },
+          { label: 'Avg Trainee Score', value: `${scoreTrend.length > 0 ? scoreTrend[scoreTrend.length - 1].avg : 0}%`, icon: '📊', color: 'var(--accent-cyan)', bg: 'rgba(6,182,212,0.12)' },
           { label: 'My Avg Rating', value: `${avgRating} ★`, icon: '⭐', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
         ].map(kpi => (
           <div key={kpi.label} className="card" style={{ padding: '20px 24px' }}>
@@ -104,8 +127,8 @@ export default function TrainerDashboardPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card" style={{ padding: '20px' }}>
             <h3 style={{ margin: '0 0 16px', fontWeight: 700, color: 'var(--text-primary)' }}>Session Feedback</h3>
-            {MY_FEEDBACK.map(f => (
-              <div key={f.session} style={{ marginBottom: 14 }}>
+            {feedback.length > 0 ? feedback.map((f, idx) => (
+              <div key={idx} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{f.session}</span>
                   <span style={{ fontWeight: 800, color: '#f59e0b', fontSize: '0.9rem' }}>{f.rating} ★</span>
@@ -115,13 +138,15 @@ export default function TrainerDashboardPage() {
                 </div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{f.responses} responses {f.trend}</div>
               </div>
-            ))}
+            )) : (
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>No feedback received yet.</p>
+            )}
           </div>
           <div className="card" style={{ padding: '20px' }}>
             <h3 style={{ margin: '0 0 12px', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>Avg Trainee Score Trend</h3>
             <div style={{ height: 120 }}>
               <ResponsiveContainer>
-                <LineChart data={SCORE_TREND} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <LineChart data={scoreTrend} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#21262d" vertical={false} />
                   <XAxis dataKey="month" stroke="#8b949e" tick={{ fontSize: 10 }} />
                   <YAxis stroke="#8b949e" tick={{ fontSize: 10 }} domain={[60, 100]} />
@@ -139,7 +164,7 @@ export default function TrainerDashboardPage() {
         <h3 style={{ margin: '0 0 20px', fontWeight: 700, color: 'var(--text-primary)' }}>My Sessions Per Month</h3>
         <div style={{ height: 200 }}>
           <ResponsiveContainer>
-            <BarChart data={SESSION_TREND} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <BarChart data={sessionTrend} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#21262d" vertical={false} />
               <XAxis dataKey="month" stroke="#8b949e" />
               <YAxis stroke="#8b949e" allowDecimals={false} />
