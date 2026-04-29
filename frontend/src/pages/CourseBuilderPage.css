@@ -278,25 +278,163 @@
 .cb-cert-export .btn { justify-content: center; }
 
 .cb-cert-preview { display: flex; align-items: center; justify-content: center; }
+
+/* Base certificate card styles */
 .cb-cert-card {
-  background: var(--bg-hero-gradient, linear-gradient(135deg, #0f172a, #1e293b));
-  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 40px 32px;
   text-align: center;
   width: 100%;
   max-width: 480px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  transition: all var(--transition-fast);
 }
-.cb-cert-shield { font-size: 2.5rem; margin-bottom: 12px; filter: drop-shadow(0 0 12px rgba(59,130,246,0.5)); }
-.cb-cert-card h3 { font-size: 1rem; letter-spacing: 0.2em; color: var(--text-primary); margin-bottom: 12px; }
-.cb-cert-certifies { font-size: 0.82rem; color: var(--text-secondary); font-style: italic; margin-bottom: 6px; }
-.cb-cert-name { font-size: 1.4rem; color: var(--text-primary); font-weight: 800; margin-bottom: 12px; }
-.cb-cert-completed { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; }
-.cb-cert-course { font-size: 0.95rem; color: var(--accent-blue); font-weight: 600; margin-bottom: 20px; }
-.cb-cert-footer { display: flex; justify-content: space-around; border-top: 1px solid var(--border-subtle); padding-top: 16px; }
-.cb-cert-footer-label { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 4px; }
-.cb-cert-footer-val { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); }
+.cb-cert-shield { font-size: 2.5rem; margin-bottom: 12px; }
+.cb-cert-card h3 { font-size: 1rem; letter-spacing: 0.2em; margin-bottom: 12px; }
+.cb-cert-certifies { font-size: 0.82rem; font-style: italic; margin-bottom: 6px; }
+.cb-cert-name { font-size: 1.4rem; font-weight: 800; margin-bottom: 12px; }
+.cb-cert-completed { font-size: 0.8rem; margin-bottom: 6px; }
+.cb-cert-course { font-size: 0.95rem; font-weight: 600; margin-bottom: 20px; }
+.cb-cert-footer { display: flex; justify-content: space-around; padding-top: 16px; }
+.cb-cert-footer-label { font-size: 0.65rem; letter-spacing: 0.1em; margin-bottom: 4px; }
+.cb-cert-footer-val { font-size: 0.78rem; font-weight: 700; }
+
+/* === TEMPLATE 1: Corporate Modern === */
+.cb-cert-corporate_modern {
+  background: linear-gradient(145deg, #0d1117 0%, #161b22 50%, #21262d 100%);
+  border: 2px solid #3b82f6;
+  position: relative;
+  overflow: hidden;
+}
+.cb-cert-corporate_modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+}
+.cb-cert-corporate_modern .cb-cert-shield {
+  filter: drop-shadow(0 0 12px rgba(59,130,246,0.6));
+}
+.cb-cert-corporate_modern h3 {
+  color: #60a5fa;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.cb-cert-corporate_modern .cb-cert-certifies { color: var(--text-secondary); }
+.cb-cert-corporate_modern .cb-cert-name { color: #fff; }
+.cb-cert-corporate_modern .cb-cert-completed { color: var(--text-secondary); }
+.cb-cert-corporate_modern .cb-cert-course { color: #60a5fa; }
+.cb-cert-corporate_modern .cb-cert-footer {
+  border-top: 1px solid rgba(59,130,246,0.3);
+}
+.cb-cert-corporate_modern .cb-cert-footer-label { color: #6b7280; }
+.cb-cert-corporate_modern .cb-cert-footer-val { color: #9ca3af; }
+
+/* === TEMPLATE 2: Minimalist Blue === */
+.cb-cert-minimalist_blue {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 10px 40px rgba(59,130,246,0.15);
+}
+.cb-cert-minimalist_blue .cb-cert-shield {
+  color: #2563eb;
+  filter: none;
+}
+.cb-cert-minimalist_blue h3 {
+  color: #1e40af;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+}
+.cb-cert-minimalist_blue .cb-cert-certifies {
+  color: #6b7280;
+  font-style: normal;
+}
+.cb-cert-minimalist_blue .cb-cert-name { color: #1e3a8a; }
+.cb-cert-minimalist_blue .cb-cert-completed { color: #6b7280; }
+.cb-cert-minimalist_blue .cb-cert-course {
+  color: #2563eb;
+  font-weight: 500;
+}
+.cb-cert-minimalist_blue .cb-cert-footer {
+  border-top: 1px solid #e5e7eb;
+}
+.cb-cert-minimalist_blue .cb-cert-footer-label { color: #9ca3af; }
+.cb-cert-minimalist_blue .cb-cert-footer-val { color: #4b5563; }
+
+/* === TEMPLATE 3: Academic Formal === */
+.cb-cert-academic_formal {
+  background: #fafaf9;
+  border: 3px double #78350f;
+  border-radius: 8px;
+  position: relative;
+}
+.cb-cert-academic_formal::before,
+.cb-cert-academic_formal::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 2px solid #78350f;
+}
+.cb-cert-academic_formal::before {
+  top: 10px;
+  left: 10px;
+  border-right: none;
+  border-bottom: none;
+}
+.cb-cert-academic_formal::after {
+  bottom: 10px;
+  right: 10px;
+  border-left: none;
+  border-top: none;
+}
+.cb-cert-academic_formal .cb-cert-shield {
+  color: #78350f;
+  filter: none;
+  font-size: 2.2rem;
+}
+.cb-cert-academic_formal h3 {
+  color: #78350f;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 2px solid #78350f;
+  padding-bottom: 8px;
+  display: inline-block;
+}
+.cb-cert-academic_formal .cb-cert-certifies {
+  color: #57534e;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+}
+.cb-cert-academic_formal .cb-cert-name {
+  color: #451a03;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: #d6d3d1;
+  text-underline-offset: 4px;
+}
+.cb-cert-academic_formal .cb-cert-completed {
+  color: #57534e;
+  font-family: 'Georgia', 'Times New Roman', serif;
+}
+.cb-cert-academic_formal .cb-cert-course {
+  color: #78350f;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.cb-cert-academic_formal .cb-cert-footer {
+  border-top: 1px solid #d6d3d1;
+  font-family: 'Georgia', 'Times New Roman', serif;
+}
+.cb-cert-academic_formal .cb-cert-footer-label { color: #a8a29e; }
+.cb-cert-academic_formal .cb-cert-footer-val { color: #57534e; }
 
 /* Timeline */
 .cb-timeline-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
