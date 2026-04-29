@@ -37,6 +37,11 @@ class CourseViewSet(viewsets.ModelViewSet):
         return qs.select_related('created_by', 'pre_assessment', 'post_assessment', 'certification') \
                  .prefetch_related('lessons__files')
 
+    def partial_update(self, request, *args, **kwargs):
+        """PATCH — only update the fields that were sent."""
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
     @action(detail=True, methods=['post'])
     def retire(self, request, pk=None):
         course = self.get_object()

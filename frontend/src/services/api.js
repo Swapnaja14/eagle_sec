@@ -169,3 +169,50 @@ export const analyticsAPI = {
   gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
   report: () => api.get('/analytics/report/', { responseType: 'blob' }),
 }
+
+// ===================== CERTIFICATE TEMPLATES =====================
+export const certTemplatesAPI = {
+  list:   ()         => api.get('/certificates/templates/'),
+  get:    (id)       => api.get(`/certificates/templates/${id}/`),
+  create: (data)     => api.post('/certificates/templates/', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id, data) => api.patch(`/certificates/templates/${id}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id)       => api.delete(`/certificates/templates/${id}/`),
+}
+
+// ===================== CERTIFICATES =====================
+export const certificatesAPI = {
+  generate:          (data)   => api.post('/certificates/generate/', data),
+  get:               (id)     => api.get(`/certificates/${id}/`),
+  downloadPdf:       (id)     => api.get(`/certificates/${id}/download/pdf/`, { responseType: 'blob' }),
+  downloadPng:       (id)     => api.get(`/certificates/${id}/download/png/`, { responseType: 'blob' }),
+  employeeCerts:     (empId)  => api.get(`/certificates/employee/${empId}/`),
+  myCerts:           ()       => api.get('/certificates/employee/me/'),
+}
+
+// ===================== ASSESSMENTS =====================
+export const assessmentsAPI = {
+  listQuizzes:       (params) => api.get('/assessments/quizzes/', { params }),
+  getQuiz:           (id)     => api.get(`/assessments/quizzes/${id}/`),
+  startQuiz:         (id)     => api.post(`/assessments/quizzes/${id}/start_quiz/`),
+  getQuestions:      (id)     => api.get(`/assessments/quizzes/${id}/questions/`),
+  listSubmissions:   (params) => api.get('/assessments/submissions/', { params }),
+  getSubmission:     (id)     => api.get(`/assessments/submissions/${id}/`),
+  submitAnswer:      (subId, data) => api.post(`/assessments/submissions/${subId}/submit_answer/`, data),
+  completeSubmission:(subId)  => api.post(`/assessments/submissions/${subId}/complete_submission/`),
+  mySubmissions:     ()       => api.get('/assessments/submissions/my_submissions/'),
+}
+
+// ===================== FEEDBACK =====================
+export const feedbackAPI = {
+  list:   (params) => api.get('/feedback/', { params }),
+  create: (data)   => api.post('/feedback/', data),
+  get:    (id)     => api.get(`/feedback/${id}/`),
+  update: (id, data) => api.patch(`/feedback/${id}/`, data),
+}
+
+// ===================== ATTENDANCE =====================
+export const attendanceAPI = {
+  list:    (params) => api.get('/attendance/', { params }),
+  create:  (data)   => api.post('/attendance/', data),
+  summary: (params) => api.get('/attendance/summary/', { params }),
+}

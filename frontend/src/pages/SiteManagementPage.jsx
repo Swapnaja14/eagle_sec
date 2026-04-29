@@ -1,61 +1,109 @@
-import React, { useState } from 'react';
-import { mockClients, mockSites } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { sitesAPI, clientsAPI } from '../services/api';
 
-const EXTENDED_SITES = [
-  { id: 'site_1', name: 'Mumbai HQ', clientId: 'client_001', clientName: 'SecureGuard India', address: 'Nariman Point, Mumbai, MH 400021', guards: 248, status: 'active', lat: 18.9251, lng: 72.8249 },
-  { id: 'site_2', name: 'Delhi Office', clientId: 'client_001', clientName: 'SecureGuard India', address: 'Connaught Place, New Delhi, DL 110001', guards: 185, status: 'active', lat: 28.6315, lng: 77.2167 },
-  { id: 'site_3', name: 'Pune Campus', clientId: 'client_002', clientName: 'Sapphire Security', address: 'Hinjewadi IT Park, Pune, MH 411057', guards: 320, status: 'active', lat: 18.5913, lng: 73.7389 },
-  { id: 'site_4', name: 'Bangalore Tech Park', clientId: 'client_003', clientName: 'RapidShield Corp', address: 'Electronic City Phase 1, Bengaluru, KA 560100', guards: 412, status: 'active', lat: 12.8390, lng: 77.6631 },
-  { id: 'site_5', name: 'Hyderabad Zone', clientId: 'client_002', clientName: 'Sapphire Security', address: 'HITEC City, Hyderabad, TS 500081', guards: 276, status: 'inactive', lat: 17.4474, lng: 78.3762 },
-  { id: 'site_6', name: 'Chennai Port', clientId: 'client_003', clientName: 'RapidShield Corp', address: 'Royapuram, Chennai, TN 600013', guards: 194, status: 'active', lat: 13.1096, lng: 80.2915 },
-];
+const EMPTY_FORM = { name: '', client: '', address: '', city: '', state: '', country: 'India', postal_code: '' };
 
 export default function SiteManagementPage() {
-  const [sites, setSites] = useState(EXTENDED_SITES);
-  const [search, setSearch] = useState('');
+  const [sites,        setSites]        = useState([]);
+  const [clients,      setClients]      = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
+  const [search,       setSearch]       = useState('');
   const [clientFilter, setClientFilter] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editSite, setEditSite] = useState(null);
-  const [newSite, setNewSite] = useState({ name: '', clientId: mockClients[0].id, address: '', guards: '' });
+  const [showModal,    setShowModal]    = useState(false);
+  const [editSite,     setEditSite]     = useState(null);
+  const [form,         setForm]         = useState(EMPTY_FORM);
+  const [saving,       setSaving]       = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [sitesRes, clientsRes] = await Promise.all([sitesAPI.list(), clientsAPI.list()]);
+      setSites(sitesRes.data?.results ?? sitesRes.data ?? []);
+      setClients(clientsRes.data?.results ?? clientsRes.data ?? []);
+    } catch (e) {
+      setError('Failed to load data: ' + (e.response?.data?.detail ?? e.message));
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openAdd  = () => { setForm(EMPTY_FORM); setEditSite(null); setShowModal(true); };
+  const openEdit = (site) => {
+    setForm({
+      name: site.name || '', client: site.client_id ?? site.client ?? '',
+      address: site.address || '', city: site.city || '',
+      state: site.state || '', country: site.country || 'India',
+      postal_code: site.postal_code || '',
+    });
+    setEditSite(site);
+    setShowModal(true);
+  };
+  const closeModal = () => { setShowModal(false); setEditSite(null); };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { alert('Site name is required.'); return; }
+    setSaving(true);
+    try {
+      if (editSite) {
+        const res = await sitesAPI.update(editSite.id, form);
+        setSites(prev => prev.map(s => s.id === editSite.id ? res.data : s));
+      } else {
+        const res = await sitesAPI.create(form);
+        setSites(prev => [...prev, res.data]);
+      }
+      closeModal();
+    } catch (e) {
+      alert('Save failed: ' + (e.response?.data?.detail ?? JSON.stringify(e.response?.data) ?? e.message));
+    } finally { setSaving(false); }
+  };
+
+  const handleToggleActive = async (site) => {
+    try {
+      const res = await sitesAPI.update(site.id, { is_active: !site.is_active });
+      setSites(prev => prev.map(s => s.id === site.id ? res.data : s));
+    } catch { alert('Failed to update site status.'); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this site? This cannot be undone.')) return;
+    try {
+      await sitesAPI.delete(id);
+      setSites(prev => prev.filter(s => s.id !== id));
+    } catch { alert('Failed to delete site.'); }
+  };
 
   const filtered = sites.filter(s => {
-    if (clientFilter && s.clientId !== clientFilter) return false;
-    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.address.toLowerCase().includes(search.toLowerCase())) return false;
+    const clientId = s.client_id ?? s.client ?? '';
+    if (clientFilter && String(clientId) !== String(clientFilter)) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!s.name?.toLowerCase().includes(q) && !s.city?.toLowerCase().includes(q) && !s.address?.toLowerCase().includes(q)) return false;
+    }
     return true;
   });
 
-  const handleAddSite = () => {
-    if (!newSite.name || !newSite.address) return;
-    const client = mockClients.find(c => c.id === newSite.clientId);
-    setSites(prev => [...prev, {
-      id: `site_new_${Date.now()}`,
-      name: newSite.name, clientId: newSite.clientId, clientName: client?.name || '',
-      address: newSite.address, guards: parseInt(newSite.guards) || 0,
-      status: 'active', lat: 0, lng: 0,
-    }]);
-    setShowAddModal(false);
-    setNewSite({ name: '', clientId: mockClients[0].id, address: '', guards: '' });
+  const clientName = (site) => {
+    const cid = site.client_id ?? site.client;
+    return clients.find(c => c.id === cid)?.name ?? '—';
   };
-
-  const totalGuards = sites.reduce((s, x) => s + x.guards, 0);
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px' }}>Site Management</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Manage client deployment sites and guard allocation across locations.</p>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Manage client deployment sites across locations.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>+ Add New Site</button>
+        <button className="btn btn-primary" onClick={openAdd}>+ Add New Site</button>
       </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Total Sites', value: sites.length, color: 'var(--accent-blue)' },
-          { label: 'Active Sites', value: sites.filter(s => s.status === 'active').length, color: 'var(--accent-green)' },
-          { label: 'Total Guards', value: totalGuards.toLocaleString(), color: 'var(--accent-cyan)' },
-          { label: 'Clients Served', value: new Set(sites.map(s => s.clientId)).size, color: 'var(--accent-purple)' },
+          { label: 'Total Sites',    value: loading ? '—' : sites.length,                                    color: 'var(--accent-blue)' },
+          { label: 'Active Sites',   value: loading ? '—' : sites.filter(s => s.is_active !== false).length, color: 'var(--accent-green)' },
+          { label: 'Clients Served', value: loading ? '—' : new Set(sites.map(s => s.client_id ?? s.client)).size, color: 'var(--accent-cyan)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: '16px 20px' }}>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
@@ -64,110 +112,111 @@ export default function SiteManagementPage() {
         ))}
       </div>
 
-      {/* Search & Filter */}
+      {/* Filters */}
       <div className="card" style={{ padding: '16px 20px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="form-group" style={{ flex: 2, minWidth: 200 }}>
-          <label className="form-label">Search Site</label>
-          <input className="form-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Site name or address..." />
+        <div className="form-group" style={{ flex: 2, minWidth: 200, margin: 0 }}>
+          <label className="form-label">Search</label>
+          <input className="form-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Site name, city, address..." />
         </div>
-        <div className="form-group" style={{ flex: 1, minWidth: 160 }}>
+        <div className="form-group" style={{ flex: 1, minWidth: 160, margin: 0 }}>
           <label className="form-label">Client</label>
           <select className="form-select" value={clientFilter} onChange={e => setClientFilter(e.target.value)}>
             <option value="">All Clients</option>
-            {mockClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
+        <button className="btn btn-secondary" onClick={load}>Refresh</button>
       </div>
 
-      {/* Sites Table */}
+      {error && <div style={{ color: 'var(--accent-red)', marginBottom: 16 }}>{error}</div>}
+
+      {/* Table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Site Name</th>
-                <th>Client</th>
-                <th>Address</th>
-                <th>Guards</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(site => (
-                <tr key={site.id}>
-                  <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: '1.1rem' }}>📍</span> {site.name}
-                    </div>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{site.clientName}</td>
-                  <td style={{ color: 'var(--text-secondary)', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{site.address}</td>
-                  <td style={{ fontWeight: 700, color: 'var(--accent-blue)' }}>{site.guards.toLocaleString()}</td>
-                  <td>
-                    <span className={`badge ${site.status === 'active' ? 'badge-active' : 'badge-archived'}`}>{site.status}</span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-ghost btn-sm" title="Edit" onClick={() => setEditSite(site)}>✏️</button>
-                      <button className="btn btn-ghost btn-sm" title="View Map">🗺️</button>
-                      <button className="btn btn-ghost btn-sm" title="Deactivate" style={{ color: 'var(--accent-red)' }}>🚫</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan="6" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No sites found.</td></tr>
-              )}
-            </tbody>
-          </table>
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading sites...</div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr><th>Site Name</th><th>Client</th><th>City</th><th>Address</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {filtered.map(site => (
+                  <tr key={site.id}>
+                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <span style={{ marginRight: 8 }}>📍</span>{site.name}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{clientName(site)}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{site.city || '—'}</td>
+                    <td style={{ color: 'var(--text-secondary)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {site.address || '—'}
+                    </td>
+                    <td>
+                      <span className={`badge ${site.is_active !== false ? 'badge-active' : 'badge-archived'}`}>
+                        {site.is_active !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-ghost btn-sm" title="Edit" onClick={() => openEdit(site)}>✏️</button>
+                        <button className="btn btn-ghost btn-sm" title={site.is_active !== false ? 'Deactivate' : 'Activate'}
+                          style={{ color: site.is_active !== false ? 'var(--accent-yellow)' : 'var(--accent-green)' }}
+                          onClick={() => handleToggleActive(site)}>
+                          {site.is_active !== false ? '🚫' : '✅'}
+                        </button>
+                        <button className="btn btn-ghost btn-sm" title="Delete" style={{ color: 'var(--accent-red)' }}
+                          onClick={() => handleDelete(site.id)}>🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No sites found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          {filtered.length} sites shown
+          {filtered.length} site{filtered.length !== 1 ? 's' : ''} shown
         </div>
       </div>
 
-      {/* Add Site Modal */}
-      {(showAddModal || editSite) && (
-        <div className="modal-overlay" onClick={() => { setShowAddModal(false); setEditSite(null); }}>
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{editSite ? `Edit: ${editSite.name}` : 'Add New Site'}</h3>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setShowAddModal(false); setEditSite(null); }}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={closeModal}>✕</button>
             </div>
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div className="form-group">
-                <label className="form-label">Site Name *</label>
-                <input className="form-input" value={editSite ? editSite.name : newSite.name}
-                  onChange={e => editSite ? setEditSite(p => ({ ...p, name: e.target.value })) : setNewSite(p => ({ ...p, name: e.target.value }))}
-                  placeholder="e.g. Mumbai South Hub" />
-              </div>
-              <div className="form-group">
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                ['name',        'Site Name *',  'text',   'e.g. Mumbai South Hub'],
+                ['address',     'Address',      'text',   'Street address'],
+                ['city',        'City',         'text',   'e.g. Mumbai'],
+                ['state',       'State',        'text',   'e.g. Maharashtra'],
+                ['country',     'Country',      'text',   'India'],
+                ['postal_code', 'Postal Code',  'text',   '400001'],
+              ].map(([field, label, type, placeholder]) => (
+                <div key={field} className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{label}</label>
+                  <input className="form-input" type={type} placeholder={placeholder}
+                    value={form[field] ?? ''} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))} />
+                </div>
+              ))}
+              <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Client</label>
-                <select className="form-select" value={editSite ? editSite.clientId : newSite.clientId}
-                  onChange={e => editSite ? setEditSite(p => ({ ...p, clientId: e.target.value })) : setNewSite(p => ({ ...p, clientId: e.target.value }))}>
-                  {mockClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <select className="form-select" value={form.client ?? ''} onChange={e => setForm(p => ({ ...p, client: e.target.value }))}>
+                  <option value="">No Client</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Full Address *</label>
-                <textarea className="form-textarea" rows={2} style={{ width: '100%' }}
-                  value={editSite ? editSite.address : newSite.address}
-                  onChange={e => editSite ? setEditSite(p => ({ ...p, address: e.target.value })) : setNewSite(p => ({ ...p, address: e.target.value }))}
-                  placeholder="Street, City, State, PIN" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Guard Count</label>
-                <input type="number" className="form-input"
-                  value={editSite ? editSite.guards : newSite.guards}
-                  onChange={e => editSite ? setEditSite(p => ({ ...p, guards: parseInt(e.target.value) || 0 })) : setNewSite(p => ({ ...p, guards: e.target.value }))}
-                  placeholder="0" min={0} />
               </div>
             </div>
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <button className="btn btn-ghost" onClick={() => { setShowAddModal(false); setEditSite(null); }}>Cancel</button>
-              <button className="btn btn-primary" onClick={editSite ? () => { setSites(prev => prev.map(s => s.id === editSite.id ? editSite : s)); setEditSite(null); } : handleAddSite}>
-                {editSite ? 'Save Changes' : 'Add Site'}
+              <button className="btn btn-ghost" onClick={closeModal}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : editSite ? 'Save Changes' : 'Add Site'}
               </button>
             </div>
           </div>

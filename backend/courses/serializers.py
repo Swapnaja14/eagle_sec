@@ -93,7 +93,8 @@ class CourseSerializer(serializers.ModelSerializer):
             'lessons', 'lesson_count', 'pre_assessment', 'post_assessment',
             'certification', 'created_by_name'
         ]
-        read_only_fields = ['id', 'course_id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'course_id', 'created_at', 'updated_at', 'created_by_name',
+                            'lessons', 'lesson_count', 'pre_assessment', 'post_assessment', 'certification']
 
     def get_lesson_count(self, obj):
         return obj.lessons.count()
@@ -105,11 +106,16 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from django.db import transaction
-        tenant = self.context['request'].user.tenant
-        user = self.context['request'].user
+        request = self.context['request']
+        tenant = request.user.tenant
+        user = request.user
+        # Superadmins without a tenant can still create courses (use first available tenant)
+        if not tenant:
+            from accounts.models import Tenant
+            tenant = Tenant.objects.filter(is_active=True).first()
         if not tenant:
             from rest_framework.exceptions import ValidationError
-            raise ValidationError({'tenant': 'User must belong to a tenant to create courses.'})
+            raise ValidationError({'tenant': 'No active tenant found. Please set up a tenant first.'})
         with transaction.atomic():
             course = Course.objects.create(tenant=tenant, created_by=user, **validated_data)
             # Auto-create assessment and certification stubs
@@ -117,3 +123,10 @@ class CourseSerializer(serializers.ModelSerializer):
             PostAssessment.objects.create(course=course)
             Certification.objects.create(course=course)
         return course
+
+    def update(self, instance, validated_data):
+        # Allow partial updates — only update fields that were sent
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance

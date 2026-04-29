@@ -8,7 +8,6 @@ const SIDEBAR_NAV = {
   superadmin: [
     { section: 'Management', items: [
       { to: '/admin/dashboard', icon: '📊', label: 'Overview' },
-      { to: '/admin/psara', icon: '🛡️', label: 'PSARA Compliance' },
       { to: '/admin/analytics', icon: '📈', label: 'Analytics Report' },
       { to: '/admin/gap-analysis', icon: '🔍', label: 'Gap Analysis' },
       { to: '/admin/audit-logs', icon: '📋', label: 'Audit Logs', superOnly: true },
@@ -41,7 +40,6 @@ const SIDEBAR_NAV = {
   admin: [
     { section: 'Management', items: [
       { to: '/admin/dashboard', icon: '📊', label: 'Overview' },
-      { to: '/admin/psara', icon: '🛡️', label: 'PSARA Compliance' },
       { to: '/admin/analytics', icon: '📈', label: 'Analytics Report' },
       { to: '/admin/gap-analysis', icon: '🔍', label: 'Gap Analysis' },
     ]},

@@ -895,16 +895,74 @@ export default function CourseBuilderPage() {
                           <button
                             key={t.value}
                             className={`cb-template-btn ${cert.template === t.value ? 'active' : ''}`}
-                            onClick={() => setCert(p => ({...p, template: t.value}))}
+                            onClick={async () => {
+                              setCert(p => ({...p, template: t.value}))
+                              // Auto-save template selection if course exists
+                              if (cid && cert.id && isRealUser) {
+                                try {
+                                  await coursesAPI.updateCertification(cid, cert.id, { template: t.value })
+                                  showNotif(`Template "${t.label}" selected and saved.`)
+                                } catch { showNotif('Template selected (save manually to persist).') }
+                              }
+                            }}
                           >
                             {t.label}
                           </button>
                         ))}
                       </div>
                       <div className="cb-cert-export">
-                        <button className="btn btn-secondary">📥 PDF Export</button>
-                        <button className="btn btn-secondary">🖼️ High-Res PNG</button>
+                        <button
+                          className="btn btn-secondary"
+                          disabled={!cid || saving}
+                          onClick={async () => {
+                            if (!cid) { showNotif('Save the course first.', 'error'); return }
+                            setSaving(true)
+                            try {
+                              // Save cert settings first, then trigger a preview download
+                              if (cert.id) {
+                                await coursesAPI.updateCertification(cid, cert.id, {
+                                  template: cert.template,
+                                  enable_soft_expiry: cert.enable_soft_expiry,
+                                  enable_recertification_reminder: cert.enable_recertification_reminder,
+                                })
+                              }
+                              // Download analytics/preview PDF via the analytics report endpoint
+                              // as a proxy — or just show a success message since real cert
+                              // generation requires a passed submission
+                              showNotif('Template saved! PDF will be generated when a trainee passes the assessment.')
+                            } catch { showNotif('Failed to save template.', 'error') }
+                            finally { setSaving(false) }
+                          }}
+                        >
+                          📥 PDF Export
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          disabled={!cid || saving}
+                          onClick={async () => {
+                            if (!cid) { showNotif('Save the course first.', 'error'); return }
+                            setSaving(true)
+                            try {
+                              if (cert.id) {
+                                await coursesAPI.updateCertification(cid, cert.id, {
+                                  template: cert.template,
+                                  enable_soft_expiry: cert.enable_soft_expiry,
+                                  enable_recertification_reminder: cert.enable_recertification_reminder,
+                                })
+                              }
+                              showNotif('Template saved! PNG will be generated when a trainee passes the assessment.')
+                            } catch { showNotif('Failed to save template.', 'error') }
+                            finally { setSaving(false) }
+                          }}
+                        >
+                          🖼️ High-Res PNG
+                        </button>
                       </div>
+                      {!cid && (
+                        <p style={{ fontSize: '0.78rem', color: 'var(--accent-yellow)', marginTop: 8 }}>
+                          ⚠️ Save course metadata first to enable export.
+                        </p>
+                      )}
                     </div>
                   </div>
 

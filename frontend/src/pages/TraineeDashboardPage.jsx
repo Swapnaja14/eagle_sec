@@ -4,10 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { RadialBarChart, RadialBar, ResponsiveContainer } from 'recharts';
 
 const MY_TRAINING = [
-  { id: 1, module: 'PSARA Foundation Course', date: '2026-03-20', score: 88, status: 'passed', certificateReady: true },
-  { id: 2, module: 'Fire Safety & Evacuation', date: '2026-02-14', score: 92, status: 'passed', certificateReady: true },
-  { id: 3, module: 'Emergency Response Protocol', date: '2026-01-30', score: 74, status: 'passed', certificateReady: false },
-  { id: 4, module: 'Access Control Procedures', date: '2026-04-10', score: null, status: 'in-progress', certificateReady: false },
+  { id: 1, module: 'Fire Safety & Evacuation', date: '2026-03-20', score: 88, status: 'passed', certificateReady: true },
+  { id: 2, module: 'Emergency Response Protocol', date: '2026-02-14', score: 92, status: 'passed', certificateReady: true },
+  { id: 3, module: 'Access Control Procedures', date: '2026-01-30', score: 74, status: 'passed', certificateReady: false },
+  { id: 4, module: 'Digital Security Awareness', date: '2026-04-10', score: null, status: 'in-progress', certificateReady: false },
 ];
 
 const UPCOMING_SESSIONS = [
@@ -28,11 +28,6 @@ export default function TraineeDashboardPage() {
   const total = MY_TRAINING.length;
   const avgScore = Math.round(MY_TRAINING.filter(t => t.score).reduce((s, t) => s + t.score, 0) / MY_TRAINING.filter(t => t.score).length);
   const certs = MY_TRAINING.filter(t => t.certificateReady).length;
-
-  // PSARA expiry
-  const psaraExpiry = new Date(user?.psaraExpiry || Date.now() + 22 * 86400000);
-  const daysLeft = Math.max(0, Math.ceil((psaraExpiry - Date.now()) / 86400000));
-  const psaraUrgent = daysLeft <= 30;
 
   const complianceData = [{ value: Math.round((passed / Math.max(total, 1)) * 100), fill: '#22c55e' }];
 
@@ -55,24 +50,12 @@ export default function TraineeDashboardPage() {
         </div>
       </div>
 
-      {/* PSARA Alert */}
-      {psaraUrgent && (
-        <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 12, padding: '14px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-          <div>
-            <div style={{ fontWeight: 700, color: 'var(--accent-yellow)', fontSize: '0.95rem' }}>PSARA Certification Expiring Soon!</div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Your PSARA certificate expires in <strong style={{ color: 'var(--accent-yellow)' }}>{daysLeft} days</strong> ({psaraExpiry.toLocaleDateString()}). Contact your admin for renewal.</div>
-          </div>
-        </div>
-      )}
-
       {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Modules Completed', value: `${passed}/${total}`, color: 'var(--accent-green)', icon: '✅', bg: 'rgba(34,197,94,0.12)' },
           { label: 'Avg Assessment Score', value: `${avgScore}%`, color: avgScore >= 80 ? 'var(--accent-green)' : 'var(--accent-yellow)', icon: '📊', bg: 'rgba(59,130,246,0.12)' },
           { label: 'Certificates Earned', value: certs, color: 'var(--accent-cyan)', icon: '🎓', bg: 'rgba(6,182,212,0.12)' },
-          { label: 'PSARA Days Remaining', value: daysLeft, color: daysLeft > 30 ? 'var(--accent-green)' : daysLeft > 0 ? 'var(--accent-yellow)' : 'var(--accent-red)', icon: '🛡️', bg: 'rgba(245,158,11,0.12)' },
         ].map(kpi => (
           <div key={kpi.label} className="card" style={{ padding: '20px 24px' }}>
             <div style={{ width: 40, height: 40, background: kpi.bg, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', marginBottom: 12 }}>{kpi.icon}</div>

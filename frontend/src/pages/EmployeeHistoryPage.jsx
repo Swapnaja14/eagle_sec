@@ -1,36 +1,89 @@
-import React, { useState } from 'react';
-import { mockTrainingRecords, mockClients, mockSites, mockDepartments } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { clientsAPI, sitesAPI, departmentsAPI, analyticsAPI, certificatesAPI } from '../services/api';
+import api from '../services/api';
 import './EmployeeHistoryPage.css';
 
 export default function EmployeeHistoryPage() {
-  const [filters, setFilters] = useState({
-    clientId: mockClients[0].id,
-    siteId: '',
-    department: '',
-    search: '',
-    dateFrom: '',
-    dateTo: '',
-    type: 'all'
-  });
-
-  const [page, setPage] = useState(1);
+  const [records,     setRecords]     = useState([]);
+  const [clients,     setClients]     = useState([]);
+  const [sites,       setSites]       = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
+  const [page,        setPage]        = useState(1);
   const pageSize = 25;
 
-  const handleFilterChange = (e) => {
-    setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const [filters, setFilters] = useState({
+    clientId: '', siteId: '', department: '',
+    search: '', dateFrom: '', dateTo: '', status: 'all',
+  });
+
+  // Load dropdown options
+  useEffect(() => {
+    clientsAPI.list().then(r => setClients(r.data?.results ?? r.data ?? [])).catch(() => {});
+    sitesAPI.list().then(r => setSites(r.data?.results ?? r.data ?? [])).catch(() => {});
+    departmentsAPI.list().then(r => setDepartments(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+  }, []);
+
+  // Load submissions as training records
+  const loadRecords = async () => {
+    setLoading(true); setError('');
+    try {
+      const params = { page_size: 500 };
+      if (filters.department) params.department = filters.department;
+      const res = await api.get('/assessments/submissions/', { params });
+      setRecords(res.data?.results ?? res.data ?? []);
+      setPage(1);
+    } catch (e) {
+      setError('Failed to load records: ' + (e.response?.data?.detail ?? e.message));
+    } finally { setLoading(false); }
   };
 
-  const filteredRecords = mockTrainingRecords.filter(record => {
-    if (filters.clientId && record.clientId !== filters.clientId) return false;
-    if (filters.siteId && record.siteId !== filters.siteId) return false;
-    if (filters.department && record.department !== filters.department) return false;
-    if (filters.search && !record.employeeName.toLowerCase().includes(filters.search.toLowerCase()) && 
-        !record.employeeId.toLowerCase().includes(filters.search.toLowerCase())) return false;
-    if (filters.type !== 'all' && record.trainingType !== filters.type) return false;
+  useEffect(() => { loadRecords(); }, []);
+
+  const handleFilterChange = (e) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleDownloadCert = async (submissionId) => {
+    try {
+      // Check if cert exists for this submission
+      const subRes = await api.get(`/assessments/submissions/${submissionId}/`);
+      const sub = subRes.data;
+      if (sub.certificate) {
+        const res = await certificatesAPI.downloadPdf(sub.certificate.id);
+        const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        const a = document.createElement('a'); a.href = url; a.download = `certificate_${submissionId}.pdf`; a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        alert('No certificate issued for this submission yet. Go to Certificate Issuing to generate one.');
+      }
+    } catch { alert('Certificate download failed.'); }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const res = await analyticsAPI.report();
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = `training_history_${new Date().toISOString().slice(0,10)}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('Export failed.'); }
+  };
+
+  // Client-side filtering on loaded records
+  const filtered = records.filter(r => {
+    const name = `${r.user?.first_name ?? ''} ${r.user?.last_name ?? ''} ${r.user?.username ?? ''}`.toLowerCase();
+    const dept = r.user?.department?.toLowerCase() ?? '';
+    if (filters.search && !name.includes(filters.search.toLowerCase())) return false;
+    if (filters.department && dept !== filters.department.toLowerCase()) return false;
+    if (filters.status !== 'all') {
+      if (filters.status === 'passed' && !r.passed) return false;
+      if (filters.status === 'failed' && (r.passed || r.status !== 'completed')) return false;
+      if (filters.status === 'in_progress' && r.status !== 'in_progress') return false;
+    }
     return true;
   });
 
-  const paginatedRecords = filteredRecords.slice((page - 1) * pageSize, page * pageSize);
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 
   return (
     <div className="history-page">
@@ -42,144 +95,137 @@ export default function EmployeeHistoryPage() {
       <div className="filter-bar">
         <div className="filter-grid">
           <div className="form-group">
-            <label className="form-label">Client *</label>
+            <label className="form-label">Client</label>
             <select className="form-select" name="clientId" value={filters.clientId} onChange={handleFilterChange}>
-              {mockClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              <option value="">All Clients</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div className="form-group">
             <label className="form-label">Site</label>
             <select className="form-select" name="siteId" value={filters.siteId} onChange={handleFilterChange}>
               <option value="">All Sites</option>
-              {mockSites.filter(s => s.clientId === filters.clientId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {(filters.clientId ? sites.filter(s => String(s.client_id ?? s.client ?? '') === String(filters.clientId)) : sites)
+                .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div className="form-group">
             <label className="form-label">Department</label>
             <select className="form-select" name="department" value={filters.department} onChange={handleFilterChange}>
               <option value="">All Departments</option>
-              {mockDepartments.map(d => <option key={d} value={d}>{d}</option>)}
+              {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
           <div className="form-group">
             <label className="form-label">Employee Name or ID</label>
             <input className="form-input" name="search" value={filters.search} onChange={handleFilterChange} placeholder="Search..." />
           </div>
-          <div className="form-group" style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <label className="form-label">Date From</label>
-              <input type="date" className="form-input" name="dateFrom" value={filters.dateFrom} onChange={handleFilterChange} />
-            </div>
-          </div>
         </div>
-
         <div className="filter-actions">
           <div className="type-filters">
-            {['all', 'classroom', 'virtual', 'self-paced'].map(type => (
-              <label key={type} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                <input type="radio" name="type" value={type} checked={filters.type === type} onChange={handleFilterChange} />
-                {type.charAt(0).toUpperCase() + type.slice(1)}
+            {[['all','All'],['passed','Passed'],['failed','Failed'],['in_progress','In Progress']].map(([val, label]) => (
+              <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <input type="radio" name="status" value={val} checked={filters.status === val} onChange={handleFilterChange} />
+                {label}
               </label>
             ))}
           </div>
-          <button className="btn btn-primary">Apply Filters</button>
+          <button className="btn btn-primary" onClick={loadRecords} disabled={loading}>
+            {loading ? 'Loading...' : 'Apply Filters'}
+          </button>
         </div>
       </div>
 
+      {error && <div style={{ color: 'var(--accent-red)', padding: '12px 0' }}>{error}</div>}
+
       <div className="table-container">
         <div className="table-summary">
-          <span>Showing {filteredRecords.length} records</span>
+          <span>Showing {filtered.length} records</span>
           <span>Last updated: {new Date().toLocaleDateString()}</span>
         </div>
-        
+
         <div style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Employee</th>
-                <th>Dept/Designation</th>
-                <th>Training Module</th>
-                <th>Type</th>
-                <th>Date</th>
-                <th>Duration</th>
-                <th>Score</th>
-                <th>Status</th>
-                <th>PSARA Valid</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedRecords.length > 0 ? paginatedRecords.map((record, i) => (
-                <tr key={record.id}>
-                  <td style={{ color: 'var(--text-muted)' }}>{(page - 1) * pageSize + i + 1}</td>
-                  <td>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{record.employeeName}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.employeeId}</div>
-                  </td>
-                  <td>
-                    <div>{record.department}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.designation}</div>
-                  </td>
-                  <td style={{ fontWeight: 500 }}>{record.moduleName}</td>
-                  <td style={{ textTransform: 'capitalize' }}>{record.trainingType}</td>
-                  <td>{new Date(record.sessionDate).toLocaleDateString()}</td>
-                  <td>{record.durationMinutes}m</td>
-                  <td>
-                    {record.score !== null ? (
-                      <span className="chip" style={{ 
-                        background: record.score >= 80 ? 'rgba(34, 197, 94, 0.15)' : record.score >= 60 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                        color: record.score >= 80 ? 'var(--accent-green)' : record.score >= 60 ? 'var(--accent-yellow)' : 'var(--accent-red)',
-                        borderColor: 'transparent'
-                      }}>
-                        {record.score}%
-                      </span>
-                    ) : '-'}
-                  </td>
-                  <td>
-                    <span className={`badge badge-${record.status === 'passed' ? 'active' : record.status === 'failed' ? 'retired' : record.status === 'in-progress' ? 'draft' : 'archived'}`}>
-                      {record.status}
-                    </span>
-                  </td>
-                  <td>
-                    {record.psaraValid ? (
-                      <span style={{ color: 'var(--accent-green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        ✓ <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Valid</span>
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--accent-red)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        ✗ <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(record.psaraExpiryDate).toLocaleDateString()}</span>
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-ghost btn-sm" title="View Profile">👁️</button>
-                      {record.status === 'passed' && <button className="btn btn-ghost btn-sm" title="Download Certificate">📜</button>}
-                      {(record.status === 'failed' || record.status === 'expired') && <button className="btn btn-ghost btn-sm" title="Re-assign">🔄</button>}
-                    </div>
-                  </td>
-                </tr>
-              )) : (
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading records...</div>
+          ) : (
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan="11" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-                    No training records found matching the filters.
-                  </td>
+                  <th>#</th>
+                  <th>Employee</th>
+                  <th>Department</th>
+                  <th>Quiz / Module</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paginated.length > 0 ? paginated.map((record, i) => {
+                  const name = record.user
+                    ? `${record.user.first_name ?? ''} ${record.user.last_name ?? ''}`.trim() || record.user.username
+                    : `User #${record.user_id ?? record.user}`;
+                  const quizTitle = record.quiz?.title ?? `Quiz #${record.quiz_id ?? record.quiz}`;
+                  const date = record.submitted_at ? new Date(record.submitted_at).toLocaleDateString() : '—';
+                  const pct = typeof record.percentage === 'number' ? record.percentage.toFixed(1) : null;
+
+                  return (
+                    <tr key={record.id}>
+                      <td style={{ color: 'var(--text-muted)' }}>{(page - 1) * pageSize + i + 1}</td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{name}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.user?.username}</div>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{record.user?.department || '—'}</td>
+                      <td style={{ fontWeight: 500 }}>{quizTitle}</td>
+                      <td>
+                        {pct !== null ? (
+                          <span style={{
+                            fontWeight: 700,
+                            color: record.passed ? 'var(--accent-green)' : 'var(--accent-red)',
+                          }}>{pct}%</span>
+                        ) : '—'}
+                      </td>
+                      <td>
+                        <span className={`badge badge-${record.passed ? 'active' : record.status === 'in_progress' ? 'draft' : 'retired'}`}>
+                          {record.passed ? 'Passed' : record.status === 'in_progress' ? 'In Progress' : 'Failed'}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{date}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {record.passed && (
+                            <button className="btn btn-ghost btn-sm" title="Download Certificate"
+                              onClick={() => handleDownloadCert(record.id)}>📜</button>
+                          )}
+                          {!record.passed && record.status === 'completed' && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No cert</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }) : (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                      No training records found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="table-footer">
           <div className="pagination">
             <button className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</button>
-            <span>Page {page} of {Math.max(1, Math.ceil(filteredRecords.length / pageSize))}</span>
-            <button className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(filteredRecords.length / pageSize)} onClick={() => setPage(p => p + 1)}>Next</button>
+            <span>Page {page} of {totalPages}</span>
+            <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
           </div>
           <div className="export-actions">
-            <button className="btn btn-secondary btn-sm">Export Excel</button>
-            <button className="btn btn-secondary btn-sm">Export PDF</button>
+            <button className="btn btn-secondary btn-sm" onClick={handleExportPdf}>Export PDF</button>
           </div>
         </div>
       </div>

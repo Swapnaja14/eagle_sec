@@ -17,7 +17,6 @@ export const mockDepartments = [
 ];
 
 export const mockTrainingModules = [
-  'PSARA Foundation Course',
   'Emergency Response Protocol',
   'Fire Safety & Evacuation',
   'Access Control Procedures',
@@ -26,7 +25,8 @@ export const mockTrainingModules = [
   'First Aid & CPR Certification',
   'CCTV Operations Mastery',
   'Crowd Management Techniques',
-  'Workplace Harassment Prevention'
+  'Workplace Harassment Prevention',
+  'Leadership & Supervision',
 ];
 
 export const mockTrainers = [
@@ -51,24 +51,11 @@ const generateMockRecords = () => {
     const site = mockSites.find(s => s.clientId === clientId) || mockSites[0];
     const dept = mockDepartments[Math.floor(Math.random() * mockDepartments.length)];
     
-    // PSARA validity
-    const daysUntilExpiry = Math.floor(Math.random() * 60) - 10; // -10 to 50 days
-    const isPsaraValid = daysUntilExpiry > 0;
-    const psaraExpiryDate = new Date();
-    psaraExpiryDate.setDate(psaraExpiryDate.getDate() + daysUntilExpiry);
-    
-    let psaraStatus = 'compliant';
-    if (daysUntilExpiry <= 0) psaraStatus = 'expired';
-    else if (daysUntilExpiry <= 30) psaraStatus = 'expiring';
-
     guards.push({
       id: `G-${i}`,
       name,
       employeeId,
-      psaraStatus,
       lastTrainingDate: randomDate(new Date(2025, 0, 1), new Date()),
-      psaraExpiryDate: psaraExpiryDate.toISOString(),
-      daysUntilExpiry,
       siteId: site.id,
       siteName: site.name
     });
@@ -98,8 +85,6 @@ const generateMockRecords = () => {
         durationMinutes: [60, 120, 240, 480][Math.floor(Math.random() * 4)],
         score: status === 'in-progress' ? null : score,
         status,
-        psaraValid: isPsaraValid,
-        psaraExpiryDate: psaraExpiryDate.toISOString(),
         trainerId: mockTrainers[Math.floor(Math.random() * mockTrainers.length)].id,
         trainerName: mockTrainers[Math.floor(Math.random() * mockTrainers.length)].name,
       });
@@ -120,8 +105,8 @@ export const dashboardCards = {
 };
 
 export const upcomingSessions = [
-  { id: 1, type: 'virtual', topic: 'PSARA Foundation Course', date: 'Today, 2:00 PM', trainerName: 'Rajesh Kumar', attendeeCount: 45 },
-  { id: 2, type: 'classroom', topic: 'Fire Safety & Evacuation', date: 'Tomorrow, 9:00 AM', trainerName: 'Priya Sharma', attendeeCount: 20 },
+  { id: 1, type: 'virtual', topic: 'Fire Safety & Evacuation', date: 'Today, 2:00 PM', trainerName: 'Rajesh Kumar', attendeeCount: 45 },
+  { id: 2, type: 'classroom', topic: 'Emergency Response Protocol', date: 'Tomorrow, 9:00 AM', trainerName: 'Priya Sharma', attendeeCount: 20 },
   { id: 3, type: 'classroom', topic: 'Customer Service Excellence', date: 'April 16, 11:00 AM', trainerName: 'Amit Patel', attendeeCount: 30 }
 ];
 

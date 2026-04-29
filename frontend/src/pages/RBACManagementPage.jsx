@@ -4,7 +4,6 @@ const ROLES = ['Super Admin', 'Admin / Manager', 'Trainer', 'Trainee / Guard'];
 const MODULES = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'training_history', label: 'Training History' },
-  { id: 'psara', label: 'PSARA Compliance' },
   { id: 'calendar', label: 'Training Calendar' },
   { id: 'scheduler', label: 'Session Scheduler' },
   { id: 'course_builder', label: 'Course Builder' },
@@ -12,6 +11,7 @@ const MODULES = [
   { id: 'question_bank', label: 'Question Bank' },
   { id: 'quiz_results', label: 'Quiz Results' },
   { id: 'analytics', label: 'Analytics Reports' },
+  { id: 'certificates', label: 'Certificate Issuing' },
   { id: 'bulk_export', label: 'Bulk Export' },
   { id: 'rbac', label: 'RBAC Management' },
   { id: 'sites', label: 'Site Management' },
@@ -19,10 +19,10 @@ const MODULES = [
 ];
 
 const DEFAULT_PERMISSIONS = {
-  'Super Admin': { dashboard: true, training_history: true, psara: true, calendar: true, scheduler: true, course_builder: true, content_hub: true, question_bank: true, quiz_results: true, analytics: true, bulk_export: true, rbac: true, sites: true, bulk_users: true },
-  'Admin / Manager': { dashboard: true, training_history: true, psara: true, calendar: true, scheduler: true, course_builder: false, content_hub: true, question_bank: false, quiz_results: true, analytics: true, bulk_export: true, rbac: false, sites: true, bulk_users: true },
-  'Trainer': { dashboard: true, training_history: false, psara: false, calendar: true, scheduler: true, course_builder: true, content_hub: true, question_bank: true, quiz_results: true, analytics: false, bulk_export: false, rbac: false, sites: false, bulk_users: false },
-  'Trainee / Guard': { dashboard: true, training_history: false, psara: false, calendar: true, scheduler: false, course_builder: false, content_hub: false, question_bank: false, quiz_results: false, analytics: false, bulk_export: false, rbac: false, sites: false, bulk_users: false },
+  'Super Admin':    { dashboard: true,  training_history: true,  calendar: true,  scheduler: true,  course_builder: true,  content_hub: true,  question_bank: true,  quiz_results: true,  analytics: true,  certificates: true,  bulk_export: true,  rbac: true,  sites: true,  bulk_users: true  },
+  'Admin / Manager':{ dashboard: true,  training_history: true,  calendar: true,  scheduler: true,  course_builder: false, content_hub: true,  question_bank: false, quiz_results: true,  analytics: true,  certificates: true,  bulk_export: true,  rbac: false, sites: true,  bulk_users: true  },
+  'Trainer':        { dashboard: true,  training_history: false, calendar: true,  scheduler: true,  course_builder: true,  content_hub: true,  question_bank: true,  quiz_results: true,  analytics: false, certificates: true,  bulk_export: false, rbac: false, sites: false, bulk_users: false },
+  'Trainee / Guard':{ dashboard: true,  training_history: false, calendar: true,  scheduler: false, course_builder: false, content_hub: false, question_bank: false, quiz_results: false, analytics: false, certificates: false, bulk_export: false, rbac: false, sites: false, bulk_users: false },
 };
 
 const MOCK_HISTORY = [
