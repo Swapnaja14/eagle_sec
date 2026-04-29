@@ -7,108 +7,136 @@ import './AppLayout.css';
 // ─── SIDEBAR CONFIG PER ROLE ─────────────────────────────────────────────────
 const SIDEBAR_NAV = {
   superadmin: [
-    { section: 'Management', items: [
-      { to: '/admin/dashboard', icon: '📊', label: 'Overview' },
-      { to: '/admin/psara', icon: '🛡️', label: 'PSARA Compliance' },
-      { to: '/admin/analytics', icon: '📈', label: 'Analytics Report' },
-      { to: '/admin/gap-analysis', icon: '🔍', label: 'Gap Analysis' },
-      { to: '/admin/audit-logs', icon: '📋', label: 'Audit Logs', superOnly: true },
-    ]},
-    { section: 'Training', items: [
-      { to: '/employee/history', icon: '📜', label: 'Training History' },
-      { to: '/admin/calendar', icon: '📅', label: 'Calendar' },
-      { to: '/sessions/classroom/new', icon: '🏫', label: 'Schedule Session' },
-    ]},
-    { section: 'Courses & Content', items: [
-      { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
-      { to: '/content/upload', icon: '📁', label: 'Content Hub' },
-    ]},
-    { section: 'Assessments', items: [
-      { to: '/assessments', icon: '📝', label: 'Assessments' },
-      { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
-      { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
-      { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
-      { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
-    ]},
-    { section: 'Reports', items: [
-      { to: '/reports/export', icon: '📦', label: 'Bulk Export' },
-    ]},
-    { section: 'System', items: [
-      { to: '/admin/rbac', icon: '🔐', label: 'RBAC Management', superOnly: true },
-      { to: '/admin/sites', icon: '📍', label: 'Site Management' },
-      { to: '/admin/users/bulk', icon: '👥', label: 'Bulk User Upload' },
-    ]},
+    {
+      section: 'Management', items: [
+        { to: '/admin/dashboard', icon: '📊', label: 'Overview' },
+        { to: '/admin/psara', icon: '🛡️', label: 'PSARA Compliance' },
+        { to: '/admin/analytics', icon: '📈', label: 'Analytics Report' },
+        { to: '/admin/gap-analysis', icon: '🔍', label: 'Gap Analysis' },
+        { to: '/admin/audit-logs', icon: '📋', label: 'Audit Logs', superOnly: true },
+      ]
+    },
+    {
+      section: 'Training', items: [
+        { to: '/employee/history', icon: '📜', label: 'Training History' },
+        { to: '/admin/calendar', icon: '📅', label: 'Calendar' },
+        { to: '/sessions/classroom/new', icon: '🏫', label: 'Schedule Session' },
+      ]
+    },
+    {
+      section: 'Courses & Content', items: [
+        { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
+        { to: '/content/upload', icon: '📁', label: 'Content Hub' },
+      ]
+    },
+    {
+      section: 'Assessments', items: [
+        { to: '/assessments', icon: '📝', label: 'Assessments' },
+        { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
+        { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
+        { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
+      ]
+    },
+    {
+      section: 'Reports', items: [
+        { to: '/reports/export', icon: '📦', label: 'Bulk Export' },
+      ]
+    },
+    {
+      section: 'System', items: [
+        { to: '/admin/rbac', icon: '🔐', label: 'RBAC Management', superOnly: true },
+        { to: '/admin/sites', icon: '📍', label: 'Site Management' },
+        { to: '/admin/users/bulk', icon: '👥', label: 'Bulk User Upload' },
+      ]
+    },
   ],
   admin: [
-    { section: 'Management', items: [
-      { to: '/admin/dashboard', icon: '📊', label: 'Overview' },
-      { to: '/admin/psara', icon: '🛡️', label: 'PSARA Compliance' },
-      { to: '/admin/analytics', icon: '📈', label: 'Analytics Report' },
-      { to: '/admin/gap-analysis', icon: '🔍', label: 'Gap Analysis' },
-    ]},
-    { section: 'Training', items: [
-      { to: '/employee/history', icon: '📜', label: 'Training History' },
-      { to: '/admin/calendar', icon: '📅', label: 'Calendar' },
-      { to: '/sessions/classroom/new', icon: '🏫', label: 'Schedule Session' },
-    ]},
-    { section: 'Courses & Content', items: [
-      { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
-      { to: '/content/upload', icon: '📁', label: 'Content Hub' },
-    ]},
-    { section: 'Assessments', items: [
-      { to: '/assessments', icon: '📝', label: 'Assessments' },
-      { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
-      { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
-      { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
-      { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
-    ]},
-    { section: 'Reports', items: [
-      { to: '/reports/export', icon: '📦', label: 'Bulk Export' },
-    ]},
-    { section: 'System', items: [
-      { to: '/admin/sites', icon: '📍', label: 'Site Management' },
-      { to: '/admin/users/bulk', icon: '👥', label: 'Bulk User Upload' },
-    ]},
+    {
+      section: 'Management', items: [
+        { to: '/admin/dashboard', icon: '📊', label: 'Overview' },
+        { to: '/admin/psara', icon: '🛡️', label: 'PSARA Compliance' },
+        { to: '/admin/analytics', icon: '📈', label: 'Analytics Report' },
+        { to: '/admin/gap-analysis', icon: '🔍', label: 'Gap Analysis' },
+      ]
+    },
+    {
+      section: 'Training', items: [
+        { to: '/employee/history', icon: '📜', label: 'Training History' },
+        { to: '/admin/calendar', icon: '📅', label: 'Calendar' },
+        { to: '/sessions/classroom/new', icon: '🏫', label: 'Schedule Session' },
+      ]
+    },
+    {
+      section: 'Courses & Content', items: [
+        { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
+        { to: '/content/upload', icon: '📁', label: 'Content Hub' },
+      ]
+    },
+    {
+      section: 'Assessments', items: [
+        { to: '/assessments', icon: '📝', label: 'Assessments' },
+        { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
+        { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
+        { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
+      ]
+    },
+    {
+      section: 'Reports', items: [
+        { to: '/reports/export', icon: '📦', label: 'Bulk Export' },
+      ]
+    },
+    {
+      section: 'System', items: [
+        { to: '/admin/sites', icon: '📍', label: 'Site Management' },
+        { to: '/admin/users/bulk', icon: '👥', label: 'Bulk User Upload' },
+      ]
+    },
   ],
   trainer: [
-    { section: 'My Work', items: [
-      { to: '/trainer/dashboard', icon: '📊', label: 'My Dashboard' },
-      { to: '/trainer/sessions', icon: '🏫', label: 'My Sessions' },
-      { to: '/admin/calendar', icon: '📅', label: 'Calendar' },
-      { to: '/sessions/classroom/new', icon: '➕', label: 'New Session' },
-    ]},
-    { section: 'Content', items: [
-      { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
-      { to: '/content/upload', icon: '📁', label: 'Content Hub' },
-      { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
-    ]},
-    { section: 'Assessments', items: [
-      { to: '/assessments', icon: '📝', label: 'Assessments' },
-      { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
-      { to: '/sessions/evaluate', icon: '⭐', label: 'Session Feedback' },
-    ]},
+    {
+      section: 'My Work', items: [
+        { to: '/trainer/dashboard', icon: '📊', label: 'My Dashboard' },
+        { to: '/trainer/sessions', icon: '🏫', label: 'My Sessions' },
+        { to: '/admin/calendar', icon: '📅', label: 'Calendar' },
+        { to: '/sessions/classroom/new', icon: '➕', label: 'New Session' },
+      ]
+    },
+    {
+      section: 'Content', items: [
+        { to: '/courses/new', icon: '🏗️', label: 'Course Builder' },
+        { to: '/content/upload', icon: '📁', label: 'Content Hub' },
+        { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
+      ]
+    },
+    {
+      section: 'Assessments', items: [
+        { to: '/assessments', icon: '📝', label: 'Assessments' },
+        { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
+      ]
+    },
   ],
   trainee: [
-    { section: 'Overview', items: [
-      { to: '/trainee/dashboard', icon: '🏠', label: 'My Dashboard' },
-    ]},
-    { section: 'Learning', items: [
-      { to: '/trainee/my-training', icon: '📜', label: 'My Training History' },
-      { to: '/trainee/assessments', icon: '📝', label: 'Take Assessment' },
-      { to: '/trainee/certificates', icon: '🎓', label: 'My Certificates' },
-      { to: '/admin/calendar', icon: '📅', label: 'Session Calendar' },
-    ]},
-    { section: 'Feedback', items: [
-      { to: '/sessions/evaluate', icon: '⭐', label: 'Rate a Session' },
-    ]},
+    {
+      section: 'Overview', items: [
+        { to: '/trainee/dashboard', icon: '🏠', label: 'My Dashboard' },
+      ]
+    },
+    {
+      section: 'Learning', items: [
+        { to: '/trainee/my-training', icon: '📜', label: 'My Training History' },
+        { to: '/trainee/assessments', icon: '📝', label: 'Take Assessment' },
+        { to: '/trainee/certificates', icon: '🎓', label: 'My Certificates' },
+        { to: '/admin/calendar', icon: '📅', label: 'Session Calendar' },
+      ]
+    },
   ],
 }
 
 const ROLE_BADGE = {
   superadmin: { style: { background: 'rgba(239,68,68,0.2)', color: '#ef4444' }, label: 'Super Admin' },
-  admin:      { style: { background: 'rgba(59,130,246,0.2)', color: '#3b82f6' }, label: 'Admin' },
-  trainer:    { style: { background: 'rgba(34,197,94,0.2)', color: '#22c55e' }, label: 'Trainer' },
-  trainee:    { style: { background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }, label: 'Trainee' },
+  admin: { style: { background: 'rgba(59,130,246,0.2)', color: '#3b82f6' }, label: 'Admin' },
+  trainer: { style: { background: 'rgba(34,197,94,0.2)', color: '#22c55e' }, label: 'Trainer' },
+  trainee: { style: { background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }, label: 'Trainee' },
 }
 
 export default function AppLayout({ children }) {
@@ -231,7 +259,7 @@ export default function AppLayout({ children }) {
                   </div>
                 </div>
                 <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style={{ color: 'var(--text-muted)', marginLeft: 2 }}>
-                  <path d="M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                  <path d="M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
                 </svg>
               </button>
 
