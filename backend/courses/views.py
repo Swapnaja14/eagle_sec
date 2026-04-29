@@ -33,10 +33,36 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Course.objects.all()
-        if self.request.user.tenant:
-            qs = qs.filter(tenant=self.request.user.tenant)
+        user = self.request.user
+        print(f"[DEBUG] CourseViewSet get_queryset - User: {user.username}, Role: {user.role}, Tenant: {user.tenant}")
+        
+        # Superadmins see all courses (including those with no tenant)
+        if user.role == 'superadmin':
+            print(f"[DEBUG] Superadmin - showing all courses")
+            return qs.select_related('created_by', 'pre_assessment', 'post_assessment', 'certification') \
+                     .prefetch_related('lessons__files')
+        
+        # Regular users only see courses in their tenant
+        if user.tenant:
+            qs = qs.filter(tenant=user.tenant)
+            print(f"[DEBUG] Filtering by tenant: {user.tenant.id}")
+        else:
+            # Non-superadmin without tenant sees nothing
+            qs = qs.none()
+            print(f"[DEBUG] No tenant assigned - showing nothing")
         return qs.select_related('created_by', 'pre_assessment', 'post_assessment', 'certification') \
                  .prefetch_related('lessons__files')
+
+    def update(self, request, *args, **kwargs):
+        print(f"[DEBUG] Course update - User: {request.user.username}, Tenant: {request.user.tenant}")
+        print(f"[DEBUG] Update data: {request.data}")
+        try:
+            response = super().update(request, *args, **kwargs)
+            print(f"[DEBUG] Update successful: {response.data}")
+            return response
+        except Exception as e:
+            print(f"[DEBUG] Update failed: {str(e)}")
+            raise
 
     @action(detail=True, methods=['post'])
     def retire(self, request, pk=None):

@@ -182,7 +182,14 @@ export default function CourseBuilderPage() {
           setTimeout(() => navigate('/courses'), 1500)
         } else {
           const cid = course?.id || id
+          if (!cid) {
+            showNotif('Course ID not found. Please try again.', 'error')
+            setSaving(false)
+            return
+          }
+          console.log('[DEBUG] Updating course:', cid, 'with data:', meta)
           const res = await coursesAPI.update(cid, meta)
+          console.log('[DEBUG] Update response:', res.data)
           setCourse(prev => ({ ...prev, ...res.data }))
           showNotif('Metadata saved!')
         }
@@ -250,7 +257,9 @@ export default function CourseBuilderPage() {
         }
       }
     } catch (err) {
-      showNotif(err.response?.data?.detail || 'Save failed.', 'error')
+      console.error('Save error:', err)
+      console.error('Error response:', err.response?.data)
+      showNotif(err.response?.data?.detail || err.response?.data?.error || err.message || 'Save failed.', 'error')
     } finally { setSaving(false) }
   }
 
