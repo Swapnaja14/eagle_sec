@@ -18,7 +18,6 @@ import CourseBuilderPage from './pages/CourseBuilderPage'
 import CoursesListPage from './pages/CoursesListPage'
 import ContentUploadPage from './pages/ContentUploadPage'
 import QuestionBankPage from './pages/QuestionBankPage'
-import SessionEvaluationPage from './pages/SessionEvaluationPage'
 import BulkExportPage from './pages/BulkExportPage'
 import SiteManagementPage from './pages/SiteManagementPage'
 import BulkUserUploadPage from './pages/BulkUserUploadPage'
@@ -85,48 +84,47 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to={user ? (ROLE_HOME[user.role] || '/admin/dashboard') : '/login'} replace />} />
 
       {/* ─── SUPER ADMIN + ADMIN ───────────────────────────────────────── */}
-      <Route path="/admin/dashboard"  element={<P roles={['superadmin','admin']}><DashboardPage /></P>} />
-      <Route path="/admin/psara"      element={<P roles={['superadmin','admin']}><PSARADashboardPage /></P>} />
-      <Route path="/admin/analytics"  element={<P roles={['superadmin','admin']}><AnalyticsReportPage /></P>} />
-      <Route path="/admin/gap-analysis" element={<P roles={['superadmin','admin']}><GapAnalysisPage /></P>} />
-      <Route path="/employee/history" element={<P roles={['superadmin','admin']}><EmployeeHistoryPage /></P>} />
-      <Route path="/admin/calendar"   element={<P roles={['superadmin','admin','trainer','trainee']}><TrainingCalendarPage /></P>} />
-      <Route path="/admin/sites"      element={<P roles={['superadmin','admin']}><SiteManagementPage /></P>} />
-      <Route path="/admin/users/bulk" element={<P roles={['superadmin','admin']}><BulkUserUploadPage /></P>} />
-      <Route path="/reports/export"   element={<P roles={['superadmin','admin']}><BulkExportPage /></P>} />
+      <Route path="/admin/dashboard" element={<P roles={['superadmin', 'admin']}><DashboardPage /></P>} />
+      <Route path="/admin/psara" element={<P roles={['superadmin', 'admin']}><PSARADashboardPage /></P>} />
+      <Route path="/admin/analytics" element={<P roles={['superadmin', 'admin']}><AnalyticsReportPage /></P>} />
+      <Route path="/admin/gap-analysis" element={<P roles={['superadmin', 'admin']}><GapAnalysisPage /></P>} />
+      <Route path="/employee/history" element={<P roles={['superadmin', 'admin']}><EmployeeHistoryPage /></P>} />
+      <Route path="/admin/calendar" element={<P roles={['superadmin', 'admin', 'trainer', 'trainee']}><TrainingCalendarPage /></P>} />
+      <Route path="/admin/sites" element={<P roles={['superadmin', 'admin']}><SiteManagementPage /></P>} />
+      <Route path="/admin/users/bulk" element={<P roles={['superadmin', 'admin']}><BulkUserUploadPage /></P>} />
+      <Route path="/reports/export" element={<P roles={['superadmin', 'admin']}><BulkExportPage /></P>} />
 
       {/* SUPER ADMIN ONLY */}
-      <Route path="/admin/rbac"       element={<P roles={['superadmin']}><RBACManagementPage /></P>} />
+      <Route path="/admin/rbac" element={<P roles={['superadmin']}><RBACManagementPage /></P>} />
       <Route path="/admin/audit-logs" element={<P roles={['superadmin']}><AuditLogPage /></P>} />
-      <Route path="/admin/certificates" element={<P roles={['superadmin','admin']}><CertificateIssuingPage /></P>} />
+      <Route path="/admin/certificates" element={<P roles={['superadmin', 'admin']}><CertificateIssuingPage /></P>} />
 
       {/* ─── SHARED: ADMIN + TRAINER ───────────────────────────────────── */}
-      <Route path="/sessions/classroom/new" element={<P roles={['superadmin','admin','trainer']}><SessionSchedulerPage /></P>} />
-      <Route path="/sessions/virtual/new"   element={<P roles={['superadmin','admin','trainer']}><SessionSchedulerPage /></P>} />
-      <Route path="/sessions/quiz-results"  element={<P roles={['superadmin','admin','trainer']}><QuizResultsPage /></P>} />
-      <Route path="/sessions/evaluate"      element={<P roles={['superadmin','admin','trainer','trainee']}><SessionEvaluationPage /></P>} />
-      <Route path="/content/upload"         element={<P roles={['superadmin','admin','trainer']}><ContentUploadPage /></P>} />
-      <Route path="/courses"                element={<P roles={['superadmin','admin','trainer']}><CoursesListPage /></P>} />
-      <Route path="/courses/new"            element={<P roles={['superadmin','admin','trainer']}><CourseBuilderPage /></P>} />
-      <Route path="/courses/:id/builder"    element={<P roles={['superadmin','admin','trainer']}><CourseBuilderPage /></P>} />
-      <Route path="/questions/manage"       element={<P roles={['superadmin','admin','trainer']}><QuestionBankPage /></P>} />
+      <Route path="/sessions/classroom/new" element={<P roles={['superadmin', 'admin', 'trainer']}><SessionSchedulerPage /></P>} />
+      <Route path="/sessions/virtual/new" element={<P roles={['superadmin', 'admin', 'trainer']}><SessionSchedulerPage /></P>} />
+      <Route path="/sessions/quiz-results" element={<P roles={['superadmin', 'admin', 'trainer']}><QuizResultsPage /></P>} />
+      <Route path="/content/upload" element={<P roles={['superadmin', 'admin', 'trainer']}><ContentUploadPage /></P>} />
+      <Route path="/courses" element={<P roles={['superadmin', 'admin', 'trainer']}><CoursesListPage /></P>} />
+      <Route path="/courses/new" element={<P roles={['superadmin', 'admin', 'trainer']}><CourseBuilderPage /></P>} />
+      <Route path="/courses/:id/builder" element={<P roles={['superadmin', 'admin', 'trainer']}><CourseBuilderPage /></P>} />
+      <Route path="/questions/manage" element={<P roles={['superadmin', 'admin', 'trainer']}><QuestionBankPage /></P>} />
 
       {/* ─── ASSESSMENTS ───────────────────────────────────────────────── */}
-      <Route path="/assessments"            element={<P roles={['superadmin','admin','trainer']}><AssessmentsListPage /></P>} />
-      <Route path="/assessments/create"     element={<P roles={['superadmin','admin','trainer']}><AssessmentCreationPage /></P>} />
-      <Route path="/assessments/:id"        element={<P roles={['superadmin','admin','trainer']}><AssessmentDetailPage /></P>} />
-      <Route path="/assessments/:id/edit"   element={<P roles={['superadmin','admin','trainer']}><AssessmentCreationPage /></P>} />
-      <Route path="/quiz/:quizId/take"      element={<P roles={['superadmin','admin','trainer','trainee']}><TakeQuizPage /></P>} />
-      <Route path="/quiz-results/:submissionId" element={<P roles={['superadmin','admin','trainer','trainee']}><QuizResultsPage /></P>} />
+      <Route path="/assessments" element={<P roles={['superadmin', 'admin', 'trainer']}><AssessmentsListPage /></P>} />
+      <Route path="/assessments/create" element={<P roles={['superadmin', 'admin', 'trainer']}><AssessmentCreationPage /></P>} />
+      <Route path="/assessments/:id" element={<P roles={['superadmin', 'admin', 'trainer']}><AssessmentDetailPage /></P>} />
+      <Route path="/assessments/:id/edit" element={<P roles={['superadmin', 'admin', 'trainer']}><AssessmentCreationPage /></P>} />
+      <Route path="/quiz/:quizId/take" element={<P roles={['superadmin', 'admin', 'trainer', 'trainee']}><TakeQuizPage /></P>} />
+      <Route path="/quiz-results/:submissionId" element={<P roles={['superadmin', 'admin', 'trainer', 'trainee']}><QuizResultsPage /></P>} />
 
       {/* ─── TRAINER PORTAL ────────────────────────────────────────────── */}
       <Route path="/trainer/dashboard" element={<P roles={['trainer']}><TrainerDashboardPage /></P>} />
-      <Route path="/trainer/sessions"  element={<P roles={['trainer']}><MySessionsPage /></P>} />
+      <Route path="/trainer/sessions" element={<P roles={['trainer']}><MySessionsPage /></P>} />
 
       {/* ─── TRAINEE PORTAL ────────────────────────────────────────────── */}
-      <Route path="/trainee/dashboard"    element={<P roles={['trainee']}><TraineeDashboardPage /></P>} />
-      <Route path="/trainee/my-training"  element={<P roles={['trainee']}><MyTrainingHistoryPage /></P>} />
-      <Route path="/trainee/assessments"  element={<P roles={['trainee']}><TakeAssessmentPage /></P>} />
+      <Route path="/trainee/dashboard" element={<P roles={['trainee']}><TraineeDashboardPage /></P>} />
+      <Route path="/trainee/my-training" element={<P roles={['trainee']}><MyTrainingHistoryPage /></P>} />
+      <Route path="/trainee/assessments" element={<P roles={['trainee']}><TakeAssessmentPage /></P>} />
       <Route path="/trainee/certificates" element={<P roles={['trainee']}><MyCertificatesPage /></P>} />
 
       {/* CATCH-ALL */}
