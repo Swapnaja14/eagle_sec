@@ -1,17 +1,25 @@
 from django.core.cache import cache
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
+from django.db.models import Count, Max, Q
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from assessments.models import Submission, Quiz
+from accounts.models import User
 from .models import ComplianceAlert, TrainingSession
+from .serializers import TrainingSessionSerializer
+from courses.models import TrainingAssignment
+from assessments.models import Submission, Quiz
+from certificates.models import IssuedCertificate
 from .services import (
     get_dashboard_summary,
     get_department_completion,
     get_training_trend,
     get_upcoming_sessions,
+    get_calendar_sessions,
     get_compliance_alerts,
     get_recent_training_history,
+    get_my_training_history,
     get_dashboard_overview,
 )
 
@@ -22,6 +30,15 @@ class IsAdminOrSuperAdmin(BasePermission):
             request.user
             and request.user.is_authenticated
             and getattr(request.user, "role", None) in {"admin", "superadmin"}
+        )
+
+
+class CanManageSessions(BasePermission):
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "role", None) in {"superadmin", "admin", "instructor"}
         )
 
 
@@ -76,6 +93,77 @@ class UpcomingSessionsView(CachedAPIView):
         return Response(get_upcoming_sessions(request.user, request.query_params))
 
 
+class CalendarSessionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_calendar_sessions(request.user, request.query_params))
+
+
+class SessionListCreateView(APIView):
+    permission_classes = [CanManageSessions]
+
+    def get_queryset(self, request):
+        qs = TrainingSession.objects.filter(is_active=True).select_related("trainer", "tenant")
+        if request.user.role != "superadmin":
+            qs = qs.filter(tenant=request.user.tenant)
+        elif request.query_params.get("tenant"):
+            qs = qs.filter(tenant_id=request.query_params.get("tenant"))
+        return qs
+
+    def get(self, request):
+        qs = self.get_queryset(request)
+        serializer = TrainingSessionSerializer(qs.order_by("date_time"), many=True)
+        return Response({"count": len(serializer.data), "results": serializer.data})
+
+    def post(self, request):
+        serializer = TrainingSessionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(tenant=request.user.tenant)
+        return Response(serializer.data, status=201)
+
+
+class SessionDetailView(APIView):
+    permission_classes = [CanManageSessions]
+
+    def get_object(self, request, session_id):
+        qs = TrainingSession.objects.select_related("trainer", "tenant")
+        if request.user.role != "superadmin":
+            qs = qs.filter(tenant=request.user.tenant)
+        return get_object_or_404(qs, id=session_id)
+
+    def patch(self, request, session_id):
+        session = self.get_object(request, session_id)
+        serializer = TrainingSessionSerializer(session, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, session_id):
+        session = self.get_object(request, session_id)
+        session.is_active = False
+        session.save(update_fields=["is_active", "updated_at"])
+        return Response(status=204)
+
+
+class SessionTrainersView(APIView):
+    permission_classes = [CanManageSessions]
+
+    def get(self, request):
+        qs = User.objects.filter(role="instructor", is_active=True)
+        if request.user.role != "superadmin":
+            qs = qs.filter(tenant=request.user.tenant)
+        rows = [
+            {
+                "id": u.id,
+                "name": f"{u.first_name} {u.last_name}".strip() or u.username,
+                "username": u.username,
+            }
+            for u in qs.order_by("first_name", "last_name", "username")
+        ]
+        return Response(rows)
+
+
 class ComplianceAlertsView(CachedAPIView):
     cache_ttl = 60
     cache_prefix = "dashboard:compliance-alerts"
@@ -114,6 +202,13 @@ class DashboardOverviewView(CachedAPIView):
 
     def get(self, request):
         return Response(self._get_or_compute(request, get_dashboard_overview))
+
+
+class MyTrainingHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_my_training_history(request.user, request.query_params))
 
 
 class TraineeDashboardView(APIView):
@@ -195,3 +290,161 @@ class TraineeDashboardView(APIView):
             "pending_assessments": pending_assessments
         })
 
+
+class TraineeCoursesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _course_category(self, course):
+        if course.compliance_taxonomy and course.compliance_taxonomy != "none":
+            return course.compliance_taxonomy
+        if course.skills_taxonomy and course.skills_taxonomy != "none":
+            return course.skills_taxonomy
+        return "General"
+
+    def _recommendation_for(self, progress_percent, best_score, has_upcoming_session):
+        if progress_percent < 40:
+            return {
+                "type": "catch_up",
+                "message": "You are behind schedule. Start the next lesson today.",
+                "priority": "high",
+            }
+        if best_score is not None and best_score < 70:
+            return {
+                "type": "improve_score",
+                "message": "Re-attempt quizzes and review weak topics to improve your score.",
+                "priority": "high",
+            }
+        if has_upcoming_session:
+            return {
+                "type": "session_ready",
+                "message": "You have an upcoming session. Revise key lesson material.",
+                "priority": "medium",
+            }
+        if progress_percent >= 100:
+            return {
+                "type": "next_course",
+                "message": "Great work. Start a recommended next course.",
+                "priority": "low",
+            }
+        return {
+            "type": "steady_progress",
+            "message": "Keep going. Complete the next quiz to stay on track.",
+            "priority": "medium",
+        }
+
+    def get(self, request):
+        user = request.user
+
+        assignment_qs = (
+            TrainingAssignment.objects.select_related("course")
+            .filter(
+                trainee=user,
+                course__status="active",
+                status__in=[
+                    TrainingAssignment.STATUS_ASSIGNED,
+                    TrainingAssignment.STATUS_IN_PROGRESS,
+                    TrainingAssignment.STATUS_COMPLETED,
+                ],
+            )
+            .annotate(
+                lesson_count=Count("course__lessons", distinct=True),
+                total_quizzes=Count(
+                    "course__quizzes",
+                    filter=Q(course__quizzes__is_active=True),
+                    distinct=True,
+                ),
+            )
+            .order_by("due_date", "-assigned_at")
+        )
+        if user.tenant:
+            assignment_qs = assignment_qs.filter(tenant=user.tenant)
+
+        assignments = list(assignment_qs)
+        assigned_course_ids = [assignment.course_id for assignment in assignments]
+
+        # Aggregate submission stats for progress tracking.
+        submissions = Submission.objects.filter(
+            user=user,
+            quiz__course_id__in=assigned_course_ids,
+        ).select_related("quiz", "quiz__course")
+        if user.tenant:
+            submissions = submissions.filter(quiz__tenant=user.tenant)
+
+        submission_stats = {
+            row["quiz__course_id"]: row
+            for row in submissions.values("quiz__course_id").annotate(
+                completed_quizzes=Count("quiz_id", filter=Q(status="completed"), distinct=True),
+                best_score=Max("percentage", filter=Q(status="completed")),
+            )
+        }
+
+        certificates = IssuedCertificate.objects.filter(
+            employee=user,
+            course_id__in=assigned_course_ids,
+        )
+        if user.tenant:
+            certificates = certificates.filter(tenant=user.tenant)
+        
+        cert_map = {cert.course_id: cert.id for cert in certificates}
+
+        upcoming_sessions = TrainingSession.objects.filter(
+            is_active=True,
+            date_time__gte=timezone.now(),
+        )
+        if user.tenant:
+            upcoming_sessions = upcoming_sessions.filter(tenant=user.tenant)
+        upcoming_topics = set(upcoming_sessions.values_list("topic", flat=True))
+
+        results = []
+        completed_assignment_ids = []
+        for assignment in assignments:
+            course = assignment.course
+            stats = submission_stats.get(course.id, {})
+            total_quizzes = assignment.total_quizzes or 0
+            completed_quizzes = stats.get("completed_quizzes", 0) or 0
+            progress_percent = (
+                round((completed_quizzes / total_quizzes) * 100, 1)
+                if total_quizzes > 0
+                else 0.0
+            )
+            best_score = stats.get("best_score")
+
+            if progress_percent >= 100 and assignment.status != TrainingAssignment.STATUS_COMPLETED:
+                completed_assignment_ids.append(assignment.id)
+
+            has_upcoming_session = course.display_name in upcoming_topics
+            recommendation = self._recommendation_for(progress_percent, best_score, has_upcoming_session)
+
+            results.append(
+                {
+                    "id": course.id,
+                    "course_id": course.course_id,
+                    "display_name": course.display_name,
+                    "description": course.description,
+                    "lesson_count": assignment.lesson_count,
+                    "status": course.status,
+                    "category": self._course_category(course),
+                    "progress": {
+                        "percent": progress_percent,
+                        "completed_quizzes": completed_quizzes,
+                        "total_quizzes": total_quizzes,
+                        "best_score": round(float(best_score), 1) if best_score is not None else None,
+                    },
+                    "recommendation": recommendation,
+                    "has_upcoming_session": has_upcoming_session,
+                    "assignment": {
+                        "status": assignment.status,
+                        "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
+                        "assigned_at": assignment.assigned_at.isoformat(),
+                    },
+                    "certificate_url": f"/certificates/{cert_map[course.id]}/download/" if course.id in cert_map else None,
+                }
+            )
+
+        if completed_assignment_ids:
+            TrainingAssignment.objects.filter(id__in=completed_assignment_ids).update(
+                status=TrainingAssignment.STATUS_COMPLETED
+            )
+
+        results.sort(key=lambda row: (-row["progress"]["percent"], row["display_name"]))
+        return Response({"count": len(results), "results": results})

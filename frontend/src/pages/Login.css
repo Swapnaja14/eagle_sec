@@ -72,7 +72,7 @@
 .login-brand-name {
   font-size: 1.75rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #f0f6fc, #3b82f6);
+  background: var(--text-gradient, linear-gradient(135deg, #f0f6fc, #3b82f6));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
@@ -121,7 +121,7 @@
 .login-tab.active {
   background: var(--accent-blue);
   color: white;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+  box-shadow: var(--shadow-glow);
 }
 
 .login-form {

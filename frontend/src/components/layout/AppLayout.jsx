@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import './AppLayout.css';
 
 // ─── SIDEBAR CONFIG PER ROLE ─────────────────────────────────────────────────
@@ -27,6 +28,7 @@ const SIDEBAR_NAV = {
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
       { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
       { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
+      { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
     ]},
     { section: 'Reports', items: [
       { to: '/reports/export', icon: '📦', label: 'Bulk Export' },
@@ -58,6 +60,7 @@ const SIDEBAR_NAV = {
       { to: '/questions/manage', icon: '❓', label: 'Question Bank' },
       { to: '/sessions/quiz-results', icon: '📋', label: 'Quiz Results' },
       { to: '/sessions/evaluate', icon: '⭐', label: 'Evaluations' },
+      { to: '/admin/certificates', icon: '🎓', label: 'Issue Certificates' },
     ]},
     { section: 'Reports', items: [
       { to: '/reports/export', icon: '📦', label: 'Bulk Export' },
@@ -110,6 +113,7 @@ const ROLE_BADGE = {
 
 export default function AppLayout({ children }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const navigate = useNavigate();
@@ -202,6 +206,10 @@ export default function AppLayout({ children }) {
           </div>
 
           <div className="topheader-right">
+            <button className="header-icon-btn" title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`} onClick={toggleTheme} style={{ fontSize: '1.2rem' }}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+
             <button className="header-icon-btn" title="Notifications">
               🔔
               <span className="notification-badge"></span>

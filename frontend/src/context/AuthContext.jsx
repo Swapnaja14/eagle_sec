@@ -124,7 +124,15 @@ export const AuthProvider = ({ children }) => {
   }
 
   // ── LOGOUT ─────────────────────────────────────────────────────────────────
-  const logout = () => {
+  const logout = async () => {
+    const refresh = localStorage.getItem('refresh_token')
+    if (refresh) {
+      try {
+        await authAPI.logout(refresh)
+      } catch {
+        // If blacklisting fails (network/401), still clear locally.
+      }
+    }
     _clearStorage()
   }
 

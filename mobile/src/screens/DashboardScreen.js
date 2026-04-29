@@ -152,18 +152,23 @@ export default function DashboardScreen({ navigation }) {
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
             {data.my_training.map(t => (
-              <BlurView intensity={30} tint="dark" style={styles.courseCard} key={t.id}>
-                <Text style={styles.courseTitle} numberOfLines={2}>{t.module}</Text>
-                <Text style={styles.courseMeta}>{t.date}</Text>
-                <View style={styles.courseScoreRow}>
-                  {t.score !== null ? (
-                    <Text style={[styles.courseScore, { color: t.score >= 80 ? '#22c55e' : t.score >= 60 ? '#f59e0b' : '#ef4444' }]}>{t.score}%</Text>
-                  ) : <Text style={styles.courseInProgress}>In Progress</Text>}
-                  <View style={[styles.statusBadge, t.status === 'passed' ? styles.statusActive : t.status === 'in-progress' ? styles.statusDraft : styles.statusRetired]}>
-                    <Text style={styles.statusBadgeText}>{t.status.toUpperCase()}</Text>
+              <TouchableOpacity 
+                key={t.id} 
+                onPress={() => navigation.navigate('CourseDetail', { courseId: t.course_id || t.id })}
+              >
+                <BlurView intensity={30} tint="dark" style={styles.courseCard}>
+                  <Text style={styles.courseTitle} numberOfLines={2}>{t.module}</Text>
+                  <Text style={styles.courseMeta}>{t.date}</Text>
+                  <View style={styles.courseScoreRow}>
+                    {t.score !== null ? (
+                      <Text style={[styles.courseScore, { color: t.score >= 80 ? '#22c55e' : t.score >= 60 ? '#f59e0b' : '#ef4444' }]}>{t.score}%</Text>
+                    ) : <Text style={styles.courseInProgress}>In Progress</Text>}
+                    <View style={[styles.statusBadge, t.status === 'passed' ? styles.statusActive : t.status === 'in-progress' ? styles.statusDraft : styles.statusRetired]}>
+                      <Text style={styles.statusBadgeText}>{t.status.toUpperCase()}</Text>
+                    </View>
                   </View>
-                </View>
-              </BlurView>
+                </BlurView>
+              </TouchableOpacity>
             ))}
           </ScrollView>
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, Lesson, LessonFile, PreAssessment, PostAssessment, Certification
+from .models import Course, Lesson, LessonFile, PreAssessment, PostAssessment, Certification, TrainingAssignment
 
 
 @admin.register(Course)
@@ -14,3 +14,10 @@ admin.site.register(LessonFile)
 admin.site.register(PreAssessment)
 admin.site.register(PostAssessment)
 admin.site.register(Certification)
+
+
+@admin.register(TrainingAssignment)
+class TrainingAssignmentAdmin(admin.ModelAdmin):
+    list_display = ["trainee", "course", "status", "due_date", "tenant", "assigned_at"]
+    list_filter = ["status", "tenant"]
+    search_fields = ["trainee__username", "course__display_name", "course__course_id"]

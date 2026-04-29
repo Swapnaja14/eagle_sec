@@ -36,3 +36,40 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+
+class Client(models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='clients')
+    name = models.CharField(max_length=200)
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True)
+    industry = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.tenant.name})"
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ['tenant', 'name']
+
+
+class Site(models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='sites')
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='sites', null=True, blank=True)
+    name = models.CharField(max_length=200)
+    address = models.TextField(blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=100, blank=True)
+    country = models.CharField(max_length=100, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.tenant.name})"
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ['tenant', 'name']

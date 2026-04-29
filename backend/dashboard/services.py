@@ -26,11 +26,11 @@ def _parse_date_range(params):
         except ValueError:
             pass
 
-    return now - timedelta(days=30), now
+    return now - timedelta(days=30), now + timedelta(minutes=1)
 
 
 def _scope_submissions(user, params, start, end):
-    qs = Submission.objects.select_related("user", "quiz", "quiz__tenant").filter(created_at__gte=start, created_at__lte=end)
+    qs = Submission.objects.select_related("user", "quiz", "quiz__tenant").filter(created_at__gte=start, created_at__lt=end)
 
     if user.role != "superadmin":
         qs = qs.filter(quiz__tenant=user.tenant)
@@ -214,6 +214,49 @@ def get_upcoming_sessions(user, params):
     return data
 
 
+def get_calendar_sessions(user, params):
+    """Fetch sessions for calendar range."""
+    start, end = _parse_date_range(params)
+    qs = _scope_sessions(user, params).filter(date_time__gte=start, date_time__lte=end)
+
+    session_type = params.get("type")
+    if session_type in {"classroom", "virtual"}:
+        qs = qs.filter(session_type=session_type)
+
+    status_value = params.get("status")
+    if status_value in {"draft", "scheduled", "completed", "cancelled"}:
+        qs = qs.filter(status=status_value)
+
+    trainer_id = params.get("trainer_id")
+    if trainer_id:
+        qs = qs.filter(trainer_id=trainer_id)
+
+    rows = []
+    for s in qs.order_by("date_time"):
+        trainer_name = ""
+        if s.trainer:
+            trainer_name = f"{s.trainer.first_name} {s.trainer.last_name}".strip() or s.trainer.username
+
+        rows.append(
+            {
+                "id": s.id,
+                "topic": s.topic,
+                "type": s.session_type,
+                "status": s.status,
+                "trainer_name": trainer_name,
+                "date_time": s.date_time.isoformat(),
+                "duration_minutes": s.duration_minutes,
+                "site": s.site,
+                "attendee_count": s.attendee_count,
+            }
+        )
+
+    return {
+        "count": len(rows),
+        "results": rows,
+    }
+
+
 def get_compliance_alerts(user, params):
     qs = _scope_alerts(user, params).order_by("-behind_percent", "-created_at")
     data = []
@@ -247,6 +290,53 @@ def get_recent_training_history(user, params):
             "status": "passed" if s.passed and s.status == "completed" else ("failed" if s.status == "completed" else s.status),
         })
     return rows
+
+
+def get_my_training_history(user, params):
+    """Training history scoped to the current authenticated user."""
+    start, end = _parse_date_range(params)
+    limit = int(params.get("limit", 100))
+    limit = min(max(limit, 1), 500)
+
+    submissions = (
+        Submission.objects.select_related("quiz")
+        .filter(
+            user=user,
+            created_at__gte=start,
+            created_at__lte=end,
+        )
+        .order_by("-created_at")[:limit]
+    )
+
+    rows = []
+    for s in submissions:
+        status = "in-progress"
+        score = None
+        cert_id = None
+        if s.status == "completed":
+            score = round(float(s.percentage), 1)
+            status = "passed" if s.passed else "failed"
+            if s.passed:
+                cert_id = f"CERT-{s.id:06d}"
+
+        rows.append(
+            {
+                "id": s.id,
+                "module": s.quiz.title,
+                "type": "assessment",
+                "date": (s.submitted_at or s.created_at).isoformat(),
+                "trainer": "",
+                "duration_minutes": int((s.time_taken_seconds or 0) / 60),
+                "score": score,
+                "status": status,
+                "cert_id": cert_id,
+            }
+        )
+
+    return {
+        "count": len(rows),
+        "results": rows,
+    }
 
 
 def get_dashboard_overview(user, params):

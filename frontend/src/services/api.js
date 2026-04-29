@@ -47,6 +47,7 @@ export const authAPI = {
   register: (data) => api.post('/auth/register/', data),
   me: () => api.get('/auth/me/'),
   refresh: (refresh) => api.post('/auth/refresh/', { refresh }),
+  logout: (refresh) => api.post('/auth/logout/', { refresh }),
 }
 
 // ===================== CONTENT =====================
@@ -93,15 +94,15 @@ export const coursesAPI = {
   updateLessonFile: (courseId, lessonId, fileId, data) =>
     api.patch(`/courses/${courseId}/lessons/${lessonId}/files/${fileId}/`, data),
 
-  // Pre-Assessment (OneToOne per course — no separate id needed)
+  // Pre-Assessment
   getPreAssessment: (courseId) => api.get(`/courses/${courseId}/pre-assessment/`),
   updatePreAssessment: (courseId, _id, data) => api.patch(`/courses/${courseId}/pre-assessment/${_id}/`, data),
 
-  // Post-Assessment (OneToOne per course — no separate id needed)
+  // Post-Assessment
   getPostAssessment: (courseId) => api.get(`/courses/${courseId}/post-assessment/`),
   updatePostAssessment: (courseId, _id, data) => api.patch(`/courses/${courseId}/post-assessment/${_id}/`, data),
 
-  // Certification (OneToOne per course — no separate id needed)
+  // Certification
   getCertification: (courseId) => api.get(`/courses/${courseId}/certification/`),
   updateCertification: (courseId, _id, data) => api.patch(`/courses/${courseId}/certification/${_id}/`, data),
   addBatchExpiry: (courseId, data) => api.post(`/courses/${courseId}/certification/add_batch_expiry/`, data),
@@ -118,36 +119,77 @@ export const questionsAPI = {
 
 // ===================== DASHBOARD =====================
 export const dashboardAPI = {
-  // Admin / trainer dashboard endpoints
   getSummary: () => api.get('/dashboard/summary/'),
   getDepartmentCompletion: () => api.get('/dashboard/department-completion/'),
   getTrainingTrend: () => api.get('/dashboard/training-trend/'),
   getComplianceAlerts: () => api.get('/dashboard/compliance-alerts/'),
   getOverview: () => api.get('/dashboard/overview/'),
-
-  // Trainee-specific single-call endpoint
   getTraineeOverview: () => api.get('/trainee/dashboard/'),
 }
 
 // ===================== ASSESSMENTS =====================
 export const assessmentsAPI = {
-  // Quizzes
   list: (params) => api.get('/assessments/quizzes/', { params }),
   get: (id) => api.get(`/assessments/quizzes/${id}/`),
   startQuiz: (id) => api.post(`/assessments/quizzes/${id}/start_quiz/`),
   getQuestions: (id) => api.get(`/assessments/quizzes/${id}/questions/`),
-
-  // Submissions
-  submitAnswer: (submissionId, data) =>
-    api.post(`/assessments/submissions/${submissionId}/submit_answer/`, data),
-  completeSubmission: (submissionId) =>
-    api.post(`/assessments/submissions/${submissionId}/complete_submission/`),
-  mySubmissions: (params) =>
-    api.get('/assessments/submissions/my_submissions/', { params }),
+  submitAnswer: (submissionId, data) => api.post(`/assessments/submissions/${submissionId}/submit_answer/`, data),
+  completeSubmission: (submissionId) => api.post(`/assessments/submissions/${submissionId}/complete_submission/`),
+  mySubmissions: (params) => api.get('/assessments/submissions/my_submissions/', { params }),
 }
 
-// ===================== TRAINING SESSIONS =====================
+// ===================== TRAINING HISTORY =====================
+export const trainingHistoryAPI = {
+  myHistory: (params) => api.get('/training-history/my/', { params }),
+}
+
+// ===================== SESSIONS =====================
 export const sessionsAPI = {
+  calendar: (params) => api.get('/sessions/calendar/', { params }),
+  list: (params) => api.get('/sessions/', { params }),
   upcoming: () => api.get('/sessions/upcoming/'),
   recentHistory: () => api.get('/training-history/recent/'),
+  create: (data) => api.post('/sessions/', data),
+  update: (id, data) => api.patch(`/sessions/${id}/`, data),
+  remove: (id) => api.delete(`/sessions/${id}/`),
+  trainers: () => api.get('/sessions/trainers/'),
+}
+
+// ===================== SITES & CLIENTS =====================
+export const sitesAPI = {
+  list: (params) => api.get('/auth/sites/', { params }),
+  create: (data) => api.post('/auth/sites/', data),
+  update: (id, data) => api.patch(`/auth/sites/${id}/`, data),
+  delete: (id) => api.delete(`/auth/sites/${id}/`),
+}
+
+export const clientsAPI = {
+  list: (params) => api.get('/auth/clients/', { params }),
+  create: (data) => api.post('/auth/clients/', data),
+  update: (id, data) => api.patch(`/auth/clients/${id}/`, data),
+  delete: (id) => api.delete(`/auth/clients/${id}/`),
+}
+
+// ===================== EMPLOYEES =====================
+export const employeesAPI = {
+  list: (params) => api.get('/auth/employees/', { params }),
+}
+
+// ===================== DEPARTMENTS =====================
+export const departmentsAPI = {
+  list: () => api.get('/auth/departments/'),
+}
+
+// ===================== TRAINING TOPICS =====================
+export const trainingTopicsAPI = {
+  list: () => api.get('/courses/training-topics/'),
+}
+
+// ===================== ANALYTICS =====================
+export const analyticsAPI = {
+  summary: () => api.get('/analytics/summary/'),
+  employeeProgress: (id) => api.get(`/analytics/employee/${id}/`),
+  trainerPerformance: (id) => api.get(`/analytics/trainer/${id}/`),
+  gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
+  report: () => api.get('/analytics/report/', { responseType: 'blob' }),
 }

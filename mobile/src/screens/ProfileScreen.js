@@ -1,53 +1,85 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, Shield, Award, LogOut, FileText } from 'lucide-react-native';
-import { dashboardAPI } from '../services/api';
+import { dashboardAPI, authAPI } from '../services/api';
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen({ navigation, setIsLoggedIn }) {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) setRefreshing(true); else setLoading(true);
       const res = await dashboardAPI.getTraineeOverview();
       setUserData(res.data.user);
     } catch (e) {
       console.log('Failed to fetch profile', e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  const doLogout = async () => {
+    await authAPI.logout();
+    if (setIsLoggedIn) setIsLoggedIn(false);
   };
 
-  const handleLogout = async () => {
-    // Basic logout logic here (e.g. AsyncStorage.removeItem('access_token'))
-    alert('Logged out');
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to sign out?')) {
+        doLogout();
+      }
+      return;
+    }
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: doLogout },
+      ]
+    );
   };
+
+  const displayName = userData
+    ? (`${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.username)
+    : '—';
+  
+  const roleLine = userData
+    ? `${userData.role?.toUpperCase() || 'USER'}${userData.department ? ' • ' + userData.department : ''}${userData.username ? ' • ' + userData.username : ''}`
+    : 'Loading…';
 
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
       
       <SafeAreaView style={{ flex: 1 }}>
-        {loading ? (
-          <ActivityIndicator size="large" color="#3b82f6" style={{marginTop: 100}} />
+        {loading && !refreshing ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+          </View>
         ) : (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadProfile(true)} tintColor="#3b82f6" />}
+          >
             
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 <User color="#fff" size={40} />
               </View>
-              <Text style={styles.name}>{userData?.first_name} {userData?.last_name}</Text>
-              <Text style={styles.role}>{userData?.role?.toUpperCase()} • ID: {userData?.username}</Text>
-              {userData?.department ? <Text style={styles.role}>Department: {userData.department}</Text> : null}
+              <Text style={styles.name}>{displayName}</Text>
+              <Text style={styles.role}>{roleLine}</Text>
+              {userData?.email ? <Text style={[styles.role, { marginTop: 4 }]}>{userData.email}</Text> : null}
             </View>
 
             <BlurView intensity={30} tint="dark" style={styles.psaraCard}>

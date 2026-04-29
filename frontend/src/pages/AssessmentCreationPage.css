@@ -13,19 +13,20 @@
 
 .page-header h1 {
   font-size: 2rem;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .assessment-form {
-  background: white;
+  background: var(--bg-card);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
 }
 
 .form-section {
   padding: 2rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .form-section:last-child {
@@ -34,7 +35,7 @@
 
 .form-section h2 {
   font-size: 1.25rem;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0 0 1.5rem 0;
 }
 
@@ -56,7 +57,7 @@
 .form-group label {
   display: block;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
 
@@ -65,17 +66,20 @@
 .form-group select {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--accent-blue-light);
 }
 
 .form-row {
@@ -110,7 +114,7 @@
 }
 
 .no-trainers {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-style: italic;
   margin: 0;
 }
@@ -122,9 +126,9 @@
   max-height: 300px;
   overflow-y: auto;
   padding: 1rem;
-  background: #f9fafb;
+  background: var(--bg-secondary);
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color);
 }
 
 .trainer-checkbox {
@@ -132,16 +136,16 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .trainer-checkbox:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--accent-blue);
+  background: var(--bg-tertiary);
 }
 
 .trainer-checkbox input[type="checkbox"] {
@@ -158,20 +162,20 @@
 
 .trainer-name {
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--text-primary);
 }
 
 .trainer-email {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 /* Questions Section */
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #6b7280;
-  background: #f9fafb;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
   border-radius: 6px;
 }
 
@@ -179,10 +183,11 @@
   display: flex;
   gap: 2rem;
   padding: 1rem;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   margin-bottom: 1rem;
   font-weight: 500;
+  color: var(--text-primary);
 }
 
 .questions-list {
@@ -196,15 +201,15 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   transition: all 0.2s;
 }
 
 .question-item:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-glow);
 }
 
 .question-order {
@@ -217,7 +222,7 @@
 
 .question-order span {
   font-weight: 600;
-  color: #3b82f6;
+  color: var(--accent-blue);
 }
 
 .order-controls {
@@ -228,15 +233,16 @@
 
 .order-controls button {
   padding: 2px 8px;
-  background: white;
-  border: 1px solid #d1d5db;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.75rem;
 }
 
 .order-controls button:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
 }
 
 .order-controls button:disabled {
@@ -250,7 +256,7 @@
 
 .question-text {
   margin: 0 0 0.5rem 0;
-  color: #1a1a1a;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -265,8 +271,8 @@
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .badge-easy {
@@ -292,13 +298,15 @@
 
 .question-points label {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .question-points input {
   width: 70px;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   text-align: center;
 }
@@ -316,35 +324,38 @@
 }
 
 .btn-remove:hover {
-  background: #fecaca;
+  background: var(--accent-red);
+  color: white;
 }
 
 /* Buttons */
 .btn-primary {
   padding: 0.75rem 1.5rem;
-  background: #3b82f6;
+  background: var(--accent-blue);
   color: white;
   border: none;
   border-radius: 6px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--accent-blue-hover);
+  box-shadow: var(--shadow-glow);
 }
 
 .btn-primary:disabled {
-  background: #9ca3af;
+  background: var(--text-muted);
   cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .btn-secondary {
   padding: 0.75rem 1.5rem;
-  background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-weight: 500;
   cursor: pointer;
@@ -352,8 +363,8 @@
 }
 
 .btn-secondary:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-tertiary);
+  border-color: var(--accent-blue);
 }
 
 .form-actions {
@@ -361,8 +372,9 @@
   justify-content: flex-end;
   gap: 1rem;
   padding: 2rem;
-  background: #f9fafb;
+  background: var(--bg-secondary);
   border-radius: 0 0 8px 8px;
+  border-top: 1px solid var(--border-color);
 }
 
 
@@ -382,14 +394,16 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-modal);
+  color: var(--text-primary);
   border-radius: 12px;
   width: 100%;
   max-width: 1200px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
 }
 
 .modal-header {
@@ -397,7 +411,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h2 {
@@ -410,7 +424,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-secondary);
   padding: 0.5rem;
   line-height: 1;
 }
@@ -424,14 +438,16 @@
   grid-template-columns: 2fr 1fr 1fr 1fr auto;
   gap: 1rem;
   padding: 1.5rem 2rem;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .modal-filters input,
 .modal-filters select {
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 0.875rem;
 }
@@ -450,21 +466,21 @@
 
 .question-card {
   padding: 1rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  background: white;
+  background: var(--bg-card);
 }
 
 .question-card:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-glow);
 }
 
 .question-card.selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--accent-blue);
+  background: var(--accent-blue-light);
 }
 
 .question-card-header {
@@ -487,7 +503,7 @@
 
 .question-card-text {
   margin: 0 0 0.75rem 0;
-  color: #1a1a1a;
+  color: var(--text-primary);
   font-size: 0.875rem;
   line-height: 1.5;
   display: -webkit-box;
@@ -501,7 +517,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .modal-footer {
@@ -509,14 +525,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .modal-footer p {
   margin: 0;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 /* Responsive */

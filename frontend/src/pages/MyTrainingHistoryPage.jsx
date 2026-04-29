@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { assessmentsAPI } from '../services/api';
+import { assessmentsAPI, trainingHistoryAPI } from '../services/api';
 
 export default function MyTrainingHistoryPage() {
   const { user } = useAuth();
@@ -18,19 +18,30 @@ export default function MyTrainingHistoryPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await assessmentsAPI.mySubmissions();
-      // Map backend submission data to display format
-      const mapped = (res.data || []).map((sub, idx) => ({
-        id: sub.id,
-        module: sub.quiz_title || `Quiz #${sub.quiz}`,
-        type: 'assessment',
-        date: sub.submitted_at || sub.started_at,
-        trainer: '—',
-        duration: sub.time_taken_seconds ? Math.round(sub.time_taken_seconds / 60) : null,
-        score: sub.status === 'completed' ? Math.round(sub.percentage || 0) : null,
-        status: sub.passed ? 'passed' : sub.status === 'in_progress' ? 'in-progress' : 'failed',
-        certId: sub.passed ? `LS-${sub.quiz}-${sub.id}` : null,
-        attempt: sub.attempt_number,
+      
+      // Try to get comprehensive history first
+      let data = [];
+      try {
+        const res = await trainingHistoryAPI.myHistory({ limit: 200 });
+        data = res.data.results || [];
+      } catch (e) {
+        console.log('Failed to fetch from trainingHistoryAPI, falling back to assessmentsAPI');
+        const res = await assessmentsAPI.mySubmissions();
+        data = res.data || [];
+      }
+
+      // Map backend data to display format
+      const mapped = data.map((item) => ({
+        id: item.id,
+        module: item.quiz_title || item.module || `Quiz #${item.quiz}`,
+        type: item.type || 'assessment',
+        date: item.submitted_at || item.started_at || item.date,
+        trainer: item.trainer || '—',
+        duration: item.time_taken_seconds ? Math.round(item.time_taken_seconds / 60) : (item.duration_minutes || null),
+        score: item.status === 'completed' || item.status === 'passed' ? Math.round(item.percentage || item.score || 0) : null,
+        status: item.passed || item.status === 'passed' ? 'passed' : (item.status === 'in_progress' || item.status === 'in-progress' ? 'in-progress' : 'failed'),
+        certId: item.cert_id || (item.passed ? `LS-${item.quiz}-${item.id}` : null),
+        attempt: item.attempt_number || 1,
       }));
       setRecords(mapped);
     } catch (err) {
@@ -48,12 +59,17 @@ export default function MyTrainingHistoryPage() {
   });
 
   const passed = records.filter(r => r.status === 'passed').length;
-  const scoredItems = records.filter(r => r.score !== null && r.score !== undefined);
-  const avgScore = scoredItems.length
-    ? Math.round(scoredItems.reduce((s, r) => s + r.score, 0) / scoredItems.length)
-    : 0;
-  const totalMins = records.reduce((s, r) => s + (r.duration || 0), 0);
-  const totalHours = Math.round(totalMins / 60 * 10) / 10;
+  
+  const avgScore = useMemo(() => {
+    const scoredItems = records.filter(r => r.score !== null && r.score !== undefined);
+    if (scoredItems.length === 0) return 0;
+    return Math.round(scoredItems.reduce((s, r) => s + r.score, 0) / scoredItems.length);
+  }, [records]);
+
+  const totalHours = useMemo(() => {
+    const totalMins = records.reduce((s, r) => s + (r.duration || 0), 0);
+    return Math.round(totalMins / 60 * 10) / 10;
+  }, [records]);
 
   // ── Loading State ─────────────────────────────────────────────────────
   if (loading) {
@@ -81,17 +97,17 @@ export default function MyTrainingHistoryPage() {
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px' }}>My Training History</h1>
         <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-          All assessments and training sessions — {user?.first_name} {user?.last_name}
+          All assessments and training sessions — {user?.first_name} {user?.last_name} • {user?.username}
         </p>
       </div>
 
       {/* Personal Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Total Attempts', value: records.length, color: 'var(--accent-blue)', icon: '📚' },
+          { label: 'Total Modules', value: records.length, color: 'var(--accent-blue)', icon: '📚' },
           { label: 'Passed', value: `${passed}/${records.length}`, color: 'var(--accent-green)', icon: '✅' },
           { label: 'Avg Score', value: `${avgScore}%`, color: avgScore >= 80 ? 'var(--accent-green)' : 'var(--accent-yellow)', icon: '📊' },
-          { label: 'Total Time Spent', value: totalHours >= 1 ? `${totalHours}h` : `${totalMins}m`, color: 'var(--accent-cyan)', icon: '⏱️' },
+          { label: 'Total Time Spent', value: `${totalHours}h`, color: 'var(--accent-cyan)', icon: '⏱️' },
         ].map(kpi => (
           <div key={kpi.label} className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
             <span style={{ fontSize: '1.4rem' }}>{kpi.icon}</span>
@@ -124,7 +140,7 @@ export default function MyTrainingHistoryPage() {
                 <th>#</th>
                 <th>Module</th>
                 <th>Date</th>
-                <th>Attempt</th>
+                <th>Type</th>
                 <th>Duration</th>
                 <th>Score</th>
                 <th>Status</th>
@@ -139,7 +155,11 @@ export default function MyTrainingHistoryPage() {
                   <td style={{ color: 'var(--text-secondary)' }}>
                     {r.date ? new Date(r.date).toLocaleDateString() : '—'}
                   </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>#{r.attempt}</td>
+                  <td>
+                    <span style={{ textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
+                      {r.type === 'virtual' ? '💻' : r.type === 'classroom' ? '🏫' : '📝'} {r.type}
+                    </span>
+                  </td>
                   <td style={{ color: 'var(--text-secondary)' }}>
                     {r.duration !== null ? (r.duration >= 60 ? `${Math.round(r.duration / 60 * 10) / 10}h` : `${r.duration}m`) : '—'}
                   </td>
