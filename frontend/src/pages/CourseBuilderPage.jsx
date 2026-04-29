@@ -4,6 +4,8 @@ import { coursesAPI, questionsAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import QuestionBankModal from '../components/course/QuestionBankModal'
 import QuestionCreationModal from '../components/course/QuestionCreationModal'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import './CourseBuilderPage.css'
 
 const LEVELS = [
@@ -35,6 +37,8 @@ export default function CourseBuilderPage() {
   const [loading, setLoading] = useState(!!id)
   const [saving, setSaving] = useState(false)
   const [notification, setNotification] = useState(null)
+  const certCardRef = useRef(null)
+  const [exporting, setExporting] = useState(false)
 
   // Level 1 — Global Metadata
   const [meta, setMeta] = useState({
@@ -381,6 +385,54 @@ export default function CourseBuilderPage() {
       setCourse(prev => ({ ...prev, status: 'active' }))
       showNotif('Course activated.')
     } catch { showNotif('Failed to activate.', 'error') }
+  }
+
+  const handleExportPDF = async () => {
+    if (!certCardRef.current) return
+    setExporting(true)
+    try {
+      const canvas = await html2canvas(certCardRef.current, {
+        scale: 2,
+        backgroundColor: null,
+        useCORS: true,
+      })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+      })
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+      pdf.save(`certificate-${meta.display_name || 'template'}.pdf`)
+      showNotif('PDF exported successfully!')
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      showNotif('Failed to export PDF.', 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleExportPNG = async () => {
+    if (!certCardRef.current) return
+    setExporting(true)
+    try {
+      const canvas = await html2canvas(certCardRef.current, {
+        scale: 3,
+        backgroundColor: null,
+        useCORS: true,
+      })
+      const link = document.createElement('a')
+      link.download = `certificate-${meta.display_name || 'template'}-highres.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+      showNotif('High-Res PNG exported successfully!')
+    } catch (err) {
+      console.error('PNG export failed:', err)
+      showNotif('Failed to export PNG.', 'error')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const handleClone = async () => {
@@ -992,15 +1044,27 @@ export default function CourseBuilderPage() {
                         ))}
                       </div>
                       <div className="cb-cert-export">
-                        <button className="btn btn-secondary">📥 PDF Export</button>
-                        <button className="btn btn-secondary">🖼️ High-Res PNG</button>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={handleExportPDF}
+                          disabled={exporting}
+                        >
+                          {exporting ? '⏳ Generating...' : '📥 PDF Export'}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={handleExportPNG}
+                          disabled={exporting}
+                        >
+                          {exporting ? '⏳ Generating...' : '🖼️ High-Res PNG'}
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   {/* Certificate Preview */}
                   <div className="cb-cert-preview">
-                    <div className={`cb-cert-card cb-cert-${cert.template}`}>
+                    <div ref={certCardRef} className={`cb-cert-card cb-cert-${cert.template}`}>
                       <div className="cb-cert-shield">🛡️</div>
                       <h3>CERTIFICATE OF COMPLETION</h3>
                       <p className="cb-cert-certifies">This certifies that</p>
