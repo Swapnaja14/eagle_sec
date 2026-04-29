@@ -1,27 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-
-const MY_CERTS = [
-  { id: 'CERT-001', module: 'PSARA Foundation Course', issueDate: '2026-03-20', expiryDate: '2027-03-20', score: 88, trainer: 'Rajesh Kumar', certId: 'LS-PSARA-2026-0042', status: 'valid' },
-  { id: 'CERT-002', module: 'Fire Safety & Evacuation', issueDate: '2026-02-14', expiryDate: '2027-02-14', score: 92, trainer: 'Priya Sharma', certId: 'LS-FIRE-2026-0018', status: 'valid' },
-  { id: 'CERT-003', module: 'Emergency Response Protocol', issueDate: '2025-08-10', expiryDate: '2026-08-10', score: 74, trainer: 'Amit Patel', certId: 'LS-ERP-2025-0091', status: 'valid' },
-];
+import { assessmentsAPI } from '../services/api';
 
 function CertificateCard({ cert, user, expanded, onToggle }) {
-  const isExpired = new Date(cert.expiryDate) < new Date();
+  const isExpired = cert.expiryDate ? new Date(cert.expiryDate) < new Date() : false;
   return (
     <div className="card" style={{ marginBottom: 14, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 24px', cursor: 'pointer' }} onClick={onToggle}>
         <div style={{ width: 48, height: 48, background: 'rgba(59,130,246,0.12)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', flexShrink: 0 }}>🎓</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1rem', marginBottom: 3 }}>{cert.module}</div>
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Issued: {new Date(cert.issueDate).toLocaleDateString()} • Score: <strong style={{ color: 'var(--accent-green)' }}>{cert.score}%</strong></div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+            Issued: {cert.issueDate ? new Date(cert.issueDate).toLocaleDateString() : '—'} • Score: <strong style={{ color: 'var(--accent-green)' }}>{cert.score}%</strong> • Attempt #{cert.attempt}
+          </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, marginRight: 16 }}>
-          <div style={{ fontSize: '0.78rem', color: !isExpired ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700 }}>
-            {isExpired ? '⚠️ Expired' : '✓ Valid'}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Expires: {new Date(cert.expiryDate).toLocaleDateString()}</div>
+          {cert.expiryDate ? (
+            <>
+              <div style={{ fontSize: '0.78rem', color: !isExpired ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700 }}>
+                {isExpired ? '⚠️ Expired' : '✓ Valid'}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Expires: {new Date(cert.expiryDate).toLocaleDateString()}</div>
+            </>
+          ) : (
+            <div style={{ fontSize: '0.78rem', color: 'var(--accent-green)', fontWeight: 700 }}>✓ Earned</div>
+          )}
         </div>
         <div style={{ padding: '6px 12px', background: 'none', border: 'none', cursor: 'pointer' }}>
           <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style={{ color: 'var(--text-muted)', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -55,8 +58,8 @@ function CertificateCard({ cert, user, expanded, onToggle }) {
             <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-blue)', marginBottom: 16 }}>{cert.module}</div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 32, fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
               <div><div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Score</div>{cert.score}%</div>
-              <div><div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Trainer</div>{cert.trainer}</div>
-              <div><div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Date</div>{new Date(cert.issueDate).toLocaleDateString()}</div>
+              <div><div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Attempt</div>#{cert.attempt}</div>
+              <div><div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Date</div>{cert.issueDate ? new Date(cert.issueDate).toLocaleDateString() : '—'}</div>
             </div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
               Certificate ID: {cert.certId} • LearnSphere
@@ -64,9 +67,9 @@ function CertificateCard({ cert, user, expanded, onToggle }) {
           </div>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={() => alert('PDF download (mock)')}>📥 Download PDF</button>
-            <button className="btn btn-secondary" onClick={() => alert('PNG download (mock)')}>🖼️ Download PNG</button>
-            <button className="btn btn-primary" onClick={() => alert('Share link copied!')}>🔗 Share Link</button>
+            <button className="btn btn-secondary" onClick={() => alert(`PDF download for ${cert.certId}`)}>📥 Download PDF</button>
+            <button className="btn btn-secondary" onClick={() => alert(`PNG download for ${cert.certId}`)}>🖼️ Download PNG</button>
+            <button className="btn btn-primary" onClick={() => { navigator.clipboard?.writeText(`Certificate: ${cert.certId}`); alert('Certificate ID copied!'); }}>🔗 Share Link</button>
           </div>
         </div>
       )}
@@ -76,9 +79,65 @@ function CertificateCard({ cert, user, expanded, onToggle }) {
 
 export default function MyCertificatesPage() {
   const { user } = useAuth();
+  const [certs, setCerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
 
-  const validCerts = MY_CERTS.filter(c => new Date(c.expiryDate) >= new Date()).length;
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  const loadCertificates = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await assessmentsAPI.mySubmissions();
+      // Filter only passed submissions — those are certificates
+      const passedSubs = (res.data || []).filter(sub => sub.passed && sub.status === 'completed');
+      const mapped = passedSubs.map(sub => ({
+        id: `CERT-${sub.id}`,
+        module: sub.quiz_title || `Quiz #${sub.quiz}`,
+        issueDate: sub.submitted_at,
+        expiryDate: sub.submitted_at
+          ? new Date(new Date(sub.submitted_at).getTime() + 365 * 86400000).toISOString()
+          : null,
+        score: Math.round(sub.percentage || 0),
+        attempt: sub.attempt_number,
+        certId: `LS-Q${sub.quiz}-S${sub.id}`,
+        status: 'valid',
+      }));
+      setCerts(mapped);
+    } catch (err) {
+      console.error('Failed to load certificates:', err);
+      setError('Unable to load certificates. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Loading State ─────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={{ padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>⚙️</div>
+        <p style={{ color: 'var(--text-secondary)' }}>Loading certificates…</p>
+      </div>
+    );
+  }
+
+  // ── Error State ───────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div style={{ padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>⚠️</div>
+        <p style={{ color: 'var(--accent-red)', fontWeight: 700, marginBottom: 12 }}>{error}</p>
+        <button className="btn btn-primary" onClick={loadCertificates}>Retry</button>
+      </div>
+    );
+  }
+
+  const validCerts = certs.filter(c => !c.expiryDate || new Date(c.expiryDate) >= new Date()).length;
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
@@ -89,9 +148,9 @@ export default function MyCertificatesPage() {
 
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Total Certificates', value: MY_CERTS.length, color: 'var(--accent-blue)' },
+          { label: 'Total Certificates', value: certs.length, color: 'var(--accent-blue)' },
           { label: 'Currently Valid', value: validCerts, color: 'var(--accent-green)' },
-          { label: 'Expiring / Expired', value: MY_CERTS.length - validCerts, color: MY_CERTS.length - validCerts > 0 ? 'var(--accent-red)' : 'var(--text-muted)' },
+          { label: 'Expiring / Expired', value: certs.length - validCerts, color: certs.length - validCerts > 0 ? 'var(--accent-red)' : 'var(--text-muted)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '1.5rem', fontWeight: 900, color: s.color }}>{s.value}</span>
@@ -101,7 +160,7 @@ export default function MyCertificatesPage() {
       </div>
 
       <div>
-        {MY_CERTS.map(cert => (
+        {certs.map(cert => (
           <CertificateCard
             key={cert.id}
             cert={cert}
@@ -112,7 +171,7 @@ export default function MyCertificatesPage() {
         ))}
       </div>
 
-      {MY_CERTS.length === 0 && (
+      {certs.length === 0 && (
         <div className="card" style={{ padding: '60px', textAlign: 'center' }}>
           <div style={{ fontSize: '3rem', marginBottom: 12 }}>📭</div>
           <h3 style={{ color: 'var(--text-primary)' }}>No certificates yet</h3>

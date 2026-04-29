@@ -121,7 +121,7 @@ export default function DashboardScreen({ navigation }) {
                 <View style={styles.badgeDanger}><Text style={styles.badgeDangerText}>Due {a.deadline}</Text></View>
               </View>
               <Text style={styles.assessmentMeta}>{a.questions} questions • {a.timeLimit} min time limit</Text>
-              <TouchableOpacity style={styles.primaryButton}>
+              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('TakeAssessment')}>
                 <Text style={styles.primaryButtonText}>Start Assessment →</Text>
               </TouchableOpacity>
             </BlurView>
@@ -145,7 +145,7 @@ export default function DashboardScreen({ navigation }) {
           {/* My Recent Training */}
           <View style={[styles.sectionHeader, { marginTop: 20 }]}>
             <Text style={styles.sectionTitle}>My Recent Training</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Catalog')}>
+            <TouchableOpacity onPress={() => navigation.navigate('MyTrainingHistory')}>
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>

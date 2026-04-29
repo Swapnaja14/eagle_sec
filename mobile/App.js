@@ -6,10 +6,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LayoutDashboard, Compass, User } from 'lucide-react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-// Screen Imports
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import TakeAssessmentScreen from './src/screens/TakeAssessmentScreen';
+import MyTrainingHistoryScreen from './src/screens/MyTrainingHistoryScreen';
+import MyCertificatesScreen from './src/screens/MyCertificatesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -70,6 +72,9 @@ export default function App() {
         <StatusBar style="light" />
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="TakeAssessment" component={TakeAssessmentScreen} />
+          <Stack.Screen name="MyTrainingHistory" component={MyTrainingHistoryScreen} />
+          <Stack.Screen name="MyCertificates" component={MyCertificatesScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

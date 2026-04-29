@@ -1,9 +1,10 @@
 from django.core.cache import cache
 from django.utils import timezone
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import ComplianceAlert
+from assessments.models import Submission, Quiz
+from .models import ComplianceAlert, TrainingSession
 from .services import (
     get_dashboard_summary,
     get_department_completion,
@@ -116,23 +117,81 @@ class DashboardOverviewView(CachedAPIView):
 
 
 class TraineeDashboardView(APIView):
-    # permission_classes = [IsAuthenticated] # Assuming IsAuthenticated is imported or not strictly enforced here for simplicity
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        user = request.user
+        tenant = getattr(user, 'tenant', None)
+
+        # 1. My Training (Recent completed submissions)
+        recent_submissions = Submission.objects.filter(
+            user=user
+        ).select_related('quiz').order_by('-updated_at')[:5]
+
+        my_training = []
+        for sub in recent_submissions:
+            my_training.append({
+                "id": sub.id,
+                "module": sub.quiz.title,
+                "date": sub.updated_at.strftime("%Y-%m-%d"),
+                "score": sub.percentage if sub.status == 'completed' else None,
+                "status": "passed" if sub.passed else ("in-progress" if sub.status == "in_progress" else "failed"),
+                "certificateReady": sub.passed
+            })
+
+        # 2. Upcoming Sessions
+        sessions = TrainingSession.objects.filter(
+            is_active=True,
+            date_time__gte=timezone.now()
+        )
+        if tenant:
+            sessions = sessions.filter(tenant=tenant)
+        sessions = sessions.order_by('date_time')[:5]
+
+        upcoming_sessions = []
+        for sess in sessions:
+            upcoming_sessions.append({
+                "id": sess.id,
+                "module": sess.topic,
+                "date": sess.date_time.strftime("%Y-%m-%d at %I:%M %p"),
+                "type": sess.session_type,
+                "venue": sess.site if sess.site else "Online"
+            })
+
+        # 3. Pending Assessments
+        completed_quiz_ids = Submission.objects.filter(
+            user=user, status='completed'
+        ).values_list('quiz_id', flat=True)
+        
+        pending_quizzes = Quiz.objects.filter(
+            is_active=True
+        )
+        if tenant:
+            pending_quizzes = pending_quizzes.filter(tenant=tenant)
+            
+        pending_quizzes = pending_quizzes.exclude(id__in=completed_quiz_ids)[:5]
+
+        pending_assessments = []
+        for q in pending_quizzes:
+            pending_assessments.append({
+                "id": q.id,
+                "module": q.title,
+                "deadline": "N/A",
+                "questions": q.quiz_questions.count(),
+                "timeLimit": q.time_limit_minutes,
+                "attempted": Submission.objects.filter(user=user, quiz=q).exists()
+            })
+
         return Response({
-            "my_training": [
-                { "id": 1, "module": "PSARA Foundation Course", "date": "2026-03-20", "score": 88, "status": "passed", "certificateReady": True },
-                { "id": 2, "module": "Fire Safety & Evacuation", "date": "2026-02-14", "score": 92, "status": "passed", "certificateReady": True },
-                { "id": 3, "module": "Emergency Response Protocol", "date": "2026-01-30", "score": 74, "status": "passed", "certificateReady": False },
-                { "id": 4, "module": "Access Control Procedures", "date": "2026-04-10", "score": None, "status": "in-progress", "certificateReady": False },
-            ],
-            "upcoming_sessions": [
-                { "id": 1, "module": "First Aid & CPR Certification", "date": "2026-04-18 at 10:00 AM", "type": "classroom", "venue": "Mumbai HQ - Hall 2" },
-                { "id": 2, "module": "CCTV Operations Mastery", "date": "2026-04-22 at 2:00 PM", "type": "virtual", "venue": "Zoom Link (sent via email)" },
-            ],
-            "pending_assessments": [
-                { "id": 1, "module": "Access Control Procedures", "deadline": "2026-04-20", "questions": 20, "timeLimit": 30, "attempted": False },
-                { "id": 2, "module": "Customer Service Excellence", "deadline": "2026-04-25", "questions": 15, "timeLimit": 20, "attempted": False },
-            ]
+            "user": {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "username": user.username,
+                "role": user.role,
+                "department": user.department,
+            },
+            "my_training": my_training,
+            "upcoming_sessions": upcoming_sessions,
+            "pending_assessments": pending_assessments
         })
 

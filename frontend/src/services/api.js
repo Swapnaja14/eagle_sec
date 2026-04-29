@@ -115,3 +115,39 @@ export const questionsAPI = {
   delete: (id) => api.delete(`/questions/${id}/`),
   byLanguage: () => api.get('/questions/by_language/'),
 }
+
+// ===================== DASHBOARD =====================
+export const dashboardAPI = {
+  // Admin / trainer dashboard endpoints
+  getSummary: () => api.get('/dashboard/summary/'),
+  getDepartmentCompletion: () => api.get('/dashboard/department-completion/'),
+  getTrainingTrend: () => api.get('/dashboard/training-trend/'),
+  getComplianceAlerts: () => api.get('/dashboard/compliance-alerts/'),
+  getOverview: () => api.get('/dashboard/overview/'),
+
+  // Trainee-specific single-call endpoint
+  getTraineeOverview: () => api.get('/trainee/dashboard/'),
+}
+
+// ===================== ASSESSMENTS =====================
+export const assessmentsAPI = {
+  // Quizzes
+  list: (params) => api.get('/assessments/quizzes/', { params }),
+  get: (id) => api.get(`/assessments/quizzes/${id}/`),
+  startQuiz: (id) => api.post(`/assessments/quizzes/${id}/start_quiz/`),
+  getQuestions: (id) => api.get(`/assessments/quizzes/${id}/questions/`),
+
+  // Submissions
+  submitAnswer: (submissionId, data) =>
+    api.post(`/assessments/submissions/${submissionId}/submit_answer/`, data),
+  completeSubmission: (submissionId) =>
+    api.post(`/assessments/submissions/${submissionId}/complete_submission/`),
+  mySubmissions: (params) =>
+    api.get('/assessments/submissions/my_submissions/', { params }),
+}
+
+// ===================== TRAINING SESSIONS =====================
+export const sessionsAPI = {
+  upcoming: () => api.get('/sessions/upcoming/'),
+  recentHistory: () => api.get('/training-history/recent/'),
+}

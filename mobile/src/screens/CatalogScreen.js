@@ -1,18 +1,31 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen } from 'lucide-react-native';
-
-const AVAILABLE_COURSES = [
-  { id: 1, title: 'PSARA Foundation Course', duration: '4h 30m', category: 'Compliance' },
-  { id: 2, title: 'Fire Safety & Evacuation', duration: '2h 15m', category: 'Safety' },
-  { id: 3, title: 'Emergency Response Protocol', duration: '3h 0m', category: 'Safety' },
-  { id: 4, title: 'Access Control Procedures', duration: '1h 45m', category: 'Security' },
-];
+import { coursesAPI } from '../services/api';
 
 export default function CatalogScreen() {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadCourses();
+  }, []);
+
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      const res = await coursesAPI.list();
+      setCourses(res.data);
+    } catch (e) {
+      console.log('Failed to fetch courses', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
@@ -23,27 +36,39 @@ export default function CatalogScreen() {
           <Text style={styles.headerDesc}>Explore and enroll in new training modules</Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {AVAILABLE_COURSES.map(course => (
-            <BlurView intensity={30} tint="dark" style={styles.card} key={course.id}>
-              <View style={styles.iconBox}>
-                <BookOpen color="#3b82f6" size={24} />
+        {loading ? (
+          <ActivityIndicator size="large" color="#3b82f6" style={{marginTop: 100}} />
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {courses.length === 0 ? (
+              <View style={styles.emptyState}>
+                <BookOpen color="#64748b" size={48} style={{marginBottom: 16}} />
+                <Text style={styles.emptyTitle}>No Courses Available</Text>
+                <Text style={styles.emptyDesc}>Check back later for new training modules.</Text>
               </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.courseTitle}>{course.title}</Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>⏱️ {course.duration}</Text>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{course.category}</Text>
-                  </View>
+            ) : courses.map(course => (
+              <BlurView intensity={30} tint="dark" style={styles.card} key={course.id}>
+                <View style={styles.iconBox}>
+                  <BookOpen color="#3b82f6" size={24} />
                 </View>
-                <TouchableOpacity style={styles.enrollBtn}>
-                  <Text style={styles.enrollText}>View Details</Text>
-                </TouchableOpacity>
-              </View>
-            </BlurView>
-          ))}
-        </ScrollView>
+                <View style={styles.cardContent}>
+                  <Text style={styles.courseTitle}>{course.display_name}</Text>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaText}>Status: {course.status}</Text>
+                    {course.skills_taxonomy !== 'none' && (
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryText}>{course.skills_taxonomy}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <TouchableOpacity style={styles.enrollBtn}>
+                    <Text style={styles.enrollText}>View Details</Text>
+                  </TouchableOpacity>
+                </View>
+              </BlurView>
+            ))}
+          </ScrollView>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -57,6 +82,10 @@ const styles = StyleSheet.create({
   headerDesc: { fontSize: 15, color: '#94a3b8' },
   
   scrollContent: { padding: 20, paddingBottom: 100 },
+  
+  emptyState: { padding: 40, alignItems: 'center' },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
+  emptyDesc: { color: '#94a3b8', textAlign: 'center' },
   
   card: {
     flexDirection: 'row',
@@ -74,7 +103,7 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1 },
   courseTitle: { fontSize: 17, fontWeight: '700', color: '#fff', marginBottom: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  metaText: { fontSize: 13, color: '#94a3b8', marginRight: 12 },
+  metaText: { fontSize: 13, color: '#94a3b8', marginRight: 12, textTransform: 'capitalize' },
   categoryBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   categoryText: { color: '#cbd5e1', fontSize: 11, fontWeight: '600' },
   

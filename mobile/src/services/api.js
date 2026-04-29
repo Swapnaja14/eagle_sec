@@ -54,4 +54,9 @@ export const coursesAPI = {
 
 export const assessmentsAPI = {
   list: (params) => api.get('/assessments/quizzes/', { params }),
+  startQuiz: (id) => api.post(`/assessments/quizzes/${id}/start_quiz/`),
+  getQuestions: (id) => api.get(`/assessments/quizzes/${id}/questions/`),
+  submitAnswer: (submissionId, data) => api.post(`/assessments/submissions/${submissionId}/submit_answer/`, data),
+  completeSubmission: (submissionId) => api.post(`/assessments/submissions/${submissionId}/complete_submission/`),
+  mySubmissions: (params) => api.get('/assessments/submissions/my_submissions/', { params }),
 };
