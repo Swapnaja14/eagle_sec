@@ -18,7 +18,18 @@ const LEVELS = [
 ]
 
 const COMPLIANCE_OPTIONS = ['none', 'ISO 27001', 'SOC2', 'GDPR', 'HIPAA', 'PCI-DSS', 'NIST']
-const SKILL_OPTIONS = ['none', 'Threat Analysis', 'Incident Response', 'Penetration Testing', 'Cloud Architecture', 'DevSecOps', 'Risk Management', 'Python', 'Kubernetes']
+const SKILL_OPTIONS = [
+  'none', 'Threat Analysis', 'Incident Response', 'Penetration Testing', 'Cloud Architecture',
+  'DevSecOps', 'Risk Management', 'Python', 'Kubernetes', 'Network Security', 'Malware Analysis',
+  'Digital Forensics', 'Vulnerability Assessment', 'Security Auditing', 'Identity & Access Management',
+  'Data Privacy', 'Cryptography', 'Secure Coding', 'AWS Security', 'Azure Security', 'GCP Security',
+  'Container Security', 'SIEM', 'SOAR', 'Firewall Management', 'Endpoint Security',
+  'Social Engineering Defense', 'Phishing Analysis', 'Compliance Management', 'Business Continuity',
+  'Disaster Recovery', 'Security Awareness', 'Ethical Hacking', 'Red Teaming', 'Blue Teaming',
+  'Purple Teaming', 'Zero Trust Architecture', 'API Security', 'Web Application Security',
+  'Mobile Security', 'IoT Security', 'OT/ICS Security', 'Database Security', 'Linux Administration',
+  'Windows Security', 'PowerShell', 'Bash Scripting', 'Terraform', 'Ansible', 'Docker', 'CI/CD Security'
+]
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'hi', label: 'Hindi' },
@@ -45,6 +56,8 @@ export default function CourseBuilderPage() {
     display_name: '', description: '', start_date: '', end_date: '',
     compliance_taxonomy: 'none', skills_taxonomy: 'none',
   })
+  const [customSkillInput, setCustomSkillInput] = useState('')
+  const [customSkills, setCustomSkills] = useState([])
 
   // Level 2 — Pre-Assessment
   const [preAssess, setPreAssess] = useState({
@@ -261,6 +274,26 @@ export default function CourseBuilderPage() {
       console.error('Error response:', err.response?.data)
       showNotif(err.response?.data?.detail || err.response?.data?.error || err.message || 'Save failed.', 'error')
     } finally { setSaving(false) }
+  }
+
+  const handleAddCustomSkill = () => {
+    const skill = customSkillInput.trim()
+    if (!skill) return
+    if (customSkills.includes(skill) || SKILL_OPTIONS.includes(skill)) {
+      showNotif('Skill already exists in list.', 'error')
+      return
+    }
+    setCustomSkills(prev => [...prev, skill])
+    setMeta(p => ({ ...p, skills_taxonomy: skill }))
+    setCustomSkillInput('')
+    showNotif(`Custom skill "${skill}" added!`)
+  }
+
+  const handleRemoveCustomSkill = (skillToRemove) => {
+    setCustomSkills(prev => prev.filter(s => s !== skillToRemove))
+    if (meta.skills_taxonomy === skillToRemove) {
+      setMeta(p => ({ ...p, skills_taxonomy: 'none' }))
+    }
   }
 
   const handleAddLesson = async () => {
@@ -636,14 +669,40 @@ export default function CourseBuilderPage() {
                       <button className="btn btn-secondary btn-icon">+</button>
                     </div>
                   </div>
-                  <div className="form-group">
+                  <div className="form-group cb-span-full">
                     <label className="form-label">Taxonomy: Skills</label>
                     <div className="cb-taxonomy-row">
                       <select className="form-select" value={meta.skills_taxonomy} onChange={e => setMeta(p => ({ ...p, skills_taxonomy: e.target.value }))}>
-                        {SKILL_OPTIONS.map(o => <option key={o} value={o}>{o === 'none' ? 'None' : o}</option>)}
+                        <option value="none">Select a skill...</option>
+                        {SKILL_OPTIONS.filter(o => o !== 'none').map(o => <option key={o} value={o}>{o}</option>)}
+                        {customSkills.length > 0 && <optgroup label="Custom Skills">
+                          {customSkills.map(s => <option key={s} value={s}>{s}</option>)}
+                        </optgroup>}
                       </select>
-                      <button className="btn btn-secondary btn-icon">+</button>
                     </div>
+                    <div className="cb-custom-skill-row">
+                      <input
+                        className="form-input"
+                        type="text"
+                        placeholder="Or add custom skill..."
+                        value={customSkillInput}
+                        onChange={e => setCustomSkillInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddCustomSkill())}
+                      />
+                      <button className="btn btn-secondary" onClick={handleAddCustomSkill} disabled={!customSkillInput.trim()}>
+                        Add
+                      </button>
+                    </div>
+                    {customSkills.length > 0 && (
+                      <div className="cb-custom-skills-tags">
+                        {customSkills.map(skill => (
+                          <span key={skill} className="cb-skill-tag">
+                            {skill}
+                            <button onClick={() => handleRemoveCustomSkill(skill)}>×</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
