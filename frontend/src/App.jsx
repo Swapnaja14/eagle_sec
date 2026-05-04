@@ -27,6 +27,7 @@ import CertificateIssuingPage from './pages/CertificateIssuingPage'
 
 // ─── TRAINER PAGES ────────────────────────────────────────────────────────────
 import TrainerDashboardPage from './pages/TrainerDashboardPage'
+import TrainerProfilePage from './pages/TrainerProfilePage'
 import MySessionsPage from './pages/MySessionsPage'
 
 // ─── TRAINEE PAGES ────────────────────────────────────────────────────────────
@@ -119,6 +120,7 @@ function AppRoutes() {
 
       {/* ─── TRAINER PORTAL ────────────────────────────────────────────── */}
       <Route path="/trainer/dashboard" element={<P roles={['trainer']}><TrainerDashboardPage /></P>} />
+      <Route path="/trainer/profile" element={<P roles={['trainer']}><TrainerProfilePage /></P>} />
       <Route path="/trainer/sessions" element={<P roles={['trainer']}><MySessionsPage /></P>} />
 
       {/* ─── TRAINEE PORTAL ────────────────────────────────────────────── */}

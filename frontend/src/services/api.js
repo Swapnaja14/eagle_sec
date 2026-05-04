@@ -48,6 +48,7 @@ export const authAPI = {
   me: () => api.get('/auth/me/'),
   refresh: (refresh) => api.post('/auth/refresh/', { refresh }),
   logout: (refresh) => api.post('/auth/logout/', { refresh }),
+  updateProfile: (data) => api.patch('/auth/me/update/', data),
 }
 
 // ===================== CONTENT =====================

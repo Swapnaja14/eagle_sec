@@ -75,9 +75,14 @@ export default function TrainerDashboardPage() {
           </h1>
           <p style={{ color: 'var(--text-secondary)', margin: 0 }}>You have <strong style={{ color: 'var(--accent-blue)' }}>{upcoming.length} upcoming sessions</strong> this week.</p>
         </div>
-        <button className="btn btn-primary btn-lg" onClick={() => navigate('/sessions/classroom/new')}>
-          + Schedule New Session
-        </button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="btn btn-secondary btn-lg" onClick={() => navigate('/trainer/profile')}>
+            View Profile
+          </button>
+          <button className="btn btn-primary btn-lg" onClick={() => navigate('/sessions/classroom/new')}>
+            + Schedule New Session
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
