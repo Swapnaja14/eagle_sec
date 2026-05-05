@@ -106,3 +106,4 @@ class Answer(models.Model):
 
     class Meta:
         ordering = ['answered_at']
+

@@ -216,21 +216,104 @@ class TraineeDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from courses.models import TrainingAssignment
+        from assessments.models import Submission, Quiz
+        from certificates.models import IssuedCertificate
+        from dashboard.models import TrainingSession
+        from django.db.models import Count, Q, Max
+        from django.utils import timezone
+
+        user = request.user
+        
+        # Get trainee's assigned courses
+        assignments = TrainingAssignment.objects.select_related('course').filter(
+            trainee=user,
+            course__status='active'
+        )
+        if user.tenant:
+            assignments = assignments.filter(tenant=user.tenant)
+        
+        my_training = []
+        for assignment in assignments:
+            course = assignment.course
+            
+            # Get best score from submissions
+            best_submission = Submission.objects.filter(
+                user=user,
+                quiz__course=course,
+                status='completed'
+            ).order_by('-percentage').first()
+            
+            score = best_submission.percentage if best_submission else None
+            status = 'passed' if best_submission and best_submission.passed else 'in-progress'
+            
+            # Check if certificate is ready
+            cert = IssuedCertificate.objects.filter(
+                employee=user,
+                course=course
+            ).first()
+            
+            my_training.append({
+                'id': course.id,
+                'course_id': course.course_id,
+                'module': course.display_name,
+                'date': best_submission.submitted_at.strftime('%Y-%m-%d') if best_submission else assignment.assigned_at.strftime('%Y-%m-%d'),
+                'score': int(score) if score else None,
+                'status': status,
+                'certificateReady': cert is not None,
+                'certificate_id': cert.id if cert else None,
+            })
+        
+        # Get upcoming sessions
+        upcoming_sessions = TrainingSession.objects.filter(
+            is_active=True,
+            date_time__gte=timezone.now()
+        )
+        if user.tenant:
+            upcoming_sessions = upcoming_sessions.filter(tenant=user.tenant)
+        
+        sessions_list = []
+        for session in upcoming_sessions[:5]:
+            is_virtual = session.session_type == 'virtual'
+            sessions_list.append({
+                'id': session.id,
+                'module': session.topic,
+                'date': session.date_time.strftime('%Y-%m-%d at %I:%M %p'),
+                'type': 'virtual' if is_virtual else 'classroom',
+                'venue': session.meeting_link if is_virtual else session.venue,
+            })
+        
+        # Get pending assessments (quizzes not yet attempted)
+        quizzes = Quiz.objects.filter(
+            course__trainingassignment__trainee=user,
+            is_active=True
+        )
+        if user.tenant:
+            quizzes = quizzes.filter(tenant=user.tenant)
+        
+        pending_assessments = []
+        for quiz in quizzes[:5]:
+            # Check if user has completed this quiz
+            completed = Submission.objects.filter(
+                user=user,
+                quiz=quiz,
+                status='completed'
+            ).exists()
+            
+            if not completed:
+                pending_assessments.append({
+                    'id': quiz.id,
+                    'module': quiz.title,
+                    'deadline': (timezone.now() + timezone.timedelta(days=7)).strftime('%Y-%m-%d'),
+                    'questions': quiz.quiz_questions.count(),
+                    'timeLimit': quiz.time_limit_minutes,
+                    'attempted': False,
+                })
+        
         return Response({
-            "my_training": [
-                { "id": 1, "module": "PSARA Foundation Course", "date": "2026-03-20", "score": 88, "status": "passed", "certificateReady": True },
-                { "id": 2, "module": "Fire Safety & Evacuation", "date": "2026-02-14", "score": 92, "status": "passed", "certificateReady": True },
-                { "id": 3, "module": "Emergency Response Protocol", "date": "2026-01-30", "score": 74, "status": "passed", "certificateReady": False },
-                { "id": 4, "module": "Access Control Procedures", "date": "2026-04-10", "score": None, "status": "in-progress", "certificateReady": False },
-            ],
-            "upcoming_sessions": [
-                { "id": 1, "module": "First Aid & CPR Certification", "date": "2026-04-18 at 10:00 AM", "type": "classroom", "venue": "Mumbai HQ - Hall 2" },
-                { "id": 2, "module": "CCTV Operations Mastery", "date": "2026-04-22 at 2:00 PM", "type": "virtual", "venue": "Zoom Link (sent via email)" },
-            ],
-            "pending_assessments": [
-                { "id": 1, "module": "Access Control Procedures", "deadline": "2026-04-20", "questions": 20, "timeLimit": 30, "attempted": False },
-                { "id": 2, "module": "Customer Service Excellence", "deadline": "2026-04-25", "questions": 15, "timeLimit": 20, "attempted": False },
-            ]
+            'my_training': my_training,
+            'upcoming_sessions': sessions_list,
+            'pending_assessments': pending_assessments,
         })
 
 

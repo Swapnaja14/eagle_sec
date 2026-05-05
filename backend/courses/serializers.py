@@ -89,7 +89,7 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'course_id', 'display_name', 'description',
             'start_date', 'end_date', 'compliance_taxonomy', 'skills_taxonomy',
-            'status', 'created_at', 'updated_at',
+            'department', 'status', 'created_at', 'updated_at',
             'lessons', 'lesson_count', 'pre_assessment', 'post_assessment',
             'certification', 'created_by_name'
         ]
@@ -110,6 +110,8 @@ class CourseSerializer(serializers.ModelSerializer):
         if not tenant:
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'tenant': 'User must belong to a tenant to create courses.'})
+        if not validated_data.get('department'):
+            validated_data['department'] = user.department or ''
         with transaction.atomic():
             course = Course.objects.create(tenant=tenant, created_by=user, **validated_data)
             # Auto-create assessment and certification stubs

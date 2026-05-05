@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as dj_filters
@@ -15,15 +15,25 @@ class CourseFilter(dj_filters.FilterSet):
     status = dj_filters.CharFilter(field_name='status')
     compliance_taxonomy = dj_filters.CharFilter(field_name='compliance_taxonomy')
     skills_taxonomy = dj_filters.CharFilter(field_name='skills_taxonomy')
+    department = dj_filters.CharFilter(field_name='department')
 
     class Meta:
         model = Course
-        fields = ['status', 'compliance_taxonomy', 'skills_taxonomy']
+        fields = ['status', 'compliance_taxonomy', 'skills_taxonomy', 'department']
+
+
+class CoursePermission(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if view.action in ['create', 'update', 'partial_update', 'destroy', 'retire', 'activate', 'clone']:
+            return request.user.role in ['superadmin', 'admin', 'instructor']
+        return True
 
 
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CoursePermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = CourseFilter
     search_fields = ['display_name', 'description', 'course_id']
@@ -31,9 +41,15 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
+        user = self.request.user
         qs = Course.objects.all()
-        if self.request.user.tenant:
-            qs = qs.filter(tenant=self.request.user.tenant)
+        if user.role != 'superadmin':
+            if user.tenant:
+                qs = qs.filter(tenant=user.tenant)
+            else:
+                qs = qs.none()
+        if user.role == 'trainee':
+            qs = qs.filter(status='active', department=user.department or '')
         return qs.select_related('created_by', 'pre_assessment', 'post_assessment', 'certification') \
                  .prefetch_related('lessons__files')
 

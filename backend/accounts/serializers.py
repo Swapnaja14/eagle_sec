@@ -21,12 +21,13 @@ class TenantSerializer(serializers.ModelSerializer):
 # =======================
 class UserSerializer(serializers.ModelSerializer):
     tenant = TenantSerializer(read_only=True)
+    company = serializers.CharField(source='tenant.name', read_only=True, allow_null=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'role', 'department', 'avatar', 'tenant', 'created_at'
+            'role', 'department', 'avatar', 'tenant', 'company', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -49,6 +50,8 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, data):
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError("Passwords do not match.")
+        if data.get('role') == 'trainer':
+            data['role'] = User.ROLE_INSTRUCTOR
         return data
 
     def create(self, validated_data):
@@ -129,3 +132,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Uses username-based authentication (default Django behavior).
     """
     username_field = "username"
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['user'] = UserSerializer(self.user).data
+        return data

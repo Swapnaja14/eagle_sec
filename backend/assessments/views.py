@@ -211,8 +211,42 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         submission.submitted_at = timezone.now()
         submission.time_taken_seconds = int(time_taken)
         submission.save()
-        
-        return Response(SubmissionSerializer(submission).data)
+
+        # Auto-issue certificate on pass (idempotent)
+        certificate_payload = None
+        if submission.passed and submission.quiz.course_id:
+            from certificates.models import IssuedCertificate
+            from certificates.serializers import IssuedCertificateSerializer
+            from utils.pdf import generate_certificate_pdf
+
+            cert = IssuedCertificate.objects.filter(submission=submission).first()
+            if not cert:
+                cert = IssuedCertificate.objects.create(
+                    tenant=submission.quiz.tenant,
+                    employee=submission.user,
+                    course=submission.quiz.course,
+                    submission=submission,
+                    file_path="",
+                )
+                employee_name = (
+                    f"{submission.user.first_name} {submission.user.last_name}".strip()
+                    or submission.user.username
+                )
+                file_path = generate_certificate_pdf(
+                    employee_name=employee_name,
+                    course_name=submission.quiz.course.display_name,
+                    completion_date=submission.submitted_at,
+                    certificate_id=cert.id,
+                )
+                cert.file_path = file_path
+                cert.save(update_fields=["file_path"])
+            certificate_payload = IssuedCertificateSerializer(
+                cert, context={"request": request}
+            ).data
+
+        data = SubmissionSerializer(submission).data
+        data["certificate"] = certificate_payload
+        return Response(data)
     
     @action(detail=False, methods=['get'])
     def my_submissions(self, request):
@@ -220,3 +254,5 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         submissions = self.get_queryset()
         serializer = self.get_serializer(submissions, many=True)
         return Response(serializer.data)
+
+

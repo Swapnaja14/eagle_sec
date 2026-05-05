@@ -113,3 +113,4 @@ class SubmissionSerializer(serializers.ModelSerializer):
 class SubmitAnswerSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     selected_answer = serializers.CharField()
+

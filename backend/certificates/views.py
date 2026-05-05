@@ -13,7 +13,6 @@ from .models import IssuedCertificate
 from .serializers import IssuedCertificateSerializer, GenerateCertificateSerializer
 from utils.pdf import generate_certificate_pdf
 
-
 class GenerateCertificateView(APIView):
     """
     POST /api/certificates/generate/

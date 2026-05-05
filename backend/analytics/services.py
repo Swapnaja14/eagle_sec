@@ -272,3 +272,4 @@ def get_gap_analysis(tenant=None, department: str = "") -> Dict[str, Any]:
             "depts_at_risk": len([d for d in dept_gaps if d["gap"] >= 20]),
         },
     }
+

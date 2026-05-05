@@ -110,7 +110,7 @@ export default function TraineeDashboardPage() {
           {UPCOMING_SESSIONS.map(s => (
             <div key={s.id} style={{ display: 'flex', gap: 14, padding: '14px', background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border-subtle)', marginBottom: 10 }}>
               <div style={{ width: 38, height: 38, flexShrink: 0, background: s.type === 'virtual' ? 'rgba(168,85,247,0.15)' : 'rgba(59,130,246,0.15)', color: s.type === 'virtual' ? '#a855f7' : 'var(--accent-blue)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                {s.type === 'virtual' ? '💻' : '🏫'}
+                {s.type === 'virtual' ? '�' : '🏫'}
               </div>
               <div>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>{s.module}</div>

@@ -69,6 +69,7 @@ class Course(models.Model):
     end_date = models.DateField(null=True, blank=True)
     compliance_taxonomy = models.CharField(max_length=50, choices=COMPLIANCE_CHOICES, default='none')
     skills_taxonomy = models.CharField(max_length=50, choices=SKILL_CHOICES, default='none')
+    department = models.CharField(max_length=100, blank=True, db_index=True)
 
     status = models.CharField(max_length=20, choices=COURSE_STATUS_CHOICES, default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -85,6 +86,10 @@ class Course(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['tenant', 'department'], name='courses_cou_tenant__5f4b2c_idx'),
+            models.Index(fields=['tenant', 'department', 'status'], name='courses_cou_tenant__2c8dd1_idx'),
+        ]
 
 
 class PreAssessment(models.Model):
