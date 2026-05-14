@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
+from django.db import models
 from django.db.models import Count, Avg
 from .models import Quiz, QuizQuestion, Submission, Answer
 from .serializers import (
@@ -220,3 +221,78 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         submissions = self.get_queryset()
         serializer = self.get_serializer(submissions, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def all_submissions(self, request):
+        """Get all submissions for admin/trainer view with filtering"""
+        user = request.user
+        
+        # Only allow admin, trainer, or superadmin roles
+        if user.role not in ['superadmin', 'admin', 'instructor']:
+            return Response(
+                {'error': 'Permission denied. Only admins and trainers can view all submissions.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Base queryset - filter by tenant for non-superadmins
+        if user.role == 'superadmin':
+            qs = Submission.objects.all()
+        else:
+            qs = Submission.objects.filter(user__tenant=user.tenant)
+        
+        # Apply filters from query params
+        quiz_id = request.query_params.get('quiz')
+        if quiz_id:
+            qs = qs.filter(quiz_id=quiz_id)
+        
+        user_id = request.query_params.get('user')
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        
+        passed_filter = request.query_params.get('passed')
+        if passed_filter is not None:
+            qs = qs.filter(passed=passed_filter.lower() == 'true')
+        
+        date_from = request.query_params.get('date_from')
+        if date_from:
+            qs = qs.filter(submitted_at__gte=date_from)
+        
+        date_to = request.query_params.get('date_to')
+        if date_to:
+            qs = qs.filter(submitted_at__lte=date_to)
+        
+        # Search by user name or quiz title
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                models.Q(user__username__icontains=search) |
+                models.Q(user__first_name__icontains=search) |
+                models.Q(user__last_name__icontains=search) |
+                models.Q(quiz__title__icontains=search)
+            )
+        
+        # Ordering
+        ordering = request.query_params.get('ordering', '-submitted_at')
+        qs = qs.order_by(ordering)
+        
+        # Pagination
+        page_size = int(request.query_params.get('page_size', 50))
+        page = int(request.query_params.get('page', 1))
+        start = (page - 1) * page_size
+        end = start + page_size
+        total = qs.count()
+        
+        qs = qs[start:end]
+        
+        serializer = self.get_serializer(qs, many=True)
+        return Response({
+            'results': serializer.data,
+            'count': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size
+        })

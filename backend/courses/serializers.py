@@ -105,11 +105,14 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from django.db import transaction
-        tenant = self.context['request'].user.tenant
         user = self.context['request'].user
-        if not tenant:
+        tenant = user.tenant
+        
+        # Superadmins can create courses without tenant (or we can assign a default)
+        if not tenant and user.role != 'superadmin':
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'tenant': 'User must belong to a tenant to create courses.'})
+        
         with transaction.atomic():
             course = Course.objects.create(tenant=tenant, created_by=user, **validated_data)
             # Auto-create assessment and certification stubs

@@ -136,6 +136,23 @@ export const AuthProvider = ({ children }) => {
     _clearStorage()
   }
 
+  // ── UPDATE USER ──────────────────────────────────────────────────────────────
+  const updateUser = async (userData) => {
+    try {
+      const { data } = await authAPI.updateProfile(userData)
+      const role = mapBackendRole(data.role)
+      const userObj = { ...data, role }
+      localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
+      setUser(userObj)
+      return userObj
+    } catch (err) {
+      const detail = err.response?.data
+      if (typeof detail === 'string') throw new Error(detail)
+      if (typeof detail === 'object') throw new Error(Object.values(detail).flat().join(' '))
+      throw new Error('Failed to update profile.')
+    }
+  }
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -143,6 +160,7 @@ export const AuthProvider = ({ children }) => {
       login,
       logout,
       register,
+      updateUser,
       hasPermission: (perm) => hasPermission(user, perm),
       isRealUser: !!user,
     }}>

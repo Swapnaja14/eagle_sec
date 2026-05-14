@@ -67,7 +67,7 @@ export default function TrainerDashboardPage() {
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%)', borderRadius: 16, padding: '28px 32px', marginBottom: 28, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+      <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '28px 32px', marginBottom: 28, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 6 }}>Welcome back, Trainer</div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 6px' }}>
@@ -75,9 +75,14 @@ export default function TrainerDashboardPage() {
           </h1>
           <p style={{ color: 'var(--text-secondary)', margin: 0 }}>You have <strong style={{ color: 'var(--accent-blue)' }}>{upcoming.length} upcoming sessions</strong> this week.</p>
         </div>
-        <button className="btn btn-primary btn-lg" onClick={() => navigate('/sessions/classroom/new')}>
-          + Schedule New Session
-        </button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="btn btn-secondary btn-lg" onClick={() => navigate('/trainer/profile')}>
+            View Profile
+          </button>
+          <button className="btn btn-primary btn-lg" onClick={() => navigate('/sessions/classroom/new')}>
+            + Schedule New Session
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}

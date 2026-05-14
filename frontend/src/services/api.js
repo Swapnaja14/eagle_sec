@@ -48,6 +48,7 @@ export const authAPI = {
   me: () => api.get('/auth/me/'),
   refresh: (refresh) => api.post('/auth/refresh/', { refresh }),
   logout: (refresh) => api.post('/auth/logout/', { refresh }),
+  updateProfile: (data) => api.patch('/auth/me/update/', data),
 }
 
 // ===================== CONTENT =====================
@@ -182,4 +183,26 @@ export const dashboardAPI = {
   trainerDashboard: () => api.get('/trainer/dashboard/'),
   traineeDashboard: () => api.get('/trainee/dashboard/'),
   traineeCourses: () => api.get('/trainee/courses/'),
+}
+
+// ===================== ASSESSMENTS =====================
+export const assessmentsAPI = {
+  // Quizzes
+  listQuizzes: (params) => api.get('/assessments/quizzes/', { params }),
+  getQuiz: (id) => api.get(`/assessments/quizzes/${id}/`),
+  createQuiz: (data) => api.post('/assessments/quizzes/', data),
+  updateQuiz: (id, data) => api.patch(`/assessments/quizzes/${id}/`, data),
+  deleteQuiz: (id) => api.delete(`/assessments/quizzes/${id}/`),
+  startQuiz: (id) => api.post(`/assessments/quizzes/${id}/start_quiz/`),
+  getQuizQuestions: (id) => api.get(`/assessments/quizzes/${id}/questions/`),
+  addQuestionToQuiz: (id, data) => api.post(`/assessments/quizzes/${id}/add_question/`, data),
+  getTrainers: () => api.get('/assessments/quizzes/trainers/'),
+
+  // Submissions
+  listSubmissions: (params) => api.get('/assessments/submissions/', { params }),
+  getSubmission: (id) => api.get(`/assessments/submissions/${id}/`),
+  submitAnswer: (id, data) => api.post(`/assessments/submissions/${id}/submit_answer/`, data),
+  completeSubmission: (id) => api.post(`/assessments/submissions/${id}/complete_submission/`),
+  mySubmissions: () => api.get('/assessments/submissions/my_submissions/'),
+  allSubmissions: (params) => api.get('/assessments/submissions/all_submissions/', { params }),
 }
