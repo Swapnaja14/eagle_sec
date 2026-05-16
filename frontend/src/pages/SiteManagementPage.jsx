@@ -1,43 +1,106 @@
-import React, { useState } from 'react';
-import { mockClients, mockSites } from '../data/mockData';
-
-const EXTENDED_SITES = [
-  { id: 'site_1', name: 'Mumbai HQ', clientId: 'client_001', clientName: 'SecureGuard India', address: 'Nariman Point, Mumbai, MH 400021', guards: 248, status: 'active', lat: 18.9251, lng: 72.8249 },
-  { id: 'site_2', name: 'Delhi Office', clientId: 'client_001', clientName: 'SecureGuard India', address: 'Connaught Place, New Delhi, DL 110001', guards: 185, status: 'active', lat: 28.6315, lng: 77.2167 },
-  { id: 'site_3', name: 'Pune Campus', clientId: 'client_002', clientName: 'Sapphire Security', address: 'Hinjewadi IT Park, Pune, MH 411057', guards: 320, status: 'active', lat: 18.5913, lng: 73.7389 },
-  { id: 'site_4', name: 'Bangalore Tech Park', clientId: 'client_003', clientName: 'RapidShield Corp', address: 'Electronic City Phase 1, Bengaluru, KA 560100', guards: 412, status: 'active', lat: 12.8390, lng: 77.6631 },
-  { id: 'site_5', name: 'Hyderabad Zone', clientId: 'client_002', clientName: 'Sapphire Security', address: 'HITEC City, Hyderabad, TS 500081', guards: 276, status: 'inactive', lat: 17.4474, lng: 78.3762 },
-  { id: 'site_6', name: 'Chennai Port', clientId: 'client_003', clientName: 'RapidShield Corp', address: 'Royapuram, Chennai, TN 600013', guards: 194, status: 'active', lat: 13.1096, lng: 80.2915 },
-];
+import React, { useState, useEffect } from 'react';
+import { sitesAPI, clientsAPI } from '../services/api';
 
 export default function SiteManagementPage() {
-  const [sites, setSites] = useState(EXTENDED_SITES);
+  const [sites, setSites] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [clientFilter, setClientFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editSite, setEditSite] = useState(null);
-  const [newSite, setNewSite] = useState({ name: '', clientId: mockClients[0].id, address: '', guards: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [newSite, setNewSite] = useState({ name: '', client: '', address: '', guards: '' });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [sitesRes, clientsRes] = await Promise.all([
+        sitesAPI.list(),
+        clientsAPI.list(),
+      ]);
+      setSites(sitesRes.data);
+      setClients(clientsRes.data);
+      if (clientsRes.data.length > 0 && !newSite.client) {
+        setNewSite(prev => ({ ...prev, client: clientsRes.data[0].id }));
+      }
+    } catch (err) {
+      setError('Failed to load sites or clients.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = sites.filter(s => {
-    if (clientFilter && s.clientId !== clientFilter) return false;
-    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.address.toLowerCase().includes(search.toLowerCase())) return false;
+    if (clientFilter && String(s.client_id) !== String(clientFilter)) return false;
+    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.address?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const handleAddSite = () => {
+  const handleAddSite = async () => {
     if (!newSite.name || !newSite.address) return;
-    const client = mockClients.find(c => c.id === newSite.clientId);
-    setSites(prev => [...prev, {
-      id: `site_new_${Date.now()}`,
-      name: newSite.name, clientId: newSite.clientId, clientName: client?.name || '',
-      address: newSite.address, guards: parseInt(newSite.guards) || 0,
-      status: 'active', lat: 0, lng: 0,
-    }]);
-    setShowAddModal(false);
-    setNewSite({ name: '', clientId: mockClients[0].id, address: '', guards: '' });
+    setSaving(true);
+    try {
+      const res = await sitesAPI.create({
+        name: newSite.name,
+        address: newSite.address,
+        client: newSite.client || null,
+        is_active: true,
+      });
+      setSites(prev => [...prev, res.data]);
+      setShowAddModal(false);
+      setNewSite({ name: '', client: clients[0]?.id || '', address: '', guards: '' });
+    } catch (err) {
+      setError('Failed to create site.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const totalGuards = sites.reduce((s, x) => s + x.guards, 0);
+  const handleEditSave = async () => {
+    setSaving(true);
+    try {
+      const res = await sitesAPI.update(editSite.id, {
+        name: editSite.name,
+        address: editSite.address,
+        client: editSite.client_id || null,
+        is_active: editSite.is_active,
+      });
+      setSites(prev => prev.map(s => s.id === editSite.id ? { ...s, ...res.data } : s));
+      setEditSite(null);
+    } catch (err) {
+      setError('Failed to update site.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeactivate = async (site) => {
+    try {
+      await sitesAPI.update(site.id, { is_active: !site.is_active });
+      setSites(prev => prev.map(s => s.id === site.id ? { ...s, is_active: !s.is_active } : s));
+    } catch (err) {
+      setError('Failed to update site status.');
+    }
+  };
+
+  const clientMap = {};
+  clients.forEach(c => { clientMap[c.id] = c.name; });
+
+  if (loading) {
+    return (
+      <div style={{ padding: '80px', textAlign: 'center' }}>
+        <span className="spinner" style={{ width: 32, height: 32 }} />
+        <p style={{ color: 'var(--text-secondary)', marginTop: 16 }}>Loading sites...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
@@ -49,13 +112,19 @@ export default function SiteManagementPage() {
         <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>+ Add New Site</button>
       </div>
 
+      {error && (
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '12px 20px', marginBottom: 16, color: 'var(--accent-red)' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Total Sites', value: sites.length, color: 'var(--accent-blue)' },
-          { label: 'Active Sites', value: sites.filter(s => s.status === 'active').length, color: 'var(--accent-green)' },
-          { label: 'Total Guards', value: totalGuards.toLocaleString(), color: 'var(--accent-cyan)' },
-          { label: 'Clients Served', value: new Set(sites.map(s => s.clientId)).size, color: 'var(--accent-purple)' },
+          { label: 'Active Sites', value: sites.filter(s => s.is_active).length, color: 'var(--accent-green)' },
+          { label: 'Inactive Sites', value: sites.filter(s => !s.is_active).length, color: 'var(--accent-red)' },
+          { label: 'Clients Served', value: new Set(sites.map(s => s.client_id).filter(Boolean)).size, color: 'var(--accent-purple)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: '16px 20px' }}>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
@@ -74,7 +143,7 @@ export default function SiteManagementPage() {
           <label className="form-label">Client</label>
           <select className="form-select" value={clientFilter} onChange={e => setClientFilter(e.target.value)}>
             <option value="">All Clients</option>
-            {mockClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
       </div>
@@ -88,7 +157,7 @@ export default function SiteManagementPage() {
                 <th>Site Name</th>
                 <th>Client</th>
                 <th>Address</th>
-                <th>Guards</th>
+                <th>City</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -101,17 +170,23 @@ export default function SiteManagementPage() {
                       <span style={{ fontSize: '1.1rem' }}>📍</span> {site.name}
                     </div>
                   </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{site.clientName}</td>
-                  <td style={{ color: 'var(--text-secondary)', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{site.address}</td>
-                  <td style={{ fontWeight: 700, color: 'var(--accent-blue)' }}>{site.guards.toLocaleString()}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{clientMap[site.client_id] || '—'}</td>
+                  <td style={{ color: 'var(--text-secondary)', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{site.address || '—'}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{site.city || '—'}</td>
                   <td>
-                    <span className={`badge ${site.status === 'active' ? 'badge-active' : 'badge-archived'}`}>{site.status}</span>
+                    <span className={`badge ${site.is_active ? 'badge-active' : 'badge-archived'}`}>{site.is_active ? 'active' : 'inactive'}</span>
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="btn btn-ghost btn-sm" title="Edit" onClick={() => setEditSite(site)}>✏️</button>
-                      <button className="btn btn-ghost btn-sm" title="View Map">🗺️</button>
-                      <button className="btn btn-ghost btn-sm" title="Deactivate" style={{ color: 'var(--accent-red)' }}>🚫</button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        title={site.is_active ? 'Deactivate' : 'Activate'}
+                        style={{ color: site.is_active ? 'var(--accent-red)' : 'var(--accent-green)' }}
+                        onClick={() => handleDeactivate(site)}
+                      >
+                        {site.is_active ? '🚫' : '✅'}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -127,7 +202,7 @@ export default function SiteManagementPage() {
         </div>
       </div>
 
-      {/* Add Site Modal */}
+      {/* Add / Edit Modal */}
       {(showAddModal || editSite) && (
         <div className="modal-overlay" onClick={() => { setShowAddModal(false); setEditSite(null); }}>
           <div className="modal-content" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
@@ -138,15 +213,18 @@ export default function SiteManagementPage() {
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="form-group">
                 <label className="form-label">Site Name *</label>
-                <input className="form-input" value={editSite ? editSite.name : newSite.name}
+                <input className="form-input"
+                  value={editSite ? editSite.name : newSite.name}
                   onChange={e => editSite ? setEditSite(p => ({ ...p, name: e.target.value })) : setNewSite(p => ({ ...p, name: e.target.value }))}
                   placeholder="e.g. Mumbai South Hub" />
               </div>
               <div className="form-group">
                 <label className="form-label">Client</label>
-                <select className="form-select" value={editSite ? editSite.clientId : newSite.clientId}
-                  onChange={e => editSite ? setEditSite(p => ({ ...p, clientId: e.target.value })) : setNewSite(p => ({ ...p, clientId: e.target.value }))}>
-                  {mockClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <select className="form-select"
+                  value={editSite ? (editSite.client_id || '') : newSite.client}
+                  onChange={e => editSite ? setEditSite(p => ({ ...p, client_id: e.target.value })) : setNewSite(p => ({ ...p, client: e.target.value }))}>
+                  <option value="">No Client</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="form-group">
@@ -156,18 +234,11 @@ export default function SiteManagementPage() {
                   onChange={e => editSite ? setEditSite(p => ({ ...p, address: e.target.value })) : setNewSite(p => ({ ...p, address: e.target.value }))}
                   placeholder="Street, City, State, PIN" />
               </div>
-              <div className="form-group">
-                <label className="form-label">Guard Count</label>
-                <input type="number" className="form-input"
-                  value={editSite ? editSite.guards : newSite.guards}
-                  onChange={e => editSite ? setEditSite(p => ({ ...p, guards: parseInt(e.target.value) || 0 })) : setNewSite(p => ({ ...p, guards: e.target.value }))}
-                  placeholder="0" min={0} />
-              </div>
             </div>
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
               <button className="btn btn-ghost" onClick={() => { setShowAddModal(false); setEditSite(null); }}>Cancel</button>
-              <button className="btn btn-primary" onClick={editSite ? () => { setSites(prev => prev.map(s => s.id === editSite.id ? editSite : s)); setEditSite(null); } : handleAddSite}>
-                {editSite ? 'Save Changes' : 'Add Site'}
+              <button className="btn btn-primary" onClick={editSite ? handleEditSave : handleAddSite} disabled={saving}>
+                {saving ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Saving...</> : (editSite ? 'Save Changes' : 'Add Site')}
               </button>
             </div>
           </div>

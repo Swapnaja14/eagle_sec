@@ -8,8 +8,14 @@ from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import get_user_model
 from django.db import models
 from django_filters.rest_framework import DjangoFilterBackend
-from .serializers import RegisterSerializer, UserSerializer, SiteSerializer, ClientSerializer, EmployeeSerializer
-from .models import Site, Client
+from .serializers import (
+    RegisterSerializer, UserSerializer, SiteSerializer, ClientSerializer, 
+    EmployeeSerializer, RolePermissionSerializer, RBACChangeLogSerializer, 
+    BulkUserUploadSerializer
+)
+from .models import Site, Client, RolePermission, RBACChangeLog, Tenant
+import csv
+import io
 
 User = get_user_model()
 
@@ -278,3 +284,137 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         except Exception as e:
             print(f"DEBUG: Login failed for user: {request.data.get('username')}. Error: {str(e)}")
             raise e
+
+class SiteDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SiteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'superadmin':
+            return Site.objects.all()
+        return Site.objects.filter(tenant=user.tenant)
+
+class ClientDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ClientSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'superadmin':
+            return Client.objects.all()
+        return Client.objects.filter(tenant=user.tenant)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def rbac_list_view(request):
+    user = request.user
+    if user.role not in ['superadmin', 'admin']:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    
+    permissions = RolePermission.objects.filter(tenant=user.tenant)
+    serializer = RolePermissionSerializer(permissions, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rbac_update_view(request):
+    user = request.user
+    if user.role != 'superadmin':
+        return Response({"detail": "Only Super Admin can modify RBAC."}, status=status.HTTP_403_FORBIDDEN)
+    
+    role = request.data.get('role')
+    module_id = request.data.get('module_id')
+    has_access = request.data.get('has_access')
+    reason = request.data.get('reason')
+
+    if role == 'Super Admin':
+        return Response({"detail": "Super Admin permissions cannot be modified."}, status=status.HTTP_400_BAD_REQUEST)
+
+    perm, created = RolePermission.objects.get_or_create(
+        tenant=user.tenant, role=role, module_id=module_id
+    )
+    from_access = perm.has_access
+    perm.has_access = has_access
+    perm.save()
+
+    RBACChangeLog.objects.create(
+        tenant=user.tenant,
+        changed_by=user,
+        role_affected=role,
+        module_name=module_id,
+        from_access=from_access,
+        to_access=has_access,
+        reason=reason
+    )
+
+    return Response({"detail": "Permission updated successfully."})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def rbac_history_view(request):
+    user = request.user
+    if user.role not in ['superadmin', 'admin']:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    
+    logs = RBACChangeLog.objects.filter(tenant=user.tenant).order_by('-timestamp')
+    serializer = RBACChangeLogSerializer(logs, many=True)
+    return Response(serializer.data)
+
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+
+class BulkUserUploadView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        if request.user.role not in ['superadmin', 'admin']:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+            
+        file_obj = request.data.get('file')
+        if not file_obj:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            decoded_file = file_obj.read().decode('utf-8-sig')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            
+            created_count = 0
+            errors = []
+            
+            for index, row in enumerate(reader):
+                try:
+                    # Simple validation and creation
+                    username = row.get('Employee ID')
+                    email = row.get('Email', '')
+                    if not username:
+                        errors.append(f"Row {index+1}: Employee ID missing")
+                        continue
+                        
+                    if User.objects.filter(username=username).exists():
+                        errors.append(f"Row {index+1}: Duplicate Employee ID {username}")
+                        continue
+                        
+                    User.objects.create_user(
+                        username=username,
+                        email=email,
+                        first_name=row.get('First Name', ''),
+                        last_name=row.get('Last Name', ''),
+                        department=row.get('Department', ''),
+                        role=row.get('Role', 'trainee').lower(),
+                        tenant=request.user.tenant,
+                        password='ChangeMe123!'
+                    )
+                    created_count += 1
+                except Exception as e:
+                    errors.append(f"Row {index+1}: {str(e)}")
+                    
+            return Response({
+                "message": f"Processed {created_count} users successfully.",
+                "created_count": created_count,
+                "errors": errors
+            })
+        except Exception as e:
+            return Response({"error": f"Failed to process file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)

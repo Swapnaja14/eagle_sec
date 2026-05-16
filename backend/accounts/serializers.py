@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Tenant, Site, Client
+from .models import Tenant, Site, Client, RolePermission, RBACChangeLog
 
 User = get_user_model()
 
@@ -129,3 +129,37 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Uses username-based authentication (default Django behavior).
     """
     username_field = "username"
+
+
+# =======================
+# RBAC Serializers
+# =======================
+class RolePermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RolePermission
+        fields = ['id', 'role', 'module_id', 'has_access']
+
+
+class RBACChangeLogSerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RBACChangeLog
+        fields = [
+            'id', 'changed_by_name', 'role_affected',
+            'module_name', 'from_access', 'to_access',
+            'reason', 'timestamp'
+        ]
+
+    def get_changed_by_name(self, obj):
+        if obj.changed_by:
+            name = f"{obj.changed_by.first_name} {obj.changed_by.last_name}".strip()
+            return name if name else obj.changed_by.username
+        return "Unknown"
+
+
+# =======================
+# Bulk Upload Serializer
+# =======================
+class BulkUserUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()

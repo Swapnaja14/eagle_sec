@@ -193,3 +193,22 @@ export const analyticsAPI = {
   gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
   report: () => api.get('/analytics/report/', { responseType: 'blob' }),
 }
+
+// ===================== RBAC =====================
+export const rbacAPI = {
+  list: () => api.get('/auth/rbac/'),
+  update: (data) => api.post('/auth/rbac/update/', data),
+  history: () => api.get('/auth/rbac/history/'),
+}
+
+// ===================== BULK UPLOAD =====================
+export const bulkUploadAPI = {
+  upload: (formData) => api.post('/auth/users/bulk-upload/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+}
+
+// ===================== BULK EXPORT =====================
+export const bulkExportAPI = {
+  generate: (params) => api.post('/analytics/bulk-export/', params, { responseType: 'blob' }),
+}
