@@ -9,10 +9,10 @@ import { authAPI, baseURL } from '../services/api';
 import { colors, spacing, radius, typography, shared, shadows } from '../theme';
 
 const CHIPS = [
-  { label: 'Cybersecurity', icon: Code2,    top: 90,  left: 30 },
-  { label: 'Compliance',    icon: Compass,  top: 90,  right: 30 },
-  { label: 'Networking',    icon: Wifi,     top: 160, left: 20 },
-  { label: 'Risk Mgmt',     icon: Palette,  top: 160, right: 20 },
+  { label: 'Cybersecurity', icon: Code2, top: 90, left: 30 },
+  { label: 'Compliance', icon: Compass, top: 90, right: 30 },
+  { label: 'Networking', icon: Wifi, top: 160, left: 20 },
+  { label: 'Risk Mgmt', icon: Palette, top: 160, right: 20 },
 ];
 
 export default function LoginScreen({ setIsLoggedIn }) {

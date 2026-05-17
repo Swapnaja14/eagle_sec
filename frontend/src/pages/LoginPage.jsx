@@ -1,15 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
 import './Login.css'
-
-const ROLE_REDIRECT = {
-  superadmin: '/admin/dashboard',
-  admin: '/admin/dashboard',
-  trainer: '/trainer/dashboard',
-  trainee: '/trainee/dashboard',
-}
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState('login')
@@ -21,15 +13,15 @@ export default function LoginPage() {
     email: '',
     password: '',
     confirm_password: '',
-    role: 'trainee',
+    role: 'instructor',
     department: '',
     tenant_name: '',
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login, register } = useAuth()
-  const { theme, toggleTheme } = useTheme()
+
+  const auth = useAuth()
   const navigate = useNavigate()
 
   const handleLoginChange = (e) => {
@@ -50,8 +42,15 @@ export default function LoginPage() {
     setError('')
     setSuccess('')
     try {
-      const user = await login({ username: loginForm.username, password: loginForm.password })
-      navigate(ROLE_REDIRECT[user.role] || '/admin/dashboard')
+      const user = await auth.login({ username: loginForm.username, password: loginForm.password })
+      // Redirect based on role
+      if (user.role === 'superadmin' || user.role === 'admin') {
+        navigate('/admin/dashboard')
+      } else if (user.role === 'trainer') {
+        navigate('/trainer/dashboard')
+      } else {
+        navigate('/admin/dashboard')
+      }
     } catch (err) {
       setError(err.message || 'Invalid credentials.')
     } finally {
@@ -64,15 +63,36 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     setSuccess('')
+
+    if (registerForm.password !== registerForm.confirm_password) {
+      setError('Passwords do not match.')
+      setLoading(false)
+      return
+    }
+
     try {
       const payload = {
-        ...registerForm,
-        tenant_name: registerForm.tenant_name.trim() || undefined,
+        first_name: registerForm.first_name,
+        last_name: registerForm.last_name,
+        username: registerForm.username,
+        email: registerForm.email,
+        password: registerForm.password,
+        role: registerForm.role,
         department: registerForm.department.trim() || undefined,
+        tenant_name: registerForm.tenant_name.trim() || undefined,
       }
-      const user = await register(payload)
+
+      const user = await auth.register(payload)
       setSuccess('Registration successful. You are now signed in.')
-      navigate(ROLE_REDIRECT[user.role] || '/trainee/dashboard')
+
+      // Redirect based on role
+      if (user.role === 'superadmin' || user.role === 'admin') {
+        navigate('/admin/dashboard')
+      } else if (user.role === 'trainer') {
+        navigate('/trainer/dashboard')
+      } else {
+        navigate('/admin/dashboard')
+      }
     } catch (err) {
       setError(err.message || 'Registration failed.')
     } finally {
@@ -88,40 +108,14 @@ export default function LoginPage() {
         <div className="login-orb login-orb-3" />
       </div>
 
-      <button 
-        className="theme-toggle-login" 
-        onClick={toggleTheme}
-        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-        style={{
-          position: 'absolute',
-          top: '24px',
-          right: '24px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '50%',
-          width: '44px',
-          height: '44px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          fontSize: '1.2rem',
-          zIndex: 100,
-          boxShadow: 'var(--shadow-md)',
-          transition: 'all var(--transition-fast)'
-        }}
-      >
-        {theme === 'dark' ? '☀️' : '🌙'}
-      </button>
-
       <div className="login-container">
         {/* Branding */}
         <div className="login-brand">
           <div className="login-logo">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="10" fill="#3b82f6"/>
-              <path d="M8 10h16M8 16h10M8 22h13" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              <circle cx="24" cy="22" r="4" fill="white" fillOpacity="0.9"/>
+              <rect width="32" height="32" rx="10" fill="#3b82f6" />
+              <path d="M8 10h16M8 16h10M8 22h13" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="24" cy="22" r="4" fill="white" fillOpacity="0.9" />
             </svg>
           </div>
           <div>
@@ -132,10 +126,18 @@ export default function LoginPage() {
 
         <div className="login-card">
           <div className="login-tabs">
-            <button className={`login-tab ${activeTab === 'login' ? 'active' : ''}`} onClick={() => { setActiveTab('login'); setError(''); setSuccess('') }} type="button">
+            <button
+              className={`login-tab ${activeTab === 'login' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('login'); setError(''); setSuccess('') }}
+              type="button"
+            >
               Sign In
             </button>
-            <button className={`login-tab ${activeTab === 'register' ? 'active' : ''}`} onClick={() => { setActiveTab('register'); setError(''); setSuccess('') }} type="button">
+            <button
+              className={`login-tab ${activeTab === 'register' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('register'); setError(''); setSuccess('') }}
+              type="button"
+            >
               Register
             </button>
           </div>
@@ -150,12 +152,12 @@ export default function LoginPage() {
           </p>
 
           {error && (
-            <div className="form-error-box" style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: 'var(--accent-red)', fontSize: '0.85rem', marginBottom: 16 }}>
+            <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: 'var(--accent-red)', fontSize: '0.85rem', marginBottom: 16 }}>
               {error}
             </div>
           )}
           {success && (
-            <div className="form-success-box" style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, color: '#22c55e', fontSize: '0.85rem', marginBottom: 16 }}>
+            <div style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, color: '#22c55e', fontSize: '0.85rem', marginBottom: 16 }}>
               {success}
             </div>
           )}
@@ -164,14 +166,37 @@ export default function LoginPage() {
             <form onSubmit={handleLoginSubmit} className="login-form">
               <div className="form-group">
                 <label className="form-label">Username</label>
-                <input className="form-input" name="username" value={loginForm.username} onChange={handleLoginChange} placeholder="e.g. EMP-12345" required autoFocus />
+                <input
+                  className="form-input"
+                  name="username"
+                  value={loginForm.username}
+                  onChange={handleLoginChange}
+                  placeholder="e.g. admin"
+                  required
+                  autoFocus
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Password</label>
-                <input className="form-input" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} placeholder="••••••••" required />
+                <input
+                  className="form-input"
+                  name="password"
+                  type="password"
+                  value={loginForm.password}
+                  onChange={handleLoginChange}
+                  placeholder="••••••••"
+                  required
+                />
               </div>
               <button className="btn btn-primary login-submit" type="submit" disabled={loading}>
-                {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Signing in...</> : 'Sign In'}
+                {loading ? (
+                  <>
+                    <span className="spinner" style={{ width: 16, height: 16, marginRight: 8, display: 'inline-block' }} />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
               </button>
             </form>
           ) : (
@@ -179,36 +204,81 @@ export default function LoginPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">First Name</label>
-                  <input className="form-input" name="first_name" value={registerForm.first_name} onChange={handleRegisterChange} required />
+                  <input
+                    className="form-input"
+                    name="first_name"
+                    value={registerForm.first_name}
+                    onChange={handleRegisterChange}
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Last Name</label>
-                  <input className="form-input" name="last_name" value={registerForm.last_name} onChange={handleRegisterChange} required />
+                  <input
+                    className="form-input"
+                    name="last_name"
+                    value={registerForm.last_name}
+                    onChange={handleRegisterChange}
+                    required
+                  />
                 </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Username</label>
-                <input className="form-input" name="username" value={registerForm.username} onChange={handleRegisterChange} required />
+                <input
+                  className="form-input"
+                  name="username"
+                  value={registerForm.username}
+                  onChange={handleRegisterChange}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Email</label>
-                <input className="form-input" name="email" type="email" value={registerForm.email} onChange={handleRegisterChange} required />
+                <input
+                  className="form-input"
+                  name="email"
+                  type="email"
+                  value={registerForm.email}
+                  onChange={handleRegisterChange}
+                  required
+                />
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Password</label>
-                  <input className="form-input" name="password" type="password" value={registerForm.password} onChange={handleRegisterChange} required minLength={8} />
+                  <input
+                    className="form-input"
+                    name="password"
+                    type="password"
+                    value={registerForm.password}
+                    onChange={handleRegisterChange}
+                    required
+                    minLength={8}
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Confirm Password</label>
-                  <input className="form-input" name="confirm_password" type="password" value={registerForm.confirm_password} onChange={handleRegisterChange} required minLength={8} />
+                  <input
+                    className="form-input"
+                    name="confirm_password"
+                    type="password"
+                    value={registerForm.confirm_password}
+                    onChange={handleRegisterChange}
+                    required
+                    minLength={8}
+                  />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Role</label>
-                  <select className="form-input" name="role" value={registerForm.role} onChange={handleRegisterChange}>
-                    <option value="trainee">Trainee</option>
+                  <select
+                    className="form-input"
+                    name="role"
+                    value={registerForm.role}
+                    onChange={handleRegisterChange}
+                  >
                     <option value="instructor">Trainer</option>
                     <option value="admin">Admin</option>
                     <option value="superadmin">Super Admin</option>
@@ -216,15 +286,34 @@ export default function LoginPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Department</label>
-                  <input className="form-input" name="department" value={registerForm.department} onChange={handleRegisterChange} placeholder="Optional" />
+                  <input
+                    className="form-input"
+                    name="department"
+                    value={registerForm.department}
+                    onChange={handleRegisterChange}
+                    placeholder="Optional"
+                  />
                 </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Company / Tenant</label>
-                <input className="form-input" name="tenant_name" value={registerForm.tenant_name} onChange={handleRegisterChange} placeholder="Optional" />
+                <input
+                  className="form-input"
+                  name="tenant_name"
+                  value={registerForm.tenant_name}
+                  onChange={handleRegisterChange}
+                  placeholder="Optional"
+                />
               </div>
               <button className="btn btn-primary login-submit" type="submit" disabled={loading}>
-                {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Creating account...</> : 'Create Account'}
+                {loading ? (
+                  <>
+                    <span className="spinner" style={{ width: 16, height: 16, marginRight: 8, display: 'inline-block' }} />
+                    Creating account...
+                  </>
+                ) : (
+                  'Create Account'
+                )}
               </button>
             </form>
           )}

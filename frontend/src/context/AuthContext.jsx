@@ -1,13 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import { authAPI } from '../services/api'
 
 const AuthContext = createContext(null)
 
 // ─── ROLE MAP: backend role → frontend role ───────────────────────────────────
-// Backend: superadmin | admin | instructor | trainee
-// Frontend: superadmin | admin | trainer | trainee
+// Backend: superadmin | admin | instructor
+// Frontend: superadmin | admin | trainer
 const mapBackendRole = (backendRole) => {
-  const map = { superadmin: 'superadmin', admin: 'admin', instructor: 'trainer', trainee: 'trainee' }
+  const map = { superadmin: 'superadmin', admin: 'admin', instructor: 'trainer' }
   return map[backendRole] || backendRole
 }
 
@@ -30,10 +30,6 @@ export const ROLE_PERMISSIONS = {
     'course_builder', 'content_hub', 'question_bank', 'quiz_results',
     'evaluations_view',
   ],
-  trainee: [
-    'trainee_dashboard', 'my_training', 'take_assessment',
-    'my_certificates', 'calendar', 'evaluations_submit',
-  ],
 }
 
 export const hasPermission = (user, permission) => {
@@ -47,33 +43,41 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   // On mount: restore user from localStorage
-  const restoreUser = useCallback(async () => {
-    const stored = localStorage.getItem('learnsphere_user')
-    if (stored) {
-      try {
-        JSON.parse(stored)
-        // Real user: verify token is still valid by hitting /me
-        const token = localStorage.getItem('access_token')
-        if (token) {
-          try {
-            const { data } = await authAPI.me()
-            const role = mapBackendRole(data.role)
-            const userObj = { ...data, role }
-            setUser(userObj)
-            localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
-          } catch {
-            // Token expired — clear everything
-            _clearStorage()
+  useEffect(() => {
+    const restoreUser = async () => {
+      const stored = localStorage.getItem('learnsphere_user')
+      if (stored) {
+        try {
+          JSON.parse(stored)
+          // Real user: verify token is still valid by hitting /me
+          const token = localStorage.getItem('access_token')
+          if (token) {
+            try {
+              const { data } = await authAPI.me()
+              const role = mapBackendRole(data.role)
+              const userObj = { ...data, role }
+              setUser(userObj)
+              localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
+            } catch {
+              // Token expired — clear everything
+              localStorage.removeItem('learnsphere_user')
+              localStorage.removeItem('access_token')
+              localStorage.removeItem('refresh_token')
+              setUser(null)
+            }
           }
+        } catch {
+          localStorage.removeItem('learnsphere_user')
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          setUser(null)
         }
-      } catch {
-        _clearStorage()
       }
+      setLoading(false)
     }
-    setLoading(false)
-  }, [])
 
-  useEffect(() => { restoreUser() }, [restoreUser])
+    restoreUser()
+  }, []) // Empty dependency array - only run once on mount
 
   const _clearStorage = () => {
     localStorage.removeItem('learnsphere_user')

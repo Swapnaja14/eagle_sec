@@ -290,7 +290,7 @@ class TraineeCoursesView(APIView):
         assignment_qs = (
             TrainingAssignment.objects.select_related("course")
             .filter(
-                trainee=user,
+                employee=user,
                 course__status="active",
                 status__in=[
                     TrainingAssignment.STATUS_ASSIGNED,
