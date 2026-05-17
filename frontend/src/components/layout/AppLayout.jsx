@@ -115,28 +115,12 @@ const SIDEBAR_NAV = {
       ]
     },
   ],
-  trainee: [
-    {
-      section: 'Overview', items: [
-        { to: '/trainee/dashboard', icon: '🏠', label: 'My Dashboard' },
-      ]
-    },
-    {
-      section: 'Learning', items: [
-        { to: '/trainee/my-training', icon: '📜', label: 'My Training History' },
-        { to: '/trainee/assessments', icon: '📝', label: 'Take Assessment' },
-        { to: '/trainee/certificates', icon: '🎓', label: 'My Certificates' },
-        { to: '/admin/calendar', icon: '📅', label: 'Session Calendar' },
-      ]
-    },
-  ],
 }
 
 const ROLE_BADGE = {
   superadmin: { style: { background: 'rgba(239,68,68,0.2)', color: '#ef4444' }, label: 'Super Admin' },
   admin: { style: { background: 'rgba(59,130,246,0.2)', color: '#3b82f6' }, label: 'Admin' },
   trainer: { style: { background: 'rgba(34,197,94,0.2)', color: '#22c55e' }, label: 'Trainer' },
-  trainee: { style: { background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }, label: 'Trainee' },
 }
 
 export default function AppLayout({ children }) {
