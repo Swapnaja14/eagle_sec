@@ -85,7 +85,7 @@ class SiteSerializer(serializers.ModelSerializer):
         model = Site
         fields = [
             'id', 'name', 'address', 'city', 'state', 'country',
-            'postal_code', 'is_active', 'client_id'
+            'postal_code', 'is_active', 'client_id', 'client'
         ]
 
 

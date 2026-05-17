@@ -112,6 +112,10 @@ class SiteListCreateView(generics.ListCreateAPIView):
             return Site.objects.all()
         return Site.objects.filter(tenant=user.tenant, is_active=True)
 
+    def perform_create(self, serializer):
+        tenant = None if self.request.user.role == 'superadmin' else self.request.user.tenant
+        serializer.save(tenant=tenant)
+
 
 class ClientListCreateView(generics.ListCreateAPIView):
     serializer_class = ClientSerializer
@@ -124,6 +128,10 @@ class ClientListCreateView(generics.ListCreateAPIView):
         if user.role == 'superadmin':
             return Client.objects.all()
         return Client.objects.filter(tenant=user.tenant, is_active=True)
+
+    def perform_create(self, serializer):
+        tenant = None if self.request.user.role == 'superadmin' else self.request.user.tenant
+        serializer.save(tenant=tenant)
 
 
 @api_view(['GET'])

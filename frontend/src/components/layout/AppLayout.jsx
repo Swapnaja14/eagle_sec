@@ -89,18 +89,7 @@ const SIDEBAR_NAV = {
     ]},
   ],
   trainee: [
-    { section: 'Overview', items: [
-      { to: '/trainee/dashboard', icon: '🏠', label: 'My Dashboard' },
-    ]},
-    { section: 'Learning', items: [
-      { to: '/trainee/my-training', icon: '📜', label: 'My Training History' },
-      { to: '/trainee/assessments', icon: '📝', label: 'Take Assessment' },
-      { to: '/trainee/certificates', icon: '🎓', label: 'My Certificates' },
-      { to: '/admin/calendar', icon: '📅', label: 'Session Calendar' },
-    ]},
-    { section: 'Feedback', items: [
-      { to: '/sessions/evaluate', icon: '⭐', label: 'Rate a Session' },
-    ]},
+    // Trainees should use the mobile app for their training, assessments, and certificates.
   ],
 }
 
