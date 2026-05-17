@@ -1,36 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
- StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  ArrowLeft,
-  Heart,
-  Star,
-  Clock,
-  BookOpen,
-  Award,
-  Play,
-  ChevronRight,
-  Shield,
-  CheckCircle,
+  ArrowLeft, Heart, Clock, BookOpen, Award, Play, ChevronRight,
+  FileText, Video,
 } from 'lucide-react-native';
 import { coursesAPI, assessmentsAPI } from '../services/api';
 import { colors, spacing, radius, typography, shared, shadows } from '../theme';
 
-const COVER =
-  'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=900';
+const COVER = 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=900';
 
 export default function CourseDetailScreen({ navigation, route }) {
   const { courseId } = route.params || {};
-
   const [course, setCourse] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,52 +21,26 @@ export default function CourseDetailScreen({ navigation, route }) {
 
   useEffect(() => {
     let mounted = true;
-
-    const loadCourse = async () => {
+    (async () => {
       try {
-        const [courseResponse, quizResponse] = await Promise.all([
+        const [c, q] = await Promise.all([
           coursesAPI.get(courseId).catch(() => null),
-          assessmentsAPI
-            .listQuizzes({ course: courseId })
-            .catch(() => ({ data: { results: [] } })),
+          assessmentsAPI.list({ course: courseId }).catch(() => ({ data: { results: [] } })),
         ]);
-
         if (!mounted) return;
-
-        if (courseResponse) {
-          setCourse(courseResponse.data);
-        }
-
-        const quizList =
-          quizResponse?.data?.results || quizResponse?.data || [];
-
-        setQuizzes(quizList);
-      } catch (error) {
-        console.error('Failed to load course details', error);
-        Alert.alert('Error', 'Unable to load course details.');
-        navigation.goBack();
+        if (c) setCourse(c.data);
+        const list = q.data?.results || q.data || [];
+        setQuizzes(list);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
-    };
-
-    loadCourse();
-
-    return () => {
-      mounted = false;
-    };
+    })();
+    return () => { mounted = false; };
   }, [courseId]);
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={[
-          shared.screen,
-          { justifyContent: 'center', alignItems: 'center' },
-        ]}
-      >
+      <SafeAreaView style={[shared.screen, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator color={colors.text} />
       </SafeAreaView>
     );
@@ -91,44 +48,24 @@ export default function CourseDetailScreen({ navigation, route }) {
 
   if (!course) {
     return (
-      <SafeAreaView
-        style={[
-          shared.screen,
-          { justifyContent: 'center', alignItems: 'center' },
-        ]}
-      >
+      <SafeAreaView style={[shared.screen, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={typography.bodyMuted}>Course not found.</Text>
       </SafeAreaView>
     );
   }
 
-  const lessons =
-    course.lesson_count ||
-    (course.lessons ? course.lessons.length : 0);
-
-  const level =
-    course.skills_taxonomy &&
-    course.skills_taxonomy !== 'none'
-      ? course.skills_taxonomy
-      : 'Standard';
+  const lessons = course.lesson_count ?? quizzes.length ?? 0;
+  const level = course.skills_taxonomy && course.skills_taxonomy !== 'none' ? course.skills_taxonomy : 'Standard';
 
   return (
     <SafeAreaView style={shared.screen} edges={['top', 'left', 'right']}>
-      {/* Header */}
+      {/* Yellow header */}
       <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.iconBtn}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
-
         <Text style={styles.topTitle}>Course Details</Text>
-
-        <TouchableOpacity
-          onPress={() => setFavorited((v) => !v)}
-          style={styles.iconBtn}
-        >
+        <TouchableOpacity onPress={() => setFavorited((v) => !v)} style={styles.iconBtn}>
           <Heart
             size={20}
             color={favorited ? colors.danger : colors.text}
@@ -142,40 +79,20 @@ export default function CourseDetailScreen({ navigation, route }) {
 
         <View style={styles.body}>
           <Text style={styles.title}>{course.display_name}</Text>
-
-          <View style={styles.metaRow}>
-            <Text style={styles.author}>
-              by {course.created_by_name || 'EagleSec'}
-            </Text>
-
-            <View style={styles.rating}>
-              <Star size={14} color={colors.star} fill={colors.star} />
-              <Text style={styles.ratingText}>4.9</Text>
-              <Text style={styles.ratingCount}>(200 reviews)</Text>
-            </View>
-          </View>
+          <Text style={styles.author}>by {course.created_by_name || 'EagleSec'}</Text>
 
           <Text style={styles.desc}>
             {course.description ||
-              'Start your journey into modern security training. This course covers core concepts, compliance scenarios, and practical assessments.'}
+              'Start your journey into modern security training. This course covers core concepts, practical compliance scenarios, and hands-on assessment to help you reach proficiency.'}
           </Text>
 
-          {/* Stats */}
+          {/* Two stat boxes */}
           <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Clock size={20} color={colors.text} />
-              <Text style={styles.statValue}>
-                {lessons * 10 || 30} mins
-              </Text>
-              <Text style={styles.statLabel}>Duration</Text>
-            </View>
-
             <View style={styles.stat}>
               <BookOpen size={20} color={colors.text} />
               <Text style={styles.statValue}>{lessons} Lessons</Text>
               <Text style={styles.statLabel}>Modules</Text>
             </View>
-
             <View style={styles.stat}>
               <Award size={20} color={colors.text} />
               <Text style={styles.statValue}>{level}</Text>
@@ -183,147 +100,97 @@ export default function CourseDetailScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Compliance */}
-          {course.compliance_taxonomy ? (
-            <>
-              <Text
-                style={[
-                  shared.sectionTitle,
-                  { marginTop: spacing.xl },
-                ]}
-              >
-                Compliance
-              </Text>
-
-              <View style={styles.complianceCard}>
-                <Shield size={18} color={colors.text} />
-                <Text style={styles.complianceText}>
-                  {course.compliance_taxonomy}
-                </Text>
-              </View>
-            </>
-          ) : null}
-
-          {/* Curriculum */}
-          <Text
-            style={[
-              shared.sectionTitle,
-              { marginTop: spacing.xl },
-            ]}
-          >
-            Curriculum
-          </Text>
-
-          {course.lessons && course.lessons.length > 0 ? (
-            course.lessons.map((lesson, index) => (
-              <View
-                key={lesson.id || index}
-                style={styles.lessonItem}
-              >
-                <View style={styles.lessonOrder}>
-                  <Text style={styles.lessonOrderText}>
-                    {index + 1}
-                  </Text>
-                </View>
-
-                <Text style={styles.lessonTitle}>
-                  {lesson.title}
-                </Text>
-
-                {lesson.is_completed && (
-                  <CheckCircle
-                    color={colors.success || '#10b981'}
-                    size={18}
-                  />
-                )}
-              </View>
-            ))
-          ) : (
+          {/* Lessons list */}
+          <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Lessons</Text>
+          {(!course.lessons || course.lessons.length === 0) ? (
             <View style={styles.emptyCard}>
-              <Text style={typography.bodyMuted}>
-                No lessons available.
-              </Text>
+              <Text style={typography.bodyMuted}>No lessons added to this course yet.</Text>
             </View>
+          ) : (
+            course.lessons.map((lesson, idx) => {
+              const videos = (lesson.files || []).filter(f => f.file_type === 'video');
+              const docs = (lesson.files || []).filter(f => f.file_type !== 'video');
+              return (
+                <TouchableOpacity
+                  key={lesson.id}
+                  style={styles.lessonRow}
+                  onPress={() => navigation.navigate('LessonDetail', {
+                    courseId,
+                    lessonId: lesson.id,
+                    lessonTitle: lesson.title,
+                    files: lesson.files || [],
+                  })}
+                >
+                  <View style={styles.lessonOrder}>
+                    <Text style={styles.lessonOrderText}>{idx + 1}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.lessonTitle} numberOfLines={1}>{lesson.title}</Text>
+                    <View style={styles.lessonMeta}>
+                      {videos.length > 0 && (
+                        <View style={styles.lessonTag}>
+                          <Video size={12} color={colors.textMuted} />
+                          <Text style={styles.lessonTagText}>{videos.length} video{videos.length !== 1 ? 's' : ''}</Text>
+                        </View>
+                      )}
+                      {docs.length > 0 && (
+                        <View style={styles.lessonTag}>
+                          <FileText size={12} color={colors.textMuted} />
+                          <Text style={styles.lessonTagText}>{docs.length} note{docs.length !== 1 ? 's' : ''}</Text>
+                        </View>
+                      )}
+                      {videos.length === 0 && docs.length === 0 && (
+                        <Text style={styles.lessonTagText}>No materials yet</Text>
+                      )}
+                    </View>
+                  </View>
+                  <ChevronRight size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              );
+            })
           )}
 
-          {/* Assessments */}
-          <Text
-            style={[
-              shared.sectionTitle,
-              { marginTop: spacing.xl },
-            ]}
-          >
-            Assessments
-          </Text>
-
+          {/* Assessments / quizzes list */}
+          <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Assessments</Text>
           {quizzes.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={typography.bodyMuted}>
-                No assessments published for this course yet.
-              </Text>
+              <Text style={typography.bodyMuted}>No assessments published for this course yet.</Text>
             </View>
           ) : (
-            quizzes.map((quiz) => (
+            quizzes.map((q) => (
               <TouchableOpacity
-                key={quiz.id}
+                key={q.id}
                 style={styles.quizRow}
-                onPress={() =>
-                  navigation.navigate('TakeAssessment', {
-                    quizId: quiz.id,
-                  })
-                }
+                onPress={() => navigation.navigate('TakeAssessment', { quizId: q.id })}
               >
                 <View style={styles.quizIcon}>
                   <Play size={18} color={colors.text} />
                 </View>
-
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={styles.quizTitle}
-                    numberOfLines={1}
-                  >
-                    {quiz.title}
-                  </Text>
-
+                  <Text style={styles.quizTitle} numberOfLines={1}>{q.title}</Text>
                   <Text style={styles.quizSub}>
-                    {quiz.total_questions || 0} questions • Pass{' '}
-                    {quiz.passing_score}%
+                    {q.total_questions || 0} questions • Pass {q.passing_score}%
                   </Text>
                 </View>
-
-                <ChevronRight
-                  size={18}
-                  color={colors.textMuted}
-                />
+                <ChevronRight size={18} color={colors.textMuted} />
               </TouchableOpacity>
             ))
           )}
         </View>
       </ScrollView>
 
-      {/* Bottom CTA */}
+      {/* Sticky CTA at bottom */}
       <View style={styles.cta}>
         <TouchableOpacity
           style={styles.ctaBtn}
           onPress={() => {
-            if (quizzes[0]) {
-              navigation.navigate('TakeAssessment', {
-                quizId: quizzes[0].id,
-              });
-            } else {
-              Alert.alert(
-                'No Assessment',
-                'No assessment available for this course.'
-              );
-            }
+            if (quizzes[0]) navigation.navigate('TakeAssessment', { quizId: quizzes[0].id });
           }}
+          disabled={!quizzes[0]}
         >
           <Text style={styles.ctaText}>
-            {quizzes[0]
-              ? 'Start Assessment'
-              : 'No Assessment Available'}
+            {quizzes[0] ? 'Start Assessment' : 'No Assessment Available'}
           </Text>
-
           <ChevronRight size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
@@ -342,83 +209,29 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
   },
-
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     ...shadows.pill,
   },
-
-  topTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text,
-  },
-
+  topTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
   cover: {
     width: '100%',
     height: 220,
     marginTop: -10,
     backgroundColor: colors.cardSoft,
   },
-
-  body: {
-    padding: spacing.lg,
-  },
-
-  title: {
-    ...typography.h1,
-    fontSize: 22,
-    marginBottom: 4,
-  },
-
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-
-  author: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-
-  rating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-
-  ratingText: {
-    fontWeight: '700',
-    color: colors.text,
-    marginLeft: 4,
-  },
-
-  ratingCount: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginLeft: 4,
-  },
-
-  desc: {
-    ...typography.body,
-    color: '#333',
-    lineHeight: 22,
-  },
-
+  body: { padding: spacing.lg },
+  title: { ...typography.h1, fontSize: 22, marginBottom: 4 },
+  author: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.lg },
+  desc: { ...typography.body, color: '#333', lineHeight: 22 },
   stats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: spacing.xl,
     gap: spacing.md,
   },
-
   stat: {
     flex: 1,
     backgroundColor: colors.card,
@@ -427,67 +240,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.pill,
   },
-
-  statValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 6,
-  },
-
-  statLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  complianceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    gap: spacing.sm,
-    ...shadows.pill,
-  },
-
-  complianceText: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-
-  lessonItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginTop: spacing.md,
-    ...shadows.pill,
-  },
-
-  lessonOrder: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-
-  lessonOrderText: {
-    color: colors.text,
-    fontWeight: '700',
-  },
-
-  lessonTitle: {
-    flex: 1,
-    color: colors.text,
-    fontWeight: '600',
-  },
-
+  statValue: { fontSize: 13, fontWeight: '800', color: colors.text, marginTop: 6 },
+  statLabel: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   emptyCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -496,7 +250,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.pill,
   },
-
+  lessonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    ...shadows.pill,
+  },
+  lessonOrder: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  lessonOrderText: { fontWeight: '800', fontSize: 14, color: colors.text },
+  lessonTitle: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  lessonMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 },
+  lessonTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lessonTagText: { fontSize: 11, color: colors.textMuted },
   quizRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -506,40 +279,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     ...shadows.pill,
   },
-
   quizIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginRight: spacing.md,
   },
-
-  quizTitle: {
-    fontWeight: '700',
-    color: colors.text,
-    fontSize: 14,
-  },
-
-  quizSub: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
+  quizTitle: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  quizSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   cta: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: colors.background,
     padding: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-
   ctaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -549,11 +303,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: radius.pill,
   },
-
-  ctaText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text,
-    marginRight: 6,
-  },
+  ctaText: { fontSize: 16, fontWeight: '800', color: colors.text, marginRight: 6 },
 });

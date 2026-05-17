@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "npx expo start",
-    "android": "npx expo start --android",
-    "ios": "npx expo start --ios",
-    "web": "npx expo start --web"
+    "start": "set EXPO_OFFLINE=1&& expo start",
+    "start:online": "expo start",
+    "android": "set EXPO_OFFLINE=1&& expo start --android",
+    "ios": "set EXPO_OFFLINE=1&& expo start --ios",
+    "web": "set EXPO_OFFLINE=1&& expo start --web"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -16,9 +17,11 @@
     "@react-navigation/native-stack": "^7.14.11",
     "axios": "^1.15.0",
     "expo": "~54.0.33",
+    "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-status-bar": "~3.0.9",
+    "expo-web-browser": "~15.0.10",
     "lucide-react-native": "^1.8.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",

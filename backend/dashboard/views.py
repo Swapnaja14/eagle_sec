@@ -5,15 +5,13 @@ from django.db.models import Count, Max, Q
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from .models import ComplianceAlert
 from accounts.models import User
-from .models import ComplianceAlert, TrainingSession
+from .models import TrainingSession
 from .serializers import TrainingSessionSerializer
 from courses.models import TrainingAssignment
-from assessments.models import Submission, Quiz
-from feedback.models import Feedback
+from assessments.models import Submission
 from certificates.models import IssuedCertificate
-from feedback.models import Feedback    
-
 from .services import (
     get_dashboard_summary,
     get_department_completion,
@@ -42,15 +40,6 @@ class CanManageSessions(BasePermission):
             request.user
             and request.user.is_authenticated
             and getattr(request.user, "role", None) in {"superadmin", "admin", "instructor"}
-        )
-
-
-class IsInstructor(BasePermission):
-    def has_permission(self, request, view):
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and getattr(request.user, "role", None) == User.ROLE_INSTRUCTOR
         )
 
 
@@ -227,79 +216,104 @@ class TraineeDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from courses.models import TrainingAssignment
+        from assessments.models import Submission, Quiz
+        from certificates.models import IssuedCertificate
+        from dashboard.models import TrainingSession
+        from django.db.models import Count, Q, Max
+        from django.utils import timezone
+
         user = request.user
-        tenant = getattr(user, 'tenant', None)
-
-        # 1. My Training (Recent completed submissions)
-        recent_submissions = Submission.objects.filter(
-            user=user
-        ).select_related('quiz').order_by('-updated_at')[:5]
-
+        
+        # Get trainee's assigned courses
+        assignments = TrainingAssignment.objects.select_related('course').filter(
+            trainee=user,
+            course__status='active'
+        )
+        if user.tenant:
+            assignments = assignments.filter(tenant=user.tenant)
+        
         my_training = []
-        for sub in recent_submissions:
+        for assignment in assignments:
+            course = assignment.course
+            
+            # Get best score from submissions
+            best_submission = Submission.objects.filter(
+                user=user,
+                quiz__course=course,
+                status='completed'
+            ).order_by('-percentage').first()
+            
+            score = best_submission.percentage if best_submission else None
+            status = 'passed' if best_submission and best_submission.passed else 'in-progress'
+            
+            # Check if certificate is ready
+            cert = IssuedCertificate.objects.filter(
+                employee=user,
+                course=course
+            ).first()
+            
             my_training.append({
-                "id": sub.id,
-                "module": sub.quiz.title,
-                "date": sub.updated_at.strftime("%Y-%m-%d"),
-                "score": sub.percentage if sub.status == 'completed' else None,
-                "status": "passed" if sub.passed else ("in-progress" if sub.status == "in_progress" else "failed"),
-                "certificateReady": sub.passed
+                'id': course.id,
+                'course_id': course.course_id,
+                'module': course.display_name,
+                'date': best_submission.submitted_at.strftime('%Y-%m-%d') if best_submission else assignment.assigned_at.strftime('%Y-%m-%d'),
+                'score': int(score) if score else None,
+                'status': status,
+                'certificateReady': cert is not None,
+                'certificate_id': cert.id if cert else None,
             })
-
-        # 2. Upcoming Sessions
-        sessions = TrainingSession.objects.filter(
+        
+        # Get upcoming sessions
+        upcoming_sessions = TrainingSession.objects.filter(
             is_active=True,
             date_time__gte=timezone.now()
         )
-        if tenant:
-            sessions = sessions.filter(tenant=tenant)
-        sessions = sessions.order_by('date_time')[:5]
-
-        upcoming_sessions = []
-        for sess in sessions:
-            upcoming_sessions.append({
-                "id": sess.id,
-                "module": sess.topic,
-                "date": sess.date_time.strftime("%Y-%m-%d at %I:%M %p"),
-                "type": sess.session_type,
-                "venue": sess.site if sess.site else "Online"
-            })
-
-        # 3. Pending Assessments
-        completed_quiz_ids = Submission.objects.filter(
-            user=user, status='completed'
-        ).values_list('quiz_id', flat=True)
+        if user.tenant:
+            upcoming_sessions = upcoming_sessions.filter(tenant=user.tenant)
         
-        pending_quizzes = Quiz.objects.filter(
+        sessions_list = []
+        for session in upcoming_sessions[:5]:
+            is_virtual = session.session_type == 'virtual'
+            sessions_list.append({
+                'id': session.id,
+                'module': session.topic,
+                'date': session.date_time.strftime('%Y-%m-%d at %I:%M %p'),
+                'type': 'virtual' if is_virtual else 'classroom',
+                'venue': session.meeting_link if is_virtual else session.venue,
+            })
+        
+        # Get pending assessments (quizzes not yet attempted)
+        quizzes = Quiz.objects.filter(
+            course__trainingassignment__trainee=user,
             is_active=True
         )
-        if tenant:
-            pending_quizzes = pending_quizzes.filter(tenant=tenant)
-            
-        pending_quizzes = pending_quizzes.exclude(id__in=completed_quiz_ids)[:5]
-
+        if user.tenant:
+            quizzes = quizzes.filter(tenant=user.tenant)
+        
         pending_assessments = []
-        for q in pending_quizzes:
-            pending_assessments.append({
-                "id": q.id,
-                "module": q.title,
-                "deadline": "N/A",
-                "questions": q.quiz_questions.count(),
-                "timeLimit": q.time_limit_minutes,
-                "attempted": Submission.objects.filter(user=user, quiz=q).exists()
-            })
-
+        for quiz in quizzes[:5]:
+            # Check if user has completed this quiz
+            completed = Submission.objects.filter(
+                user=user,
+                quiz=quiz,
+                status='completed'
+            ).exists()
+            
+            if not completed:
+                pending_assessments.append({
+                    'id': quiz.id,
+                    'module': quiz.title,
+                    'deadline': (timezone.now() + timezone.timedelta(days=7)).strftime('%Y-%m-%d'),
+                    'questions': quiz.quiz_questions.count(),
+                    'timeLimit': quiz.time_limit_minutes,
+                    'attempted': False,
+                })
+        
         return Response({
-            "user": {
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "username": user.username,
-                "role": user.role,
-                "department": user.department,
-            },
-            "my_training": my_training,
-            "upcoming_sessions": upcoming_sessions,
-            "pending_assessments": pending_assessments
+            'my_training': my_training,
+            'upcoming_sessions': sessions_list,
+            'pending_assessments': pending_assessments,
         })
 
 
@@ -350,7 +364,7 @@ class TraineeCoursesView(APIView):
         assignment_qs = (
             TrainingAssignment.objects.select_related("course")
             .filter(
-                employee=user,
+                trainee=user,
                 course__status="active",
                 status__in=[
                     TrainingAssignment.STATUS_ASSIGNED,
@@ -460,227 +474,3 @@ class TraineeCoursesView(APIView):
 
         results.sort(key=lambda row: (-row["progress"]["percent"], row["display_name"]))
         return Response({"count": len(results), "results": results})
-
-
-class TrainerDashboardView(APIView):
-    """
-    Provides dashboard data for trainers/instructors including:
-    - Upcoming and completed sessions
-    - Monthly session counts and score trends
-    - Feedback ratings from trainees
-    """
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-
-        # Get trainer's sessions
-        sessions_qs = TrainingSession.objects.filter(trainer=user)
-        if user.tenant:
-            sessions_qs = sessions_qs.filter(tenant=user.tenant)
-
-        now = timezone.now()
-
-        # Separate upcoming and completed sessions
-        upcoming_sessions = sessions_qs.filter(
-            date_time__gte=now,
-            status__in=["scheduled", "draft"]
-        ).order_by("date_time")[:10]
-
-        completed_sessions = sessions_qs.filter(
-            status="completed"
-        ).order_by("-date_time")[:10]
-
-        # Format sessions data
-        def format_session(s):
-            return {
-                "id": s.id,
-                "topic": s.topic,
-                "type": s.session_type,
-                "date": s.date_time.strftime("%b %d, %I:%M %p"),
-                "site": s.venue or s.site or "Online" if s.session_type == "virtual" else "TBD",
-                "enrolled": s.attendee_count,
-                "attended": getattr(s, 'attended_count', 0) or 0,
-                "status": s.status if s.date_time >= now else "completed",
-                "date_time": s.date_time.isoformat(),
-            }
-
-        upcoming = [format_session(s) for s in upcoming_sessions]
-        completed = [format_session(s) for s in completed_sessions]
-
-        # Calculate total trainees trained
-        total_trained = completed_sessions.aggregate(
-            total=Count('attendee_count')
-        )['total'] or 0
-
-        # Get monthly session trend (last 6 months)
-        from django.db.models.functions import TruncMonth
-        six_months_ago = now - timezone.timedelta(days=180)
-
-        monthly_sessions = (
-            sessions_qs.filter(date_time__gte=six_months_ago)
-            .annotate(month=TruncMonth('date_time'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
-
-        session_trend = [
-            {
-                "month": m['month'].strftime("%b") if m['month'] else "Unknown",
-                "sessions": m['count']
-            }
-            for m in monthly_sessions
-        ]
-
-        # Get trainee scores for sessions taught by this trainer
-        # We look at submissions from quizzes related to courses taught in these sessions
-        trainer_topics = list(sessions_qs.values_list('topic', flat=True).distinct())
-
-        # Get average scores from submissions for sessions this trainer conducted
-        avg_scores = (
-            Submission.objects.filter(
-                quiz__course__display_name__in=trainer_topics,
-                status='completed'
-            ).values('submitted_at__month')
-            .annotate(avg_score=Max('percentage'))
-        )
-
-        # Build score trend (last 6 months)
-        score_trend = []
-        for i in range(5, -1, -1):
-            month_date = now - timezone.timedelta(days=30*i)
-            month_name = month_date.strftime("%b")
-            # Find average for this month (simplified)
-            month_avg = (
-                Submission.objects.filter(
-                    quiz__course__display_name__in=trainer_topics,
-                    status='completed',
-                    submitted_at__month=month_date.month,
-                    submitted_at__year=month_date.year
-                ).aggregate(avg=Max('percentage'))['avg'] or 0
-            )
-            score_trend.append({"month": month_name, "avg": round(month_avg, 1) if month_avg else 75 + i})
-
-        # Get feedback for this trainer
-        feedback_qs = Feedback.objects.filter(trainer=user)
-        if user.tenant:
-            feedback_qs = feedback_qs.filter(tenant=user.tenant)
-
-        recent_feedback = feedback_qs.select_related('session').order_by('-submitted_at')[:5]
-
-        feedback_data = [
-            {
-                "session": f.session.topic if f.session else "Unknown Session",
-                "rating": f.rating,
-                "responses": 1,
-                "trend": "↑" if f.rating >= 4 else "→" if f.rating >= 3 else "↓",
-                "comments": f.comments
-            }
-            for f in recent_feedback
-        ]
-
-        # If no feedback, provide empty array
-        if not feedback_data:
-            feedback_data = []
-
-        # Calculate average rating
-        avg_rating = (
-            feedback_qs.aggregate(avg=Max('rating'))['avg'] or 0
-        )
-
-        # Get current month's session count
-        current_month_sessions = sessions_qs.filter(
-            date_time__month=now.month,
-            date_time__year=now.year
-        ).count()
-
-        return Response({
-            "upcoming_sessions": upcoming,
-            "completed_sessions": completed,
-            "total_trained": total_trained,
-            "current_month_sessions": current_month_sessions,
-            "average_rating": round(avg_rating, 1) if avg_rating else 0,
-            "session_trend": session_trend if session_trend else [
-                {"month": "Nov", "sessions": 4}, {"month": "Dec", "sessions": 5},
-                {"month": "Jan", "sessions": 6}, {"month": "Feb", "sessions": 5},
-                {"month": "Mar", "sessions": 7}, {"month": "Apr", "sessions": current_month_sessions or 5},
-            ],
-            "score_trend": score_trend if any(s['avg'] > 0 for s in score_trend) else [
-                {"month": "Nov", "avg": 74}, {"month": "Dec", "avg": 79},
-                {"month": "Jan", "avg": 81}, {"month": "Feb", "avg": 83},
-                {"month": "Mar", "avg": 87}, {"month": "Apr", "avg": 88},
-            ],
-            "feedback": feedback_data,
-            "trainer_info": {
-                "id": user.id,
-                "name": f"{user.first_name} {user.last_name}".strip() or user.username,
-                "role": user.role,
-            }
-        })
-
-
-class TrainerSessionsView(APIView):
-    """
-    Provides a list of all training sessions (upcoming and completed)
-    for the logged-in trainer with filtering and pagination support.
-    """
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-
-        # Get all sessions where this user is the trainer
-        sessions_qs = TrainingSession.objects.filter(trainer=user)
-        if user.tenant:
-            sessions_qs = sessions_qs.filter(tenant=user.tenant)
-
-        # Optional filtering by status
-        status_filter = request.query_params.get('status')
-        if status_filter and status_filter != 'all':
-            sessions_qs = sessions_qs.filter(status=status_filter)
-
-        # Optional filtering by session type
-        type_filter = request.query_params.get('type')
-        if type_filter and type_filter != 'all':
-            sessions_qs = sessions_qs.filter(session_type=type_filter)
-
-        # Order by date_time (upcoming first, then completed)
-        sessions_qs = sessions_qs.order_by('date_time')
-
-        # Calculate pass rate for completed sessions (mock calculation for now)
-        sessions = []
-        for session in sessions_qs:
-            # For completed sessions, calculate a mock pass rate
-            # In production, this would come from actual quiz submissions
-            pass_pct = None
-            if session.status == 'completed':
-                # Generate deterministic mock pass rate based on session id
-                # 70-95% range
-                pass_pct = 70 + (session.id % 26)
-
-            sessions.append({
-                "id": session.id,
-                "topic": session.topic,
-                "type": session.session_type,
-                "date": session.date_time.strftime("%Y-%m-%d"),
-                "time": session.date_time.strftime("%I:%M %p"),
-                "site": session.venue or session.site or ("Online" if session.session_type == "virtual" else "TBD"),
-                "enrolled": session.attendee_count,
-                "attended": session.attendee_count if session.status == 'completed' else None,
-                "status": session.status,
-                "passPct": pass_pct,
-                "duration_minutes": session.duration_minutes,
-                "max_participants": session.max_participants,
-            })
-
-        # Calculate stats
-        upcoming_count = sum(1 for s in sessions if s['status'] in ['scheduled', 'draft'])
-        completed_count = sum(1 for s in sessions if s['status'] == 'completed')
-
-        return Response({
-            "count": len(sessions),
-            "upcoming_count": upcoming_count,
-            "completed_count": completed_count,
-            "results": sessions,
-        })

@@ -19,7 +19,7 @@ A comprehensive e-learning platform with Django REST Framework backend serving b
         ▼                   ▼                   ▼
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
 │   Web App    │    │  Mobile App  │    │ Admin Panel  │
-│   (React)    │    │ (React Native│    │   (Django)   │
+│   (React)    │    │(React Native)│    │   (Django)   │
 └──────────────┘    └──────────────┘    └──────────────┘
 ```
 

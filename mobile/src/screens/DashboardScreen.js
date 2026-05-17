@@ -1,25 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  GraduationCap,
-  BookOpen,
-  Award,
-  Calendar,
-  Bell,
-  ChevronRight,
-  TrendingUp,
-  CheckCircle2,
+  GraduationCap, BookOpen, Award, Calendar, Bell, ChevronRight, TrendingUp, CheckCircle2, User,
 } from 'lucide-react-native';
-
 import { dashboardAPI, authAPI, certificatesAPI } from '../services/api';
 import { colors, spacing, radius, typography, shared, shadows } from '../theme';
 
@@ -35,22 +21,14 @@ export default function DashboardScreen({ navigation }) {
       refresh ? setRefreshing(true) : setLoading(true);
 
       const meRes = await authAPI.me().catch(() => null);
-
-      const ov = await dashboardAPI
-        .getTraineeOverview()
-        .catch(() => ({ data: null }));
+      const ov = await dashboardAPI.getTraineeOverview().catch(() => ({ data: null }));
 
       if (meRes) {
         setMe(meRes.data);
-
-        const c = await certificatesAPI
-          .forEmployee(meRes.data.id)
-          .catch(() => ({ data: [] }));
-
+        const c = await certificatesAPI.forEmployee(meRes.data.id).catch(() => ({ data: [] }));
         const list = c.data?.results || c.data || [];
         setCerts(Array.isArray(list) ? list : []);
       }
-
       setOverview(ov.data);
     } finally {
       setLoading(false);
@@ -58,211 +36,125 @@ export default function DashboardScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={[
-          shared.screen,
-          { justifyContent: 'center', alignItems: 'center' },
-        ]}
-      >
+      <SafeAreaView style={[shared.screen, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator color={colors.text} />
       </SafeAreaView>
     );
   }
 
   const myTraining = overview?.my_training || [];
-
-  const completed = myTraining.filter(
-    (t) => t.status === 'passed' || t.status === 'completed'
-  ).length;
-
-  const inProgress = myTraining.filter(
-    (t) => t.status !== 'passed' && t.status !== 'completed'
-  ).length;
-
+  const completed = myTraining.filter((t) => t.status === 'passed' || t.status === 'completed').length;
+  const inProgress = myTraining.filter((t) => t.status !== 'passed' && t.status !== 'completed').length;
   const greetName = me?.first_name || me?.username || 'there';
 
   return (
     <SafeAreaView style={shared.screen} edges={['top', 'left', 'right']}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => load(true)}
-            tintColor={colors.text}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.text} />}
       >
-        {/* Header */}
+        {/* Yellow header */}
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greet}>Welcome back,</Text>
               <Text style={styles.name}>{greetName} 👋</Text>
             </View>
-
-            <TouchableOpacity style={styles.iconBtn}>
-              <Bell size={20} color={colors.text} />
+            <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Profile')}>
+              <User size={24} color="#6B46C1" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Stats */}
+        {/* Stats grid */}
         <View style={styles.stats}>
-          <StatCard
-            icon={BookOpen}
-            value={myTraining.length}
-            label="Enrolled"
-          />
-
-          <StatCard
-            icon={CheckCircle2}
-            value={completed}
-            label="Completed"
-          />
-
-          <StatCard
-            icon={Award}
-            value={certs.length}
-            label="Certificates"
-          />
+          <StatCard icon={BookOpen} value={myTraining.length} label="Enrolled" />
+          <StatCard icon={CheckCircle2} value={completed} label="Completed" />
+          <StatCard icon={Award} value={certs.length} label="Certificates" />
         </View>
 
-        {/* Quick Actions */}
+        {/* Quick actions */}
         <View style={shared.sectionHeader}>
           <Text style={shared.sectionTitle}>Quick Actions</Text>
         </View>
-
-        <View style={styles.actionsContainer}>
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
           <ActionRow
             icon={GraduationCap}
             title="Browse Courses"
             sub="Explore all available training modules"
             onPress={() => navigation.navigate('Catalog')}
           />
-
           <ActionRow
             icon={Calendar}
             title="Upcoming Sessions"
             sub="See scheduled training and webinars"
             onPress={() => navigation.navigate('Calendar')}
           />
-
           <ActionRow
             icon={Award}
             title="My Certificates"
-            sub={
-              certs.length
-                ? `${certs.length} earned`
-                : 'No certificates yet'
-            }
+            sub={certs.length ? `${certs.length} earned` : 'No certificates yet'}
             onPress={() => navigation.navigate('Profile')}
           />
-        </View>
-
-        {/* Training Summary */}
-        <View style={shared.sectionHeader}>
-          <Text style={shared.sectionTitle}>Training Summary</Text>
-        </View>
-
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{completed}</Text>
-            <Text style={styles.summaryLabel}>Completed</Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{inProgress}</Text>
-            <Text style={styles.summaryLabel}>In Progress</Text>
-          </View>
         </View>
 
         {/* My Training */}
         <View style={shared.sectionHeader}>
           <Text style={shared.sectionTitle}>My Training</Text>
-          <Text style={shared.sectionLink}>
-            {myTraining.length} items
-          </Text>
+          <Text style={shared.sectionLink}>{myTraining.length} items</Text>
         </View>
-
-        <View style={styles.trainingContainer}>
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
           {myTraining.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={typography.bodyMuted}>
-                No training records yet.
-              </Text>
-
-              <Text style={[typography.small, { marginTop: 4 }]}>
-                Browse courses to get started.
-              </Text>
+              <Text style={typography.bodyMuted}>No training records yet.</Text>
+              <Text style={[typography.small, { marginTop: 4 }]}>Browse courses to get started.</Text>
             </View>
           ) : (
             myTraining.map((t) => (
-              <TouchableOpacity
-                key={t.id}
-                activeOpacity={0.85}
-                onPress={() =>
-                  navigation.navigate('CourseDetail', {
-                    courseId: t.course_id || t.id,
-                  })
-                }
-              >
-                <View style={styles.tCard}>
-                  <View style={styles.tIcon}>
-                    <TrendingUp size={18} color={colors.text} />
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.tTitle} numberOfLines={1}>
-                      {t.module}
-                    </Text>
-
-                    <Text style={styles.tSub}>
-                      {t.date} • Score:{' '}
-                      {t.score ?? '—'}
-                      {t.score != null ? '%' : ''}
-                    </Text>
-                  </View>
-
-                  <View
+              <View key={t.id} style={styles.tCard}>
+                <View style={styles.tIcon}>
+                  <TrendingUp size={18} color={colors.text} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.tTitle} numberOfLines={1}>{t.module}</Text>
+                  <Text style={styles.tSub}>
+                    {t.date} • Score: {t.score ?? '—'}{t.score != null ? '%' : ''}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.badge,
+                    {
+                      backgroundColor:
+                        t.status === 'passed' || t.status === 'completed'
+                          ? '#DCFCE7'
+                          : t.status === 'failed'
+                          ? '#FEE2E2'
+                          : colors.cardSoft,
+                    },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.badge,
+                      styles.badgeText,
                       {
-                        backgroundColor:
-                          t.status === 'passed' ||
-                          t.status === 'completed'
-                            ? '#DCFCE7'
+                        color:
+                          t.status === 'passed' || t.status === 'completed'
+                            ? '#15803D'
                             : t.status === 'failed'
-                            ? '#FEE2E2'
-                            : colors.cardSoft,
+                            ? '#B91C1C'
+                            : colors.text,
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.badgeText,
-                        {
-                          color:
-                            t.status === 'passed' ||
-                            t.status === 'completed'
-                              ? '#15803D'
-                              : t.status === 'failed'
-                              ? '#B91C1C'
-                              : colors.text,
-                        },
-                      ]}
-                    >
-                      {t.status}
-                    </Text>
-                  </View>
+                    {t.status}
+                  </Text>
                 </View>
-              </TouchableOpacity>
+              </View>
             ))
           )}
         </View>
@@ -277,7 +169,6 @@ function StatCard({ icon: Icon, value, label }) {
       <View style={styles.statIcon}>
         <Icon size={18} color={colors.text} />
       </View>
-
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -290,12 +181,10 @@ function ActionRow({ icon: Icon, title, sub, onPress }) {
       <View style={styles.actionIcon}>
         <Icon size={20} color={colors.text} />
       </View>
-
       <View style={{ flex: 1 }}>
         <Text style={styles.actionTitle}>{title}</Text>
         <Text style={styles.actionSub}>{sub}</Text>
       </View>
-
       <ChevronRight size={18} color={colors.textMuted} />
     </TouchableOpacity>
   );
@@ -310,40 +199,21 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
   },
-
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  greet: {
-    fontSize: 14,
-    color: '#3a3a3a',
-  },
-
-  name: {
-    ...typography.h1,
-    fontSize: 26,
-    marginTop: 2,
-  },
-
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  greet: { fontSize: 14, color: '#3a3a3a' },
+  name: { ...typography.h1, fontSize: 26, marginTop: 2 },
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     ...shadows.pill,
   },
-
   stats: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     marginTop: -28,
     gap: spacing.md,
   },
-
   stat: {
     flex: 1,
     backgroundColor: colors.card,
@@ -352,33 +222,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.card,
   },
-
   statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.cardSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginBottom: 6,
   },
-
-  statValue: {
-    ...typography.h2,
-    fontSize: 20,
-  },
-
-  statLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  actionsContainer: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
-
+  statValue: { ...typography.h2, fontSize: 20 },
+  statLabel: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -387,60 +238,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...shadows.pill,
   },
-
   actionIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 42, height: 42, borderRadius: 21,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginRight: spacing.md,
   },
-
-  actionTitle: {
-    fontWeight: '700',
-    color: colors.text,
-    fontSize: 15,
-  },
-
-  actionSub: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  summaryContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
-
-  summaryCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    ...shadows.card,
-  },
-
-  summaryValue: {
-    ...typography.h1,
-    fontSize: 28,
-  },
-
-  summaryLabel: {
-    marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-
-  trainingContainer: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
-
+  actionTitle: { fontWeight: '700', color: colors.text, fontSize: 15 },
+  actionSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   empty: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -448,7 +253,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.pill,
   },
-
   tCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -457,38 +261,16 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...shadows.pill,
   },
-
   tIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: colors.cardSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginRight: spacing.md,
   },
-
-  tTitle: {
-    fontWeight: '700',
-    color: colors.text,
-    fontSize: 14,
-  },
-
-  tSub: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
+  tTitle: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  tSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill,
   },
-
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-  },
+  badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
 });
