@@ -55,6 +55,26 @@ export const authAPI = {
   logout: (refresh) => api.post('/auth/logout/', { refresh }),
 }
 
+// ===================== BULK UPLOAD =====================
+export const bulkUploadAPI = {
+  preview: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/auth/bulk-upload/preview/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  create: (validatedRows) => api.post('/auth/bulk-upload/create/', { validated_rows: validatedRows }),
+  downloadTemplate: () => api.get('/auth/bulk-upload/template/', { responseType: 'blob' }),
+}
+
+// ===================== RBAC =====================
+export const rbacAPI = {
+  getMatrix: () => api.get('/rbac/matrix/'),
+  updatePermission: (data) => api.post('/rbac/update/', data),
+  getHistory: (params) => api.get('/rbac/history/', { params }),
+}
+
 // ===================== CONTENT =====================
 export const contentAPI = {
   list: (params) => api.get('/content/files/', { params }),
@@ -324,21 +344,6 @@ export const analyticsAPI = {
   report: () =>
     api.get('/analytics/report/', {
       responseType: 'blob',
-    }),
-}
-
-// ===================== RBAC =====================
-export const rbacAPI = {
-  list: () => api.get('/auth/rbac/'),
-  update: (data) => api.post('/auth/rbac/update/', data),
-  history: () => api.get('/auth/rbac/history/'),
-}
-
-// ===================== BULK UPLOAD =====================
-export const bulkUploadAPI = {
-  upload: (formData) =>
-    api.post('/auth/users/bulk-upload/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
     }),
 }
 

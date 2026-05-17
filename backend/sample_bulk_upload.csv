@@ -1,0 +1,6 @@
+Employee ID,First Name,Last Name,Email,Department,Designation,Client,Site,Role
+EMP-30001,Rajesh,Kumar,rajesh.kumar@secureguard.in,Security,Guard,SecureGuard India,Mumbai HQ,trainee
+EMP-30002,Priya,Sharma,priya.sharma@secureguard.in,Training,Senior Trainer,SecureGuard India,Delhi Office,trainer
+EMP-30003,Amit,Patel,amit.patel@sapphire.in,Security,Supervisor,Sapphire Security,Pune Campus,trainee
+EMP-30004,Sneha,Reddy,sneha.reddy@rapidshield.co,HR,Manager,RapidShield Corp,Bangalore Tech Park,admin
+EMP-30005,Vikram,Singh,vikram.singh@secureguard.in,Security,Guard,SecureGuard India,Chennai Port,trainee

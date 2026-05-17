@@ -38,6 +38,9 @@ urlpatterns = [
     path('api/feedback/', include('feedback.urls')),
     path('api/analytics/', include('analytics.urls')),
     path('api/certificates/', include('certificates.urls')),
+    
+    # RBAC Management
+    path('api/rbac/', include('rbac.urls')),
 ]
 
 # Media files
