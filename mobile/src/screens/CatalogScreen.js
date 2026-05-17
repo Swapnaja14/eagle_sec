@@ -4,7 +4,9 @@ import {
   FlatList, Image, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, SlidersHorizontal, Star, Layers, Code2, Shield, BookOpen } from 'lucide-react-native';
+import {
+  Search, SlidersHorizontal, Layers, Code2, Shield, BookOpen, User,
+} from 'lucide-react-native';
 import { coursesAPI, authAPI } from '../services/api';
 import { colors, spacing, radius, typography, shared, shadows } from '../theme';
 
@@ -91,9 +93,9 @@ export default function CatalogScreen({ navigation }) {
               <Text style={styles.hi}>Hi, {greetName}</Text>
               <Text style={styles.hiSub}>Embark on a personalized security training journey.</Text>
             </View>
-            <View style={styles.avatar}>
-              <Text style={{ fontSize: 22 }}>👤</Text>
-            </View>
+            <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
+              <User size={24} color="#6B46C1" />
+            </TouchableOpacity>
           </View>
 
           {/* Search bar */}
@@ -115,7 +117,6 @@ export default function CatalogScreen({ navigation }) {
         {/* Popular Courses */}
         <View style={shared.sectionHeader}>
           <Text style={shared.sectionTitle}>Popular Courses</Text>
-          <Text style={shared.sectionLink}>See All</Text>
         </View>
         <FlatList
           horizontal
@@ -131,13 +132,7 @@ export default function CatalogScreen({ navigation }) {
               <Image source={{ uri: COVER_IMAGES[index % COVER_IMAGES.length] }} style={styles.popImage} />
               <View style={{ padding: spacing.md }}>
                 <Text style={styles.popTitle} numberOfLines={2}>{item.display_name}</Text>
-                <View style={styles.popMeta}>
-                  <Text style={styles.popMetaText}>by {item.created_by_name || 'EagleSec'}</Text>
-                  <View style={styles.popRating}>
-                    <Star size={11} color={colors.star} fill={colors.star} />
-                    <Text style={styles.popRatingText}>4.9</Text>
-                  </View>
-                </View>
+                <Text style={styles.popMetaText}>by {item.created_by_name || 'EagleSec'}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -184,10 +179,6 @@ export default function CatalogScreen({ navigation }) {
                 <Text style={styles.rowTitle} numberOfLines={2}>{item.display_name}</Text>
                 <Text style={styles.rowSub} numberOfLines={1}>by {item.created_by_name || 'EagleSec'}</Text>
                 <View style={styles.rowFooter}>
-                  <View style={styles.popRating}>
-                    <Star size={11} color={colors.star} fill={colors.star} />
-                    <Text style={styles.popRatingText}>4.9</Text>
-                  </View>
                   <View style={styles.detailsBtn}>
                     <Text style={styles.detailsBtnText}>See Details</Text>
                   </View>
@@ -219,8 +210,8 @@ const styles = StyleSheet.create({
   hi: { ...typography.h1, fontSize: 26 },
   hiSub: { ...typography.bodyMuted, color: '#3a3a3a', marginTop: 4 },
   avatar: {
-    width: 44, height: 44,
-    borderRadius: 22,
+    width: 56, height: 56,
+    borderRadius: 28,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -281,7 +272,7 @@ const styles = StyleSheet.create({
   rowFooter: {
     marginTop: 'auto',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
   detailsBtn: {

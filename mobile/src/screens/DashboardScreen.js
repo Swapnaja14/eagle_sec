@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  GraduationCap, BookOpen, Award, Calendar, Bell, ChevronRight, TrendingUp, CheckCircle2,
+  GraduationCap, BookOpen, Award, Calendar, Bell, ChevronRight, TrendingUp, CheckCircle2, User,
 } from 'lucide-react-native';
 import { dashboardAPI, authAPI, certificatesAPI } from '../services/api';
 import { colors, spacing, radius, typography, shared, shadows } from '../theme';
@@ -64,8 +64,8 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.greet}>Welcome back,</Text>
               <Text style={styles.name}>{greetName} 👋</Text>
             </View>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Bell size={20} color={colors.text} />
+            <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Profile')}>
+              <User size={24} color="#6B46C1" />
             </TouchableOpacity>
           </View>
         </View>
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   greet: { fontSize: 14, color: '#3a3a3a' },
   name: { ...typography.h1, fontSize: 26, marginTop: 2 },
   iconBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: colors.card,
     alignItems: 'center', justifyContent: 'center',
     ...shadows.pill,

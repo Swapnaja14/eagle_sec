@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  ArrowLeft, Heart, Star, Clock, BookOpen, Award, Play, ChevronRight,
+  ArrowLeft, Heart, Clock, BookOpen, Award, Play, ChevronRight,
   FileText, Video,
 } from 'lucide-react-native';
 import { coursesAPI, assessmentsAPI } from '../services/api';
@@ -79,27 +79,15 @@ export default function CourseDetailScreen({ navigation, route }) {
 
         <View style={styles.body}>
           <Text style={styles.title}>{course.display_name}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.author}>by {course.created_by_name || 'EagleSec'}</Text>
-            <View style={styles.rating}>
-              <Star size={14} color={colors.star} fill={colors.star} />
-              <Text style={styles.ratingText}>4.9</Text>
-              <Text style={styles.ratingCount}>(200 reviews)</Text>
-            </View>
-          </View>
+          <Text style={styles.author}>by {course.created_by_name || 'EagleSec'}</Text>
 
           <Text style={styles.desc}>
             {course.description ||
               'Start your journey into modern security training. This course covers core concepts, practical compliance scenarios, and hands-on assessment to help you reach proficiency.'}
           </Text>
 
-          {/* Three stat boxes */}
+          {/* Two stat boxes */}
           <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Clock size={20} color={colors.text} />
-              <Text style={styles.statValue}>{lessons * 10 || 30} mins</Text>
-              <Text style={styles.statLabel}>Duration</Text>
-            </View>
             <View style={styles.stat}>
               <BookOpen size={20} color={colors.text} />
               <Text style={styles.statValue}>{lessons} Lessons</Text>
@@ -236,16 +224,7 @@ const styles = StyleSheet.create({
   },
   body: { padding: spacing.lg },
   title: { ...typography.h1, fontSize: 22, marginBottom: 4 },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  author: { color: colors.textMuted, fontSize: 13 },
-  rating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingText: { fontWeight: '700', color: colors.text, marginLeft: 4 },
-  ratingCount: { color: colors.textMuted, fontSize: 12, marginLeft: 4 },
+  author: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.lg },
   desc: { ...typography.body, color: '#333', lineHeight: 22 },
   stats: {
     flexDirection: 'row',

@@ -77,9 +77,12 @@ export default function CalendarSessionsScreen({ navigation }) {
           <Text style={styles.title}>Calendar</Text>
           <Text style={styles.subtitle}>{monthLabel}</Text>
         </View>
-        <View style={[styles.iconBtn, { backgroundColor: colors.card }]}>
-          <CalIcon size={18} color={colors.text} />
-        </View>
+        <TouchableOpacity 
+          style={[styles.iconBtn, { backgroundColor: colors.card }]}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <User size={20} color="#6B46C1" />
+        </TouchableOpacity>
       </View>
 
       {loading ? (
