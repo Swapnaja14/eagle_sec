@@ -71,15 +71,23 @@ export default function LoginPage() {
     }
 
     try {
+      // Build payload - only include optional fields if they have values
       const payload = {
         first_name: registerForm.first_name,
         last_name: registerForm.last_name,
         username: registerForm.username,
         email: registerForm.email,
         password: registerForm.password,
+        confirm_password: registerForm.confirm_password,
         role: registerForm.role,
-        department: registerForm.department.trim() || undefined,
-        tenant_name: registerForm.tenant_name.trim() || undefined,
+      }
+
+      // Only add optional fields if they have values
+      if (registerForm.department.trim()) {
+        payload.department = registerForm.department.trim()
+      }
+      if (registerForm.tenant_name.trim()) {
+        payload.tenant_name = registerForm.tenant_name.trim()
       }
 
       const user = await auth.register(payload)
