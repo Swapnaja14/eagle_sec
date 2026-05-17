@@ -1,178 +1,286 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Linking } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
+  FlatList, Image, RefreshControl, ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen } from 'lucide-react-native';
-import { coursesAPI, baseURL } from '../services/api';
+import {
+  Search, SlidersHorizontal, Layers, Code2, Shield, BookOpen, User,
+} from 'lucide-react-native';
+import { coursesAPI, authAPI } from '../services/api';
+import { colors, spacing, radius, typography, shared, shadows } from '../theme';
+
+const CATEGORIES = [
+  { key: 'all',   label: 'All',         icon: Layers },
+  { key: 'cyber', label: 'Cybersecurity', icon: Shield },
+  { key: 'iso',   label: 'Compliance',  icon: Code2 },
+  { key: 'gen',   label: 'General',     icon: BookOpen },
+];
+
+// Cycling cover images for course cards (free Unsplash placeholders)
+const COVER_IMAGES = [
+  'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600',
+  'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=600',
+  'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=600',
+  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600',
+];
+
+const categorize = (c) => {
+  const t = `${c.compliance_taxonomy || ''} ${c.skills_taxonomy || ''} ${c.display_name || ''}`.toLowerCase();
+  if (t.includes('cyber') || t.includes('security')) return 'cyber';
+  if (t.includes('iso') || t.includes('compliance') || t.includes('psara')) return 'iso';
+  return 'gen';
+};
 
 export default function CatalogScreen({ navigation }) {
   const [courses, setCourses] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [activeCat, setActiveCat] = useState('all');
 
-  const mapCourse = (course) => ({
-    id: course.id,
-    title: course.display_name || 'Untitled Course',
-    duration: course.lesson_count ? `${course.lesson_count} lessons` : 'Self-paced',
-    category: course.category || 'General',
-    progress: course.progress?.percent ?? 0,
-    recommendation: course.recommendation?.message || 'Keep progressing with your training plan.',
-    certificateUrl: course.certificate_url || null,
-    status: course.status || 'active'
-  });
-
-  const loadCourses = useCallback(async (isRefresh = false) => {
+  const load = useCallback(async (isRefresh = false) => {
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      isRefresh ? setRefreshing(true) : setLoading(true);
 
-      setError('');
-      // Try to get allocated courses first, fallback to general list if needed
-      const response = await coursesAPI.getAllocatedForTrainee();
-      const allocatedCourses = response.data?.results || [];
-      setCourses(allocatedCourses.map(mapCourse));
-    } catch (e) {
-      console.log('Failed to fetch trainee courses, trying general list...', e);
-      try {
-        const res = await coursesAPI.list();
-        setCourses((res.data || []).map(mapCourse));
-      } catch (err) {
-        setError('Unable to fetch courses right now.');
-        setCourses([]);
-        console.log('Failed to fetch general courses', err);
-      }
+      const [meRes, listRes] = await Promise.all([
+        authAPI.me().catch(() => null),
+        coursesAPI.list().catch(() => ({ data: { results: [] } })),
+      ]);
+
+      if (meRes) setMe(meRes.data);
+      const list = listRes.data?.results || listRes.data || [];
+      setCourses(list);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadCourses();
-    const intervalId = setInterval(() => loadCourses(true), 30000);
-    return () => clearInterval(intervalId);
-  }, [loadCourses]);
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    return courses.filter((c) => {
+      if (activeCat !== 'all' && categorize(c) !== activeCat) return false;
+      if (query && !c.display_name?.toLowerCase().includes(query.toLowerCase())) return false;
+      return true;
+    });
+  }, [courses, activeCat, query]);
+
+  const popular = courses.slice(0, 5);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[shared.screen, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={colors.text} />
+      </SafeAreaView>
+    );
+  }
+
+  const greetName = me?.first_name || me?.username || 'there';
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
-      
-      <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={shared.screen} edges={['top', 'left', 'right']}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.text} />}
+      >
+        {/* Yellow header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Course Catalog</Text>
-          <Text style={styles.headerDesc}>Explore and enroll in new training modules</Text>
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.hi}>Hi, {greetName}</Text>
+              <Text style={styles.hiSub}>Embark on a personalized security training journey.</Text>
+            </View>
+            <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
+              <User size={24} color="#6B46C1" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Search bar */}
+          <View style={styles.search}>
+            <Search size={18} color={colors.textMuted} />
+            <TextInput
+              placeholder="Search topics..."
+              placeholderTextColor={colors.textMuted}
+              value={query}
+              onChangeText={setQuery}
+              style={styles.searchInput}
+            />
+            <TouchableOpacity>
+              <SlidersHorizontal size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadCourses(true)} tintColor="#3b82f6" />}
-        >
-          {loading ? (
-            <ActivityIndicator size="large" color="#3b82f6" style={styles.loader} />
-          ) : null}
-
-          {!loading && error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : null}
-
-          {!loading && !error && courses.length === 0 ? (
-            <View style={styles.emptyState}>
-              <BookOpen color="#64748b" size={48} style={{marginBottom: 16}} />
-              <Text style={styles.emptyTitle}>No Courses Available</Text>
-              <Text style={styles.emptyDesc}>Check back later for new training modules.</Text>
-            </View>
-          ) : null}
-
-          {courses.map(course => (
-            <BlurView intensity={30} tint="dark" style={styles.card} key={course.id}>
-              <View style={styles.iconBox}>
-                <BookOpen color="#3b82f6" size={24} />
+        {/* Popular Courses */}
+        <View style={shared.sectionHeader}>
+          <Text style={shared.sectionTitle}>Popular Courses</Text>
+        </View>
+        <FlatList
+          horizontal
+          data={popular}
+          keyExtractor={(it) => String(it.id)}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity
+              style={styles.popCard}
+              onPress={() => navigation.navigate('CourseDetail', { courseId: item.id })}
+            >
+              <Image source={{ uri: COVER_IMAGES[index % COVER_IMAGES.length] }} style={styles.popImage} />
+              <View style={{ padding: spacing.md }}>
+                <Text style={styles.popTitle} numberOfLines={2}>{item.display_name}</Text>
+                <Text style={styles.popMetaText}>by {item.created_by_name || 'EagleSec'}</Text>
               </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.courseTitle}>{course.title}</Text>
-                
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>Status: {course.status}</Text>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{course.category}</Text>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={<Text style={styles.empty}>No popular courses yet.</Text>}
+        />
+
+        {/* Categories */}
+        <View style={shared.sectionHeader}>
+          <Text style={shared.sectionTitle}>Categories</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
+          {CATEGORIES.map((c) => {
+            const Icon = c.icon;
+            const active = activeCat === c.key;
+            return (
+              <TouchableOpacity
+                key={c.key}
+                onPress={() => setActiveCat(c.key)}
+                style={[styles.catCard, active && styles.catCardActive]}
+              >
+                <View style={[styles.catIcon, active && { backgroundColor: colors.card }]}>
+                  <Icon size={20} color={active ? colors.text : colors.text} />
+                </View>
+                <Text style={[styles.catLabel, active && { fontWeight: '700' }]}>{c.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Courses list */}
+        <View style={shared.sectionHeader}>
+          <Text style={shared.sectionTitle}>Courses</Text>
+          <Text style={shared.sectionLink}>{filtered.length} found</Text>
+        </View>
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
+          {filtered.map((item, idx) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.row}
+              onPress={() => navigation.navigate('CourseDetail', { courseId: item.id })}
+            >
+              <Image source={{ uri: COVER_IMAGES[idx % COVER_IMAGES.length] }} style={styles.rowImg} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle} numberOfLines={2}>{item.display_name}</Text>
+                <Text style={styles.rowSub} numberOfLines={1}>by {item.created_by_name || 'EagleSec'}</Text>
+                <View style={styles.rowFooter}>
+                  <View style={styles.detailsBtn}>
+                    <Text style={styles.detailsBtnText}>See Details</Text>
                   </View>
                 </View>
-
-                {course.progress > 0 && (
-                  <Text style={styles.progressText}>Progress: {course.progress}%</Text>
-                )}
-                
-                <Text style={styles.recommendationText}>{course.recommendation}</Text>
-                
-                <View style={styles.buttonRow}>
-                  {course.certificateUrl ? (
-                    <TouchableOpacity 
-                      style={[styles.enrollBtn, { borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.15)', flex: 1, marginRight: 8 }]} 
-                      onPress={() => Linking.openURL(`${baseURL.replace('/api', '')}/api${course.certificateUrl}`)}
-                    >
-                      <Text style={[styles.enrollText, { color: '#10b981' }]}>Certificate</Text>
-                    </TouchableOpacity>
-                  ) : null}
-
-                  <TouchableOpacity 
-                    style={[styles.enrollBtn, { flex: 2 }]} 
-                    onPress={() => navigation.navigate('CourseDetail', { courseId: course.id })}
-                  >
-                    <Text style={styles.enrollText}>View Details</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
-            </BlurView>
+            </TouchableOpacity>
           ))}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+          {filtered.length === 0 && <Text style={styles.empty}>No courses match your filter.</Text>}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  background: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  header: { padding: 20, paddingTop: 10 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-  headerDesc: { fontSize: 15, color: '#94a3b8' },
-  
-  scrollContent: { padding: 20, paddingBottom: 100 },
-  loader: { marginTop: 24 },
-  errorText: { color: '#ef4444', textAlign: 'center', marginTop: 20 },
-  
-  emptyState: { padding: 40, alignItems: 'center' },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
-  emptyDesc: { color: '#94a3b8', textAlign: 'center' },
-  
-  card: {
+  header: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+  },
+  headerRow: {
     flexDirection: 'row',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
-  iconBox: {
-    width: 60, height: 60, borderRadius: 12, backgroundColor: 'rgba(59,130,246,0.1)',
-    justifyContent: 'center', alignItems: 'center', marginRight: 16
+  hi: { ...typography.h1, fontSize: 26 },
+  hiSub: { ...typography.bodyMuted, color: '#3a3a3a', marginTop: 4 },
+  avatar: {
+    width: 56, height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.pill,
   },
-  cardContent: { flex: 1 },
-  courseTitle: { fontSize: 17, fontWeight: '700', color: '#fff', marginBottom: 8 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  metaText: { fontSize: 13, color: '#94a3b8', marginRight: 12, textTransform: 'capitalize' },
-  categoryBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  categoryText: { color: '#cbd5e1', fontSize: 11, fontWeight: '600' },
-  progressText: { fontSize: 12, color: '#60a5fa', marginBottom: 4 },
-  recommendationText: { fontSize: 12, color: '#cbd5e1', marginBottom: 10 },
-  
-  buttonRow: { flexDirection: 'row' },
-  enrollBtn: { backgroundColor: 'rgba(59,130,246,0.15)', borderWidth: 1, borderColor: '#3b82f6', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  enrollText: { color: '#3b82f6', fontWeight: '700', fontSize: 14 }
+  search: {
+    backgroundColor: colors.cardSoft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    fontSize: 14,
+    color: colors.text,
+  },
+  popCard: {
+    width: 200,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  popImage: { width: '100%', height: 110 },
+  popTitle: { ...typography.h3, fontSize: 15, marginBottom: 6 },
+  popMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  popMetaText: { fontSize: 11, color: colors.textMuted },
+  popRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  popRatingText: { fontSize: 12, fontWeight: '700', color: colors.text, marginLeft: 4 },
+  catCard: {
+    width: 90, height: 90,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.pill,
+  },
+  catCardActive: { backgroundColor: colors.primary },
+  catIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.cardSoft,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  catLabel: { fontSize: 12, color: colors.text },
+  row: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  rowImg: { width: 90, height: 90, borderRadius: radius.md },
+  rowTitle: { ...typography.h3, fontSize: 14 },
+  rowSub: { ...typography.small, marginTop: 2 },
+  rowFooter: {
+    marginTop: 'auto',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  detailsBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+  },
+  detailsBtnText: { fontSize: 12, fontWeight: '700', color: colors.text },
+  empty: { textAlign: 'center', color: colors.textMuted, paddingVertical: spacing.lg, paddingHorizontal: spacing.lg },
 });

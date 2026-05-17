@@ -5,13 +5,13 @@ from django.db.models import Count, Max, Avg, Q
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from .models import ComplianceAlert
 from accounts.models import User
-from .models import ComplianceAlert, TrainingSession
+from .models import TrainingSession
 from .serializers import TrainingSessionSerializer
 from courses.models import TrainingAssignment
-from assessments.models import Submission, Quiz
+from assessments.models import Submission
 from certificates.models import IssuedCertificate
-from feedback.models import Feedback    
 from .services import (
     get_dashboard_summary,
     get_department_completion,
@@ -40,15 +40,6 @@ class CanManageSessions(BasePermission):
             request.user
             and request.user.is_authenticated
             and getattr(request.user, "role", None) in {"superadmin", "admin", "instructor"}
-        )
-
-
-class IsInstructor(BasePermission):
-    def has_permission(self, request, view):
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and getattr(request.user, "role", None) == User.ROLE_INSTRUCTOR
         )
 
 
@@ -225,79 +216,104 @@ class TraineeDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from courses.models import TrainingAssignment
+        from assessments.models import Submission, Quiz
+        from certificates.models import IssuedCertificate
+        from dashboard.models import TrainingSession
+        from django.db.models import Count, Q, Max
+        from django.utils import timezone
+
         user = request.user
-        tenant = getattr(user, 'tenant', None)
-
-        # 1. My Training (Recent completed submissions)
-        recent_submissions = Submission.objects.filter(
-            user=user
-        ).select_related('quiz').order_by('-updated_at')[:5]
-
+        
+        # Get trainee's assigned courses
+        assignments = TrainingAssignment.objects.select_related('course').filter(
+            trainee=user,
+            course__status='active'
+        )
+        if user.tenant:
+            assignments = assignments.filter(tenant=user.tenant)
+        
         my_training = []
-        for sub in recent_submissions:
+        for assignment in assignments:
+            course = assignment.course
+            
+            # Get best score from submissions
+            best_submission = Submission.objects.filter(
+                user=user,
+                quiz__course=course,
+                status='completed'
+            ).order_by('-percentage').first()
+            
+            score = best_submission.percentage if best_submission else None
+            status = 'passed' if best_submission and best_submission.passed else 'in-progress'
+            
+            # Check if certificate is ready
+            cert = IssuedCertificate.objects.filter(
+                employee=user,
+                course=course
+            ).first()
+            
             my_training.append({
-                "id": sub.id,
-                "module": sub.quiz.title,
-                "date": sub.updated_at.strftime("%Y-%m-%d"),
-                "score": sub.percentage if sub.status == 'completed' else None,
-                "status": "passed" if sub.passed else ("in-progress" if sub.status == "in_progress" else "failed"),
-                "certificateReady": sub.passed
+                'id': course.id,
+                'course_id': course.course_id,
+                'module': course.display_name,
+                'date': best_submission.submitted_at.strftime('%Y-%m-%d') if best_submission else assignment.assigned_at.strftime('%Y-%m-%d'),
+                'score': int(score) if score else None,
+                'status': status,
+                'certificateReady': cert is not None,
+                'certificate_id': cert.id if cert else None,
             })
-
-        # 2. Upcoming Sessions
-        sessions = TrainingSession.objects.filter(
+        
+        # Get upcoming sessions
+        upcoming_sessions = TrainingSession.objects.filter(
             is_active=True,
             date_time__gte=timezone.now()
         )
-        if tenant:
-            sessions = sessions.filter(tenant=tenant)
-        sessions = sessions.order_by('date_time')[:5]
-
-        upcoming_sessions = []
-        for sess in sessions:
-            upcoming_sessions.append({
-                "id": sess.id,
-                "module": sess.topic,
-                "date": sess.date_time.strftime("%Y-%m-%d at %I:%M %p"),
-                "type": sess.session_type,
-                "venue": sess.site if sess.site else "Online"
-            })
-
-        # 3. Pending Assessments
-        completed_quiz_ids = Submission.objects.filter(
-            user=user, status='completed'
-        ).values_list('quiz_id', flat=True)
+        if user.tenant:
+            upcoming_sessions = upcoming_sessions.filter(tenant=user.tenant)
         
-        pending_quizzes = Quiz.objects.filter(
+        sessions_list = []
+        for session in upcoming_sessions[:5]:
+            is_virtual = session.session_type == 'virtual'
+            sessions_list.append({
+                'id': session.id,
+                'module': session.topic,
+                'date': session.date_time.strftime('%Y-%m-%d at %I:%M %p'),
+                'type': 'virtual' if is_virtual else 'classroom',
+                'venue': session.meeting_link if is_virtual else session.venue,
+            })
+        
+        # Get pending assessments (quizzes not yet attempted)
+        quizzes = Quiz.objects.filter(
+            course__trainingassignment__trainee=user,
             is_active=True
         )
-        if tenant:
-            pending_quizzes = pending_quizzes.filter(tenant=tenant)
-            
-        pending_quizzes = pending_quizzes.exclude(id__in=completed_quiz_ids)[:5]
-
+        if user.tenant:
+            quizzes = quizzes.filter(tenant=user.tenant)
+        
         pending_assessments = []
-        for q in pending_quizzes:
-            pending_assessments.append({
-                "id": q.id,
-                "module": q.title,
-                "deadline": "N/A",
-                "questions": q.quiz_questions.count(),
-                "timeLimit": q.time_limit_minutes,
-                "attempted": Submission.objects.filter(user=user, quiz=q).exists()
-            })
-
+        for quiz in quizzes[:5]:
+            # Check if user has completed this quiz
+            completed = Submission.objects.filter(
+                user=user,
+                quiz=quiz,
+                status='completed'
+            ).exists()
+            
+            if not completed:
+                pending_assessments.append({
+                    'id': quiz.id,
+                    'module': quiz.title,
+                    'deadline': (timezone.now() + timezone.timedelta(days=7)).strftime('%Y-%m-%d'),
+                    'questions': quiz.quiz_questions.count(),
+                    'timeLimit': quiz.time_limit_minutes,
+                    'attempted': False,
+                })
+        
         return Response({
-            "user": {
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "username": user.username,
-                "role": user.role,
-                "department": user.department,
-            },
-            "my_training": my_training,
-            "upcoming_sessions": upcoming_sessions,
-            "pending_assessments": pending_assessments
+            'my_training': my_training,
+            'upcoming_sessions': sessions_list,
+            'pending_assessments': pending_assessments,
         })
 
 
@@ -348,7 +364,7 @@ class TraineeCoursesView(APIView):
         assignment_qs = (
             TrainingAssignment.objects.select_related("course")
             .filter(
-                employee=user,
+                trainee=user,
                 course__status="active",
                 status__in=[
                     TrainingAssignment.STATUS_ASSIGNED,
@@ -458,7 +474,6 @@ class TraineeCoursesView(APIView):
 
         results.sort(key=lambda row: (-row["progress"]["percent"], row["display_name"]))
         return Response({"count": len(results), "results": results})
-
 
 class TrainerDashboardView(APIView):
     """

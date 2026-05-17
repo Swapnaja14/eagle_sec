@@ -9,13 +9,13 @@ import { authAPI, baseURL } from '../services/api';
 import { colors, spacing, radius, typography, shared, shadows } from '../theme';
 
 const CHIPS = [
-  { label: 'Cybersecurity', icon: Code2, top: 90, left: 30 },
-  { label: 'Compliance', icon: Compass, top: 90, right: 30 },
-  { label: 'Networking', icon: Wifi, top: 160, left: 20 },
-  { label: 'Risk Mgmt', icon: Palette, top: 160, right: 20 },
+  { label: 'Cybersecurity', icon: Code2,    top: 90,  left: 30 },
+  { label: 'Compliance',    icon: Compass,  top: 90,  right: 30 },
+  { label: 'Networking',    icon: Wifi,     top: 160, left: 20 },
+  { label: 'Risk Mgmt',     icon: Palette,  top: 160, right: 20 },
 ];
 
-export default function LoginScreen({ setIsLoggedIn }) {
+export default function LoginScreen({ navigation, setIsLoggedIn }) {
   const [showForm, setShowForm] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -56,10 +56,6 @@ export default function LoginScreen({ setIsLoggedIn }) {
     }
   };
 
-  const fillDemo = (u, p) => {
-    setUsername(u);
-    setPassword(p);
-  };
 
   return (
     <SafeAreaView style={[shared.screen, { backgroundColor: colors.primary }]}>
@@ -146,19 +142,14 @@ export default function LoginScreen({ setIsLoggedIn }) {
                   <Text style={{ color: colors.textMuted }}>Back</Text>
                 </TouchableOpacity>
 
-                <View style={styles.demoBox}>
-                  <Text style={styles.demoTitle}>Demo accounts (tap to fill)</Text>
-                  <TouchableOpacity onPress={() => fillDemo('trainee', 'trainee123')}>
-                    <Text style={styles.demoLine}>trainee / trainee123</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => fillDemo('instructor', 'instructor123')}>
-                    <Text style={styles.demoLine}>instructor / instructor123</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => fillDemo('admin', 'admin123')}>
-                    <Text style={styles.demoLine}>admin / admin123</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.hostHint}>API: {baseURL}</Text>
-                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Register')}
+                  style={styles.registerLink}
+                >
+                  <Text style={styles.registerText}>
+                    Don't have an account? <Text style={styles.registerBold}>Create Account</Text>
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -253,26 +244,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     backgroundColor: colors.cardSoft,
   },
-  demoBox: {
+  registerLink: {
+    alignSelf: 'center',
     marginTop: spacing.xl,
-    padding: spacing.md,
-    backgroundColor: colors.cardSoft,
-    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
   },
-  demoTitle: {
-    ...typography.label,
-    marginBottom: 6,
+  registerText: {
+    ...typography.bodyMuted,
   },
-  demoLine: {
-    fontSize: 12,
+  registerBold: {
+    fontWeight: '700',
     color: colors.text,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    paddingVertical: 4,
-  },
-  hostHint: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 8,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

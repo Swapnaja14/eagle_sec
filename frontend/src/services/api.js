@@ -19,19 +19,15 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
-
       try {
         const refresh = localStorage.getItem('refresh_token')
         if (!refresh) throw new Error('No refresh token')
 
         const { data } = await api.post('/auth/refresh/', { refresh })
-
         localStorage.setItem('access_token', data.access)
         original.headers.Authorization = `Bearer ${data.access}`
-
         return api(original)
       } catch {
         localStorage.removeItem('access_token')
@@ -39,7 +35,6 @@ api.interceptors.response.use(
         window.location.href = '/login'
       }
     }
-
     return Promise.reject(error)
   }
 )
@@ -55,42 +50,17 @@ export const authAPI = {
   logout: (refresh) => api.post('/auth/logout/', { refresh }),
 }
 
-// ===================== BULK UPLOAD =====================
-export const bulkUploadAPI = {
-  preview: (file) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/auth/bulk-upload/preview/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-  create: (validatedRows) => api.post('/auth/bulk-upload/create/', { validated_rows: validatedRows }),
-  downloadTemplate: () => api.get('/auth/bulk-upload/template/', { responseType: 'blob' }),
-}
-
-// ===================== RBAC =====================
-export const rbacAPI = {
-  getMatrix: () => api.get('/rbac/matrix/'),
-  updatePermission: (data) => api.post('/rbac/update/', data),
-  getHistory: (params) => api.get('/rbac/history/', { params }),
-}
-
 // ===================== CONTENT =====================
 export const contentAPI = {
   list: (params) => api.get('/content/files/', { params }),
   get: (id) => api.get(`/content/files/${id}/`),
-
-  upload: (formData, onProgress) =>
-    api.post('/content/files/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (e) =>
-        onProgress && onProgress(Math.round((e.loaded / e.total) * 100)),
-    }),
-
+  upload: (formData, onProgress) => api.post('/content/files/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => onProgress && onProgress(Math.round((e.loaded / e.total) * 100)),
+  }),
   update: (id, data) => api.patch(`/content/files/${id}/`, data),
   delete: (id) => api.delete(`/content/files/${id}/`),
   archive: (id) => api.post(`/content/files/${id}/archive/`),
-
   listTags: () => api.get('/content/tags/'),
   createTag: (name) => api.post('/content/tags/', { name }),
 }
@@ -102,82 +72,40 @@ export const coursesAPI = {
   create: (data) => api.post('/courses/', data),
   update: (id, data) => api.patch(`/courses/${id}/`, data),
   delete: (id) => api.delete(`/courses/${id}/`),
-
   retire: (id) => api.post(`/courses/${id}/retire/`),
   activate: (id) => api.post(`/courses/${id}/activate/`),
   clone: (id) => api.post(`/courses/${id}/clone/`),
 
   // Lessons
   listLessons: (courseId) => api.get(`/courses/${courseId}/lessons/`),
-
-  createLesson: (courseId, data) =>
-    api.post(`/courses/${courseId}/lessons/`, data),
-
-  updateLesson: (courseId, lessonId, data) =>
-    api.patch(`/courses/${courseId}/lessons/${lessonId}/`, data),
-
-  deleteLesson: (courseId, lessonId) =>
-    api.delete(`/courses/${courseId}/lessons/${lessonId}/`),
-
-  reorderLessons: (courseId, data) =>
-    api.post(`/courses/${courseId}/lessons/reorder/`, data),
+  createLesson: (courseId, data) => api.post(`/courses/${courseId}/lessons/`, data),
+  updateLesson: (courseId, lessonId, data) => api.patch(`/courses/${courseId}/lessons/${lessonId}/`, data),
+  deleteLesson: (courseId, lessonId) => api.delete(`/courses/${courseId}/lessons/${lessonId}/`),
+  reorderLessons: (courseId, data) => api.post(`/courses/${courseId}/lessons/reorder/`, data),
 
   // Lesson Files
-  uploadLessonFile: (courseId, lessonId, formData) =>
-    api.post(
-      `/courses/${courseId}/lessons/${lessonId}/files/`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    ),
-
+  uploadLessonFile: (courseId, lessonId, formData) => api.post(
+    `/courses/${courseId}/lessons/${lessonId}/files/`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  ),
   deleteLessonFile: (courseId, lessonId, fileId) =>
-    api.delete(
-      `/courses/${courseId}/lessons/${lessonId}/files/${fileId}/`
-    ),
-
+    api.delete(`/courses/${courseId}/lessons/${lessonId}/files/${fileId}/`),
   updateLessonFile: (courseId, lessonId, fileId, data) =>
-    api.patch(
-      `/courses/${courseId}/lessons/${lessonId}/files/${fileId}/`,
-      data
-    ),
+    api.patch(`/courses/${courseId}/lessons/${lessonId}/files/${fileId}/`, data),
 
-  // Pre-Assessment
-  getPreAssessment: (courseId) =>
-    api.get(`/courses/${courseId}/pre-assessment/`),
+  // Pre-Assessment (OneToOne per course — no separate id needed)
+  getPreAssessment: (courseId) => api.get(`/courses/${courseId}/pre-assessment/`),
+  updatePreAssessment: (courseId, _id, data) => api.patch(`/courses/${courseId}/pre-assessment/${_id}/`, data),
 
-  updatePreAssessment: (courseId, id, data) =>
-    api.patch(`/courses/${courseId}/pre-assessment/${id}/`, data),
+  // Post-Assessment (OneToOne per course — no separate id needed)
+  getPostAssessment: (courseId) => api.get(`/courses/${courseId}/post-assessment/`),
+  updatePostAssessment: (courseId, _id, data) => api.patch(`/courses/${courseId}/post-assessment/${_id}/`, data),
 
-  // Post-Assessment
-  getPostAssessment: (courseId) =>
-    api.get(`/courses/${courseId}/post-assessment/`),
-
-  updatePostAssessment: (courseId, id, data) =>
-    api.patch(`/courses/${courseId}/post-assessment/${id}/`, data),
-
-  // Certification
-  getCertification: (courseId) =>
-    api.get(`/courses/${courseId}/certification/`),
-
-  updateCertification: (courseId, id, data) =>
-    api.patch(`/courses/${courseId}/certification/${id}/`, data),
-
-  addBatchExpiry: (courseId, data) =>
-    api.post(
-      `/courses/${courseId}/certification/add_batch_expiry/`,
-      data
-    ),
-
-  // Course Stats & Enrollments
-  getStats: (courseId) => api.get(`/courses/${courseId}/stats/`),
-
-  getEnrollments: (courseId) =>
-    api.get(`/courses/${courseId}/enrollments/`),
-
-  enrollTrainees: (courseId, data) =>
-    api.post(`/courses/${courseId}/enroll/`, data),
+  // Certification (OneToOne per course — no separate id needed)
+  getCertification: (courseId) => api.get(`/courses/${courseId}/certification/`),
+  updateCertification: (courseId, _id, data) => api.patch(`/courses/${courseId}/certification/${_id}/`, data),
+  addBatchExpiry: (courseId, data) => api.post(`/courses/${courseId}/certification/add_batch_expiry/`, data),
 }
 
 // ===================== QUESTIONS =====================
@@ -189,113 +117,19 @@ export const questionsAPI = {
   byLanguage: () => api.get('/questions/by_language/'),
 }
 
-// ===================== DASHBOARD =====================
-export const dashboardAPI = {
-  // Admin dashboard
-  getSummary: () => api.get('/dashboard/summary/'),
-  getDepartmentCompletion: () =>
-    api.get('/dashboard/department-completion/'),
-  getTrainingTrend: () => api.get('/dashboard/training-trend/'),
-  getComplianceAlerts: () => api.get('/dashboard/compliance-alerts/'),
-  getOverview: () => api.get('/dashboard/overview/'),
-
-  // Trainer / Trainee dashboards
-  trainerDashboard: () => api.get('/trainer/dashboard/'),
-  traineeDashboard: () => api.get('/trainee/dashboard/'),
-  traineeCourses: () => api.get('/trainee/courses/'),
-}
-
-// ===================== ASSESSMENTS =====================
-export const assessmentsAPI = {
-  // Quizzes
-  list: (params) => api.get('/assessments/quizzes/', { params }),
-  listQuizzes: (params) => api.get('/assessments/quizzes/', { params }),
-
-  get: (id) => api.get(`/assessments/quizzes/${id}/`),
-  getQuiz: (id) => api.get(`/assessments/quizzes/${id}/`),
-
-  createQuiz: (data) => api.post('/assessments/quizzes/', data),
-
-  updateQuiz: (id, data) =>
-    api.patch(`/assessments/quizzes/${id}/`, data),
-
-  deleteQuiz: (id) =>
-    api.delete(`/assessments/quizzes/${id}/`),
-
-  startQuiz: (id) =>
-    api.post(`/assessments/quizzes/${id}/start_quiz/`),
-
-  getQuestions: (id) =>
-    api.get(`/assessments/quizzes/${id}/questions/`),
-
-  getQuizQuestions: (id) =>
-    api.get(`/assessments/quizzes/${id}/questions/`),
-
-  addQuestionToQuiz: (id, data) =>
-    api.post(`/assessments/quizzes/${id}/add_question/`, data),
-
-  getTrainers: () =>
-    api.get('/assessments/quizzes/trainers/'),
-
-  // Submissions
-  listSubmissions: (params) =>
-    api.get('/assessments/submissions/', { params }),
-
-  getSubmission: (id) =>
-    api.get(`/assessments/submissions/${id}/`),
-
-  submitAnswer: (submissionId, data) =>
-    api.post(
-      `/assessments/submissions/${submissionId}/submit_answer/`,
-      data
-    ),
-
-  completeSubmission: (submissionId) =>
-    api.post(
-      `/assessments/submissions/${submissionId}/complete_submission/`
-    ),
-
-  mySubmissions: (params) =>
-    api.get('/assessments/submissions/my_submissions/', {
-      params,
-    }),
-
-  allSubmissions: (params) =>
-    api.get('/assessments/submissions/all_submissions/', {
-      params,
-    }),
-}
-
 // ===================== TRAINING HISTORY =====================
 export const trainingHistoryAPI = {
-  myHistory: (params) =>
-    api.get('/training-history/my/', { params }),
+  myHistory: (params) => api.get('/training-history/my/', { params }),
 }
 
 // ===================== SESSIONS =====================
 export const sessionsAPI = {
-  calendar: (params) =>
-    api.get('/sessions/calendar/', { params }),
-
-  list: (params) =>
-    api.get('/sessions/', { params }),
-
-  upcoming: () => api.get('/sessions/upcoming/'),
-
-  recentHistory: () =>
-    api.get('/training-history/recent/'),
-
+  calendar: (params) => api.get('/sessions/calendar/', { params }),
+  list: (params) => api.get('/sessions/', { params }),
   create: (data) => api.post('/sessions/', data),
-
-  update: (id, data) =>
-    api.patch(`/sessions/${id}/`, data),
-
+  update: (id, data) => api.patch(`/sessions/${id}/`, data),
   remove: (id) => api.delete(`/sessions/${id}/`),
-
   trainers: () => api.get('/sessions/trainers/'),
-
-  getMySessions: (params) =>
-    api.get('/trainer/sessions/', { params }),
 }
 
 // ===================== SITES & CLIENTS =====================
@@ -331,26 +165,8 @@ export const trainingTopicsAPI = {
 // ===================== ANALYTICS =====================
 export const analyticsAPI = {
   summary: () => api.get('/analytics/summary/'),
-
-  employeeProgress: (id) =>
-    api.get(`/analytics/employee/${id}/`),
-
-  trainerPerformance: (id) =>
-    api.get(`/analytics/trainer/${id}/`),
-
-  gapAnalysis: (params) =>
-    api.get('/analytics/gap-analysis/', { params }),
-
-  report: () =>
-    api.get('/analytics/report/', {
-      responseType: 'blob',
-    }),
-}
-
-// ===================== BULK EXPORT =====================
-export const bulkExportAPI = {
-  generate: (params) =>
-    api.post('/analytics/bulk-export/', params, {
-      responseType: 'blob',
-    }),
+  employeeProgress: (id) => api.get(`/analytics/employee/${id}/`),
+  trainerPerformance: (id) => api.get(`/analytics/trainer/${id}/`),
+  gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
+  report: () => api.get('/analytics/report/', { responseType: 'blob' }),
 }

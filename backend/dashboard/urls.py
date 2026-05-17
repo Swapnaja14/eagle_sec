@@ -15,8 +15,6 @@ from .views import (
     DashboardOverviewView,
     TraineeDashboardView,
     TraineeCoursesView,
-    TrainerDashboardView,
-    TrainerSessionsView,
 )
 
 
@@ -34,10 +32,6 @@ urlpatterns = [
     path("training-history/recent/", RecentTrainingHistoryView.as_view(), name="training-history-recent"),
     path("training-history/my/", MyTrainingHistoryView.as_view(), name="training-history-my"),
     path("dashboard/overview/", DashboardOverviewView.as_view(), name="dashboard-overview"),
-
     path("trainee/dashboard/", TraineeDashboardView.as_view(), name="trainee-dashboard"),
     path("trainee/courses/", TraineeCoursesView.as_view(), name="trainee-courses"),
-
-    path("trainer/dashboard/", TrainerDashboardView.as_view(), name="trainer-dashboard"),
-    path("trainer/sessions/", TrainerSessionsView.as_view(), name="trainer-sessions"),
 ]

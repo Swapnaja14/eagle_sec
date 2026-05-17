@@ -1,337 +1,316 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { FileText, Clock, Calendar, CheckCircle, ArrowLeft } from 'lucide-react-native';
-import { dashboardAPI, assessmentsAPI } from '../services/api';
+import { ArrowLeft, Clock, ChevronRight, CheckCircle2 } from 'lucide-react-native';
+import { quizzesAPI, submissionsAPI } from '../services/api';
+import { colors, spacing, radius, typography, shared, shadows } from '../theme';
 
-const { width } = Dimensions.get('window');
-
+/**
+ * Pulls /assessments/quizzes/{id}/, starts a submission, presents one question
+ * at a time with selectable options, then submits all answers and completes.
+ * Navigates to QuizResult with the final submission payload.
+ */
 export default function TakeAssessmentScreen({ navigation, route }) {
-  const [phase, setPhase] = useState('list');
-  const [quizzes, setQuizzes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  const [selectedQuiz, setSelectedQuiz] = useState(null);
-  const [submission, setSubmission] = useState(null);
+  const { quizId } = route.params || {};
+
+  const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [currentQ, setCurrentQ] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [resultData, setResultData] = useState(null);
+  const [submission, setSubmission] = useState(null);
+  const [answers, setAnswers] = useState({}); // { quiz_question_id: selected }
+  const [index, setIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (phase === 'list') {
-      loadPendingQuizzes();
-    }
-  }, [phase]);
+    let mounted = true;
+    (async () => {
+      try {
+        // 1) Load quiz metadata
+        const q = await quizzesAPI.get(quizId);
+        if (!mounted) return;
+        setQuiz(q.data);
 
-  const loadPendingQuizzes = async () => {
+        // 2) Start a submission
+        const startResp = await quizzesAPI.start(quizId);
+        if (!mounted) return;
+        setSubmission(startResp.data);
+
+        // 3) Load quiz questions list (with order/points)
+        const qList = await quizzesAPI.questions(quizId);
+        if (!mounted) return;
+        setQuestions(qList.data || []);
+      } catch (e) {
+        const msg = e?.response?.data?.error || 'Failed to start assessment.';
+        setError(msg);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [quizId]);
+
+  const total = questions.length;
+  const current = questions[index];
+
+  const onSelect = (qq, value) => {
+    setAnswers((prev) => ({ ...prev, [qq.id]: value }));
+  };
+
+  const onSubmit = async () => {
+    if (!submission || total === 0) return;
+
+    // Confirm before submitting
+    const unanswered = questions.filter((qq) => answers[qq.id] === undefined);
+    if (unanswered.length) {
+      Alert.alert(
+        'Unanswered questions',
+        `${unanswered.length} of ${total} unanswered. Submit anyway?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Submit', style: 'destructive', onPress: doSubmit },
+        ]
+      );
+      return;
+    }
+    doSubmit();
+  };
+
+  const doSubmit = async () => {
+    setSubmitting(true);
     try {
-      setLoading(true);
-      const res = await dashboardAPI.getTraineeOverview();
-      setQuizzes(res.data.pending_assessments || []);
+      // Push each answer
+      for (const qq of questions) {
+        const sel = answers[qq.id];
+        if (sel === undefined) continue;
+        await submissionsAPI.submitAnswer(submission.id, {
+          question_id: qq.question?.id,
+          selected_answer: String(sel),
+        });
+      }
+      // Complete + grade
+      const complete = await submissionsAPI.complete(submission.id);
+      navigation.replace('QuizResult', { submission: complete.data });
     } catch (e) {
-      console.log('Failed to fetch quizzes', e);
+      Alert.alert('Submission failed', e?.response?.data?.error || 'Try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleStart = async (quiz) => {
-    try {
-      setLoading(true);
-      // Start quiz to get submission
-      const subRes = await assessmentsAPI.startQuiz(quiz.id);
-      const sub = subRes.data;
-      
-      // Get questions
-      const qRes = await assessmentsAPI.getQuestions(quiz.id);
-      
-      setSelectedQuiz(quiz);
-      setSubmission(sub);
-      setQuestions(qRes.data);
-      setAnswers({});
-      setCurrentQ(0);
-      setTimeLeft(quiz.timeLimit * 60);
-      setPhase('quiz');
-    } catch (e) {
-      console.log('Failed to start quiz', e);
-      alert('Could not start quiz. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await assessmentsAPI.completeSubmission(submission.id);
-      setResultData(res.data);
-      setPhase('result');
-    } catch (e) {
-      console.log('Failed to submit quiz', e);
-      alert('Submission failed.');
-    } finally {
-      setLoading(false);
-    }
-  }, [submission]);
-
-  useEffect(() => {
-    if (phase !== 'quiz') return;
-    if (timeLeft <= 0) { handleSubmit(); return; }
-    const t = setTimeout(() => setTimeLeft(s => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, timeLeft, handleSubmit]);
-
-  const selectAnswer = async (qIndex, optionIndex, optionText) => {
-    setAnswers(prev => ({ ...prev, [qIndex]: optionIndex }));
-    const question = questions[qIndex];
-    try {
-      await assessmentsAPI.submitAnswer(submission.id, {
-        question_id: question.question.id,
-        selected_answer: optionText
-      });
-    } catch (e) {
-      console.log('Failed to save answer', e);
-    }
-  };
-
-  const formatTime = (secs) => `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
-
-  if (loading && phase === 'list') {
+  if (loading) {
     return (
-      <View style={styles.container}>
-        <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
-        <Text style={{color: '#fff', textAlign: 'center', marginTop: 100}}>Loading...</Text>
-      </View>
+      <SafeAreaView style={[shared.screen, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={colors.text} />
+      </SafeAreaView>
     );
   }
 
-  // LIST PHASE
-  if (phase === 'list') {
+  if (error) {
     return (
-      <View style={styles.container}>
-        <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <ArrowLeft color="#fff" size={24} />
-            </TouchableOpacity>
-            <View>
-              <Text style={styles.headerTitle}>Take Assessment</Text>
-              <Text style={styles.headerDesc}>Complete pending assessments</Text>
-            </View>
-          </View>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {quizzes.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={{fontSize: 40, marginBottom: 10}}>🎉</Text>
-                <Text style={styles.emptyTitle}>All caught up!</Text>
-                <Text style={styles.emptyDesc}>No pending assessments at the moment.</Text>
-              </View>
-            ) : quizzes.map(quiz => (
-              <BlurView intensity={30} tint="dark" style={styles.quizCard} key={quiz.id}>
-                <View style={styles.quizCardHeader}>
-                  <View style={styles.iconBox}><FileText color="#3b82f6" size={20} /></View>
-                  <Text style={styles.quizTitle} numberOfLines={2}>{quiz.module}</Text>
-                </View>
-                <View style={styles.quizMetaRow}>
-                  <Text style={styles.quizMetaText}>📋 {quiz.questions} Qs</Text>
-                  <Text style={styles.quizMetaText}>⏱️ {quiz.timeLimit} mins</Text>
-                </View>
-                <TouchableOpacity style={styles.startBtn} onPress={() => handleStart(quiz)}>
-                  <Text style={styles.startBtnText}>Start Now →</Text>
-                </TouchableOpacity>
-              </BlurView>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
-      </View>
+      <SafeAreaView style={[shared.screen, { justifyContent: 'center', alignItems: 'center', padding: spacing.lg }]}>
+        <Text style={[typography.h2, { textAlign: 'center', marginBottom: spacing.md }]}>Cannot start</Text>
+        <Text style={[typography.bodyMuted, { textAlign: 'center' }]}>{error}</Text>
+        <TouchableOpacity style={[shared.primaryButton, { marginTop: spacing.lg }]} onPress={() => navigation.goBack()}>
+          <Text style={shared.primaryButtonText}>Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 
-  // QUIZ PHASE
-  if (phase === 'quiz' && questions.length > 0) {
-    const qObj = questions[currentQ];
-    const qDetails = qObj.question;
-    // Safety check if options exists, parse if string
-    let options = [];
-    if (qDetails.options) {
-      options = typeof qDetails.options === 'string' ? JSON.parse(qDetails.options) : qDetails.options;
-    }
-
-    const progress = ((currentQ + 1) / questions.length) * 100;
-    const isAnswered = answers[currentQ] !== undefined;
-    const isLast = currentQ === questions.length - 1;
-
+  if (!total) {
     return (
-      <View style={styles.container}>
-        <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.quizHeader}>
-            <View style={{flex: 1}}>
-              <Text style={styles.quizHeaderTitle} numberOfLines={1}>{selectedQuiz.module}</Text>
-              <Text style={styles.quizHeaderSubtitle}>Q {currentQ + 1} of {questions.length}</Text>
-            </View>
-            <View style={styles.timerBox}>
-              <Text style={[styles.timerText, {color: timeLeft <= 60 ? '#ef4444' : timeLeft <= 300 ? '#f59e0b' : '#22c55e'}]}>
-                ⏱️ {formatTime(timeLeft)}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, {width: `${progress}%`}]} />
-          </View>
+      <SafeAreaView style={[shared.screen, { justifyContent: 'center', alignItems: 'center', padding: spacing.lg }]}>
+        <Text style={[typography.h2, { marginBottom: spacing.md }]}>No questions</Text>
+        <Text style={[typography.bodyMuted, { textAlign: 'center' }]}>This quiz doesn't have any questions yet.</Text>
+        <TouchableOpacity style={[shared.primaryButton, { marginTop: spacing.lg }]} onPress={() => navigation.goBack()}>
+          <Text style={shared.primaryButtonText}>Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
-          <ScrollView contentContainerStyle={{padding: 20}}>
-            <Text style={styles.questionText}>{qDetails.text}</Text>
-            
-            {options.map((opt, i) => {
-              const selected = answers[currentQ] === i;
-              return (
-                <TouchableOpacity 
-                  key={i} 
-                  style={[styles.optionBtn, selected && styles.optionBtnSelected]}
-                  onPress={() => selectAnswer(currentQ, i, opt)}
-                >
-                  <View style={[styles.optionLetter, selected && styles.optionLetterSelected]}>
-                    <Text style={[styles.optionLetterText, selected && styles.optionLetterTextSelected]}>{String.fromCharCode(65 + i)}</Text>
-                  </View>
-                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{opt}</Text>
-                </TouchableOpacity>
-              )
-            })}
-          </ScrollView>
-          
-          <View style={styles.footerNav}>
-            <TouchableOpacity 
-              style={[styles.navBtn, currentQ === 0 && {opacity: 0.5}]} 
-              disabled={currentQ === 0} 
-              onPress={() => setCurrentQ(c => c - 1)}
+  const choices = parseChoices(current?.question);
+
+  return (
+    <SafeAreaView style={shared.screen} edges={['top', 'left', 'right']}>
+      {/* Header */}
+      <View style={styles.top}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+          <ArrowLeft size={20} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle} numberOfLines={1}>{quiz?.title || 'Assessment'}</Text>
+        <View style={styles.timer}>
+          <Clock size={14} color={colors.text} />
+          <Text style={styles.timerText}>{quiz?.time_limit_minutes || 30}m</Text>
+        </View>
+      </View>
+
+      {/* Progress */}
+      <View style={styles.progressWrap}>
+        <View style={styles.progressBg}>
+          <View style={[styles.progressFill, { width: `${((index + 1) / total) * 100}%` }]} />
+        </View>
+        <Text style={styles.progressText}>Question {index + 1} of {total}</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
+        <View style={styles.qCard}>
+          <Text style={styles.qLabel}>Q{index + 1}</Text>
+          <Text style={styles.qText}>{current?.question?.text || '—'}</Text>
+        </View>
+
+        {choices.map((opt, i) => {
+          const selected = answers[current.id] === opt.value;
+          return (
+            <TouchableOpacity
+              key={i}
+              onPress={() => onSelect(current, opt.value)}
+              style={[styles.option, selected && styles.optionActive]}
             >
-              <Text style={styles.navBtnText}>← Prev</Text>
+              <View style={[styles.optionRadio, selected && styles.optionRadioActive]}>
+                {selected && <CheckCircle2 size={14} color={colors.text} />}
+              </View>
+              <Text style={[styles.optionText, selected && { fontWeight: '700' }]}>{opt.label}</Text>
             </TouchableOpacity>
-            
-            {isLast ? (
-              <TouchableOpacity 
-                style={[styles.navBtnPrimary, !isAnswered && {opacity: 0.5}]} 
-                disabled={!isAnswered || loading} 
-                onPress={handleSubmit}
-              >
-                <Text style={styles.navBtnPrimaryText}>{loading ? 'Submitting...' : 'Submit ✓'}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                style={[styles.navBtnPrimary, !isAnswered && {opacity: 0.5}]} 
-                disabled={!isAnswered} 
-                onPress={() => setCurrentQ(c => c + 1)}
-              >
-                <Text style={styles.navBtnPrimaryText}>Next →</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  }
+          );
+        })}
+      </ScrollView>
 
-  // RESULT PHASE
-  if (phase === 'result' && resultData) {
-    const passed = resultData.passed;
-    return (
-      <View style={styles.container}>
-        <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
-        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <Text style={{fontSize: 60, marginBottom: 20}}>{passed ? '🎉' : '😔'}</Text>
-          <Text style={[styles.resultTitle, {color: passed ? '#22c55e' : '#ef4444'}]}>
-            {passed ? 'Well Done! You Passed!' : 'Keep Trying!'}
-          </Text>
-          
-          <BlurView intensity={30} tint="dark" style={styles.resultCard}>
-            <Text style={[styles.resultScore, {color: passed ? '#22c55e' : '#ef4444'}]}>{Math.round(resultData.percentage)}%</Text>
-            <View style={[styles.badge, {backgroundColor: passed ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}]}>
-              <Text style={[styles.badgeText, {color: passed ? '#22c55e' : '#ef4444'}]}>{passed ? '✓ PASSED' : '✗ FAILED'}</Text>
-            </View>
-          </BlurView>
-          
-          <View style={{width: '100%', gap: 12}}>
-            {!passed && (
-              <TouchableOpacity style={styles.primaryButton} onPress={() => handleStart(selectedQuiz)}>
-                <Text style={styles.primaryButtonText}>Retry Assessment</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setPhase('list')}>
-              <Text style={styles.secondaryButtonText}>Back to Assessments</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  }
+      <View style={styles.footer}>
+        <TouchableOpacity
+          disabled={index === 0}
+          onPress={() => setIndex((i) => Math.max(0, i - 1))}
+          style={[styles.navBtn, index === 0 && { opacity: 0.4 }]}
+        >
+          <Text style={styles.navBtnText}>Previous</Text>
+        </TouchableOpacity>
 
-  return null;
+        {index < total - 1 ? (
+          <TouchableOpacity onPress={() => setIndex((i) => Math.min(total - 1, i + 1))} style={styles.primary}>
+            <Text style={styles.primaryText}>Next</Text>
+            <ChevronRight size={18} color={colors.text} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onSubmit} style={styles.primary} disabled={submitting}>
+            <Text style={styles.primaryText}>{submitting ? 'Submitting…' : 'Submit'}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+// Question.options can be JSON array, dict, or comma string. Normalize to {label,value}[].
+function parseChoices(question) {
+  if (!question) return [];
+  const opts = question.options;
+  if (Array.isArray(opts)) {
+    return opts.map((o, i) => {
+      if (typeof o === 'string') return { label: o, value: String(i) };
+      if (o && typeof o === 'object') return { label: o.text ?? o.label ?? String(o.value ?? i), value: String(o.value ?? i) };
+      return { label: String(o), value: String(i) };
+    });
+  }
+  if (opts && typeof opts === 'object') {
+    return Object.entries(opts).map(([k, v]) => ({ label: String(v), value: String(k) }));
+  }
+  if (typeof opts === 'string') {
+    return opts.split(',').map((s, i) => ({ label: s.trim(), value: String(i) }));
+  }
+  // Fallback: True/False
+  return [
+    { label: 'True', value: 'true' },
+    { label: 'False', value: 'false' },
+  ];
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  background: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: 10 },
-  backBtn: { marginRight: 16 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  headerDesc: { fontSize: 14, color: '#94a3b8' },
-  scrollContent: { padding: 20 },
-  
-  emptyState: { padding: 40, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
-  emptyDesc: { color: '#94a3b8', textAlign: 'center' },
-  
-  quizCard: { padding: 20, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)', marginBottom: 16 },
-  quizCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  iconBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(59,130,246,0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  quizTitle: { fontSize: 16, fontWeight: 'bold', color: '#fff', flex: 1 },
-  quizMetaRow: { flexDirection: 'row', gap: 16, marginBottom: 16 },
-  quizMetaText: { color: '#94a3b8', fontSize: 13 },
-  startBtn: { backgroundColor: '#3b82f6', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  startBtnText: { color: '#fff', fontWeight: 'bold' },
-
-  // Quiz Header
-  quizHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: 'rgba(15,23,42,0.8)' },
-  quizHeaderTitle: { color: '#fff', fontWeight: 'bold', fontSize: 16, marginBottom: 4 },
-  quizHeaderSubtitle: { color: '#94a3b8', fontSize: 13 },
-  timerBox: { padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8 },
-  timerText: { fontWeight: 'bold', fontSize: 16 },
-  progressBarBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', width: '100%' },
-  progressBarFill: { height: '100%', backgroundColor: '#3b82f6' },
-
-  // Questions
-  questionText: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 24, lineHeight: 28 },
-  optionBtn: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, marginBottom: 12 },
-  optionBtnSelected: { backgroundColor: 'rgba(59,130,246,0.15)', borderColor: '#3b82f6' },
-  optionLetter: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  optionLetterSelected: { backgroundColor: '#3b82f6' },
-  optionLetterText: { color: '#94a3b8', fontWeight: 'bold' },
-  optionLetterTextSelected: { color: '#fff' },
-  optionText: { color: '#fff', fontSize: 15, flex: 1 },
-  optionTextSelected: { color: '#3b82f6', fontWeight: 'bold' },
-
-  // Footer
-  footerNav: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
-  navBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 },
-  navBtnText: { color: '#94a3b8', fontWeight: 'bold' },
-  navBtnPrimary: { backgroundColor: '#3b82f6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 },
-  navBtnPrimaryText: { color: '#fff', fontWeight: 'bold' },
-
-  // Result
-  resultTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 24 },
-  resultCard: { padding: 40, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', marginBottom: 32, width: '100%' },
-  resultScore: { fontSize: 64, fontWeight: '900', marginBottom: 12 },
-  badge: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  badgeText: { fontWeight: 'bold' },
-  primaryButton: { backgroundColor: '#3b82f6', padding: 16, borderRadius: 12, alignItems: 'center' },
-  primaryButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  secondaryButton: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 16, borderRadius: 12, alignItems: 'center' },
-  secondaryButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+  },
+  iconBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: colors.card,
+    alignItems: 'center', justifyContent: 'center',
+    ...shadows.pill,
+  },
+  topTitle: { fontSize: 15, fontWeight: '800', color: colors.text, flex: 1, textAlign: 'center', marginHorizontal: spacing.md },
+  timer: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md, paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  timerText: { fontSize: 12, fontWeight: '700', color: colors.text, marginLeft: 4 },
+  progressWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  progressBg: { height: 6, backgroundColor: colors.divider, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: colors.primary },
+  progressText: { fontSize: 12, color: colors.textMuted, marginTop: 6 },
+  qCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.card,
+  },
+  qLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, marginBottom: 6, letterSpacing: 0.6 },
+  qText: { fontSize: 16, fontWeight: '600', color: colors.text, lineHeight: 22 },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  optionActive: { borderColor: colors.primary, backgroundColor: colors.cardSoft },
+  optionRadio: {
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  optionRadioActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  optionText: { flex: 1, fontSize: 14, color: colors.text },
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.background,
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  navBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    ...shadows.pill,
+  },
+  navBtnText: { fontWeight: '700', color: colors.text },
+  primary: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  primaryText: { fontWeight: '800', color: colors.text, marginRight: 4 },
 });

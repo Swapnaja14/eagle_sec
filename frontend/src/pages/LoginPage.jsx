@@ -80,6 +80,10 @@ export default function LoginPage() {
         password: registerForm.password,
         confirm_password: registerForm.confirm_password,
         role: registerForm.role,
+        department: registerForm.department.trim() || undefined,
+        tenant_name: registerForm.tenant_name.trim() || undefined,
+        confirm_password: registerForm.confirm_password,
+        role: registerForm.role,
       }
 
       // Only add optional fields if they have values

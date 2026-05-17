@@ -12,25 +12,27 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RenameIndex(
             model_name='trainingassignment',
-            new_name='courses_tra_tenant__45a8a5_idx',
             old_name='courses_trai_tenant__7fa7f7_idx',
+            new_name='courses_tra_tenant__45a8a5_idx',
         ),
+
         migrations.RenameIndex(
             model_name='trainingassignment',
-            new_name='courses_tra_tenant__12df06_idx',
             old_name='courses_trai_tenant__614dcc_idx',
+            new_name='courses_tra_tenant__12df06_idx',
         ),
+
         migrations.AlterField(
             model_name='lessonfile',
             name='file_type',
             field=models.CharField(
+                max_length=20,
                 choices=[
                     ('video', 'Video'),
                     ('document', 'Document'),
                     ('pdf', 'PDF'),
-                    ('presentation', 'Presentation')
+                    ('presentation', 'Presentation'),
                 ],
-                max_length=20
             ),
         ),
     ]
