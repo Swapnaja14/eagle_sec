@@ -3,11 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "set EXPO_OFFLINE=1&& expo start",
-    "start:online": "expo start",
-    "android": "set EXPO_OFFLINE=1&& expo start --android",
-    "ios": "set EXPO_OFFLINE=1&& expo start --ios",
-    "web": "set EXPO_OFFLINE=1&& expo start --web"
+    "start": "npx expo start",
+    "android": "npx expo start --android",
+    "ios": "npx expo start --ios",
+    "web": "npx expo start --web"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

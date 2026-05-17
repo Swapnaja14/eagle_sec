@@ -1,1 +1,6 @@
+.venv/
+.venv_backup/
+.venv_broken/
+backend/venv/
+backend/certificates/*.pdf
 node_modules/

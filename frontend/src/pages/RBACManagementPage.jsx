@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { rbacAPI } from '../services/api';
 
-const ROLES = ['Super Admin', 'Admin / Manager', 'Trainer', 'Trainee / Guard'];
+const ROLES = ['superadmin', 'admin', 'instructor', 'trainee'];
+const ROLE_LABELS = {
+  superadmin: 'Super Admin',
+  admin: 'Admin / Manager',
+  instructor: 'Trainer',
+  trainee: 'Trainee / Guard',
+};
+
 const MODULES = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'training_history', label: 'Training History' },
@@ -18,50 +26,90 @@ const MODULES = [
   { id: 'bulk_users', label: 'Bulk User Upload' },
 ];
 
+// Default permissions used as fallback when DB has no record yet
 const DEFAULT_PERMISSIONS = {
-  'Super Admin': { dashboard: true, training_history: true, psara: true, calendar: true, scheduler: true, course_builder: true, content_hub: true, question_bank: true, quiz_results: true, analytics: true, bulk_export: true, rbac: true, sites: true, bulk_users: true },
-  'Admin / Manager': { dashboard: true, training_history: true, psara: true, calendar: true, scheduler: true, course_builder: false, content_hub: true, question_bank: false, quiz_results: true, analytics: true, bulk_export: true, rbac: false, sites: true, bulk_users: true },
-  'Trainer': { dashboard: true, training_history: false, psara: false, calendar: true, scheduler: true, course_builder: true, content_hub: true, question_bank: true, quiz_results: true, analytics: false, bulk_export: false, rbac: false, sites: false, bulk_users: false },
-  'Trainee / Guard': { dashboard: true, training_history: false, psara: false, calendar: true, scheduler: false, course_builder: false, content_hub: false, question_bank: false, quiz_results: false, analytics: false, bulk_export: false, rbac: false, sites: false, bulk_users: false },
+  superadmin: { dashboard: true, training_history: true, psara: true, calendar: true, scheduler: true, course_builder: true, content_hub: true, question_bank: true, quiz_results: true, analytics: true, bulk_export: true, rbac: true, sites: true, bulk_users: true },
+  admin: { dashboard: true, training_history: true, psara: true, calendar: true, scheduler: true, course_builder: false, content_hub: true, question_bank: false, quiz_results: true, analytics: true, bulk_export: true, rbac: false, sites: true, bulk_users: true },
+  instructor: { dashboard: true, training_history: false, psara: false, calendar: true, scheduler: true, course_builder: true, content_hub: true, question_bank: true, quiz_results: true, analytics: false, bulk_export: false, rbac: false, sites: false, bulk_users: false },
+  trainee: { dashboard: true, training_history: false, psara: false, calendar: true, scheduler: false, course_builder: false, content_hub: false, question_bank: false, quiz_results: false, analytics: false, bulk_export: false, rbac: false, sites: false, bulk_users: false },
 };
-
-const MOCK_HISTORY = [
-  { id: 1, changedBy: 'Super Admin', role: 'Trainer', module: 'Analytics Reports', from: false, to: true, reason: 'Trainer needs access for performance review', timestamp: '2026-04-14 14:32:10' },
-  { id: 2, changedBy: 'Super Admin', role: 'Admin / Manager', module: 'RBAC Management', from: true, to: false, reason: 'Security policy — RBAC restricted to Super Admin only', timestamp: '2026-04-13 09:15:44' },
-  { id: 3, changedBy: 'Super Admin', role: 'Trainer', module: 'Course Builder', from: false, to: true, reason: 'Trainer promotion — content authoring enabled', timestamp: '2026-04-10 11:00:00' },
-];
 
 export default function RBACManagementPage() {
   const [permissions, setPermissions] = useState(DEFAULT_PERMISSIONS);
-  const [pendingChange, setPendingChange] = useState(null); // { role, moduleId, newVal }
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingChange, setPendingChange] = useState(null);
   const [reasonText, setReasonText] = useState('');
   const [reasonError, setReasonError] = useState('');
-  const [history, setHistory] = useState(MOCK_HISTORY);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [permRes, histRes] = await Promise.all([
+        rbacAPI.list(),
+        rbacAPI.history(),
+      ]);
+
+      // Merge API permissions on top of defaults
+      const merged = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS));
+      for (const perm of permRes.data) {
+        if (merged[perm.role]) {
+          merged[perm.role][perm.module_id] = perm.has_access;
+        }
+      }
+      setPermissions(merged);
+      setHistory(histRes.data);
+    } catch (err) {
+      setError('Failed to load permissions. Showing defaults.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const togglePermission = (role, moduleId) => {
-    if (role === 'Super Admin') return; // Super Admin is immutable
+    if (role === 'superadmin') return;
     const newVal = !permissions[role][moduleId];
     setPendingChange({ role, moduleId, newVal });
     setReasonText('');
     setReasonError('');
   };
 
-  const confirmChange = () => {
+  const confirmChange = async () => {
     if (!reasonText.trim()) { setReasonError('Reason is required for RBAC changes.'); return; }
     const { role, moduleId, newVal } = pendingChange;
-    setPermissions(prev => ({ ...prev, [role]: { ...prev[role], [moduleId]: newVal } }));
-    const moduleName = MODULES.find(m => m.id === moduleId)?.label || moduleId;
-    setHistory(prev => [{
-      id: prev.length + 1, changedBy: 'Admin', role, module: moduleName,
-      from: !newVal, to: newVal, reason: reasonText,
-      timestamp: new Date().toLocaleString(),
-    }, ...prev]);
-    setPendingChange(null);
-    setReasonText('');
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setSaving(true);
+    try {
+      await rbacAPI.update({ role, module_id: moduleId, has_access: newVal, reason: reasonText });
+      setPermissions(prev => ({ ...prev, [role]: { ...prev[role], [moduleId]: newVal } }));
+      // Refresh history
+      const histRes = await rbacAPI.history();
+      setHistory(histRes.data);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError('Failed to save permission change.');
+    } finally {
+      setSaving(false);
+      setPendingChange(null);
+      setReasonText('');
+    }
   };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '80px', textAlign: 'center' }}>
+        <span className="spinner" style={{ width: 32, height: 32 }} />
+        <p style={{ color: 'var(--text-secondary)', marginTop: 16 }}>Loading permissions...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
@@ -73,6 +121,12 @@ export default function RBACManagementPage() {
         {saved && <div style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.3)', padding: '8px 18px', borderRadius: 8, fontWeight: 700 }}>✓ Changes saved</div>}
       </div>
 
+      {error && (
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '12px 20px', marginBottom: 16, color: 'var(--accent-red)' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '12px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ fontSize: '1.1rem' }}>⚠️</span>
         <span style={{ color: 'var(--accent-yellow)', fontWeight: 600, fontSize: '0.9rem' }}>Super Admin permissions cannot be modified. All RBAC changes require a logged reason.</span>
@@ -80,16 +134,14 @@ export default function RBACManagementPage() {
 
       {/* Permission Matrix */}
       <div className="card" style={{ padding: 0, overflowX: 'auto', marginBottom: 32 }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', fontWeight: 700, color: 'var(--text-primary)' }}>
-          Permission Matrix
-        </div>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', fontWeight: 700, color: 'var(--text-primary)' }}>Permission Matrix</div>
         <table className="data-table" style={{ minWidth: 700 }}>
           <thead>
             <tr>
               <th style={{ width: 200 }}>Module</th>
               {ROLES.map(role => (
                 <th key={role} style={{ textAlign: 'center', minWidth: 130 }}>
-                  <div style={{ color: role === 'Super Admin' ? 'var(--accent-blue)' : 'var(--text-muted)' }}>{role}</div>
+                  <div style={{ color: role === 'superadmin' ? 'var(--accent-blue)' : 'var(--text-muted)' }}>{ROLE_LABELS[role]}</div>
                 </th>
               ))}
             </tr>
@@ -99,11 +151,11 @@ export default function RBACManagementPage() {
               <tr key={mod.id}>
                 <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mod.label}</td>
                 {ROLES.map(role => {
-                  const hasAccess = permissions[role][mod.id];
-                  const isLocked = role === 'Super Admin';
+                  const hasAccess = permissions[role]?.[mod.id] ?? false;
+                  const isLocked = role === 'superadmin';
                   return (
                     <td key={role} style={{ textAlign: 'center' }}>
-                      <label className={`toggle ${isLocked ? '' : ''}`} style={{ cursor: isLocked ? 'not-allowed' : 'pointer', opacity: isLocked ? 0.7 : 1 }}>
+                      <label className="toggle" style={{ cursor: isLocked ? 'not-allowed' : 'pointer', opacity: isLocked ? 0.7 : 1 }}>
                         <input
                           type="checkbox"
                           checked={hasAccess}
@@ -140,16 +192,19 @@ export default function RBACManagementPage() {
               </tr>
             </thead>
             <tbody>
+              {history.length === 0 && (
+                <tr><td colSpan="6" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No history yet.</td></tr>
+              )}
               {history.map(h => (
                 <tr key={h.id}>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{h.timestamp}</td>
-                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{h.changedBy}</td>
-                  <td>{h.role}</td>
-                  <td>{h.module}</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{new Date(h.timestamp).toLocaleString()}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{h.changed_by_name}</td>
+                  <td>{ROLE_LABELS[h.role_affected] || h.role_affected}</td>
+                  <td>{h.module_name}</td>
                   <td>
-                    <span style={{ color: 'var(--accent-red)', fontWeight: 700 }}>{h.from ? '✓' : '✗'}</span>
+                    <span style={{ color: 'var(--accent-red)', fontWeight: 700 }}>{h.from_access ? '✓' : '✗'}</span>
                     <span style={{ color: 'var(--text-muted)', margin: '0 6px' }}>→</span>
-                    <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{h.to ? '✓' : '✗'}</span>
+                    <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{h.to_access ? '✓' : '✗'}</span>
                   </td>
                   <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.reason}</td>
                 </tr>
@@ -159,7 +214,7 @@ export default function RBACManagementPage() {
         </div>
       </div>
 
-      {/* Override Confirmation Modal */}
+      {/* Confirmation Modal */}
       {pendingChange && (
         <div className="modal-overlay" onClick={() => setPendingChange(null)}>
           <div className="modal-content" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
@@ -171,7 +226,7 @@ export default function RBACManagementPage() {
               <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
                 You are about to <strong style={{ color: pendingChange.newVal ? 'var(--accent-green)' : 'var(--accent-red)' }}>{pendingChange.newVal ? 'GRANT' : 'REVOKE'}</strong>{' '}
                 access to <strong style={{ color: 'var(--text-primary)' }}>{MODULES.find(m => m.id === pendingChange.moduleId)?.label}</strong>{' '}
-                for role: <strong style={{ color: 'var(--accent-blue)' }}>{pendingChange.role}</strong>.
+                for role: <strong style={{ color: 'var(--accent-blue)' }}>{ROLE_LABELS[pendingChange.role]}</strong>.
               </p>
               <div className="form-group">
                 <label className="form-label">Reason for Change *</label>
@@ -188,8 +243,8 @@ export default function RBACManagementPage() {
             </div>
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
               <button className="btn btn-ghost" onClick={() => setPendingChange(null)}>Cancel</button>
-              <button className={`btn ${pendingChange.newVal ? 'btn-primary' : 'btn-danger'}`} onClick={confirmChange}>
-                Confirm Change
+              <button className={`btn ${pendingChange.newVal ? 'btn-primary' : 'btn-danger'}`} onClick={confirmChange} disabled={saving}>
+                {saving ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Saving...</> : 'Confirm Change'}
               </button>
             </div>
           </div>

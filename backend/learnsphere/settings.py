@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'feedback',
     'analytics',
     'certificates',
+    'rbac',
 ]
 
 # MIDDLEWARE

@@ -11,11 +11,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import TakeAssessmentScreen from './src/screens/TakeAssessmentScreen';
+import MyTrainingHistoryScreen from './src/screens/MyTrainingHistoryScreen';
+import MyCertificatesScreen from './src/screens/MyCertificatesScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import CourseDetailScreen from './src/screens/CourseDetailScreen';
-import TakeAssessmentScreen from './src/screens/TakeAssessmentScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import CalendarSessionsScreen from './src/screens/CalendarSessionsScreen';
+
 import { colors } from './src/theme';
 
 const Tab = createBottomTabNavigator();
@@ -45,38 +48,61 @@ function MainTabs({ setIsLoggedIn }) {
           height: 70,
           paddingBottom: 12,
           paddingTop: 10,
-          // Floating dark footer with rounded top
-          marginHorizontal: 0,
           elevation: 8,
         },
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
+        },
       }}
     >
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <LayoutDashboard color={color} size={size} />
+          ),
+        }}
       />
+
       <Tab.Screen
         name="Catalog"
         component={CatalogScreen}
         options={{
           tabBarLabel: 'Explore',
-          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Compass color={color} size={size} />
+          ),
         }}
       />
+
       <Tab.Screen
         name="Calendar"
         component={CalendarSessionsScreen}
-        options={{ tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} /> }}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Calendar color={color} size={size} />
+          ),
+        }}
       />
+
       <Tab.Screen
         name="Profile"
-        options={{ tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <User color={color} size={size} />
+          ),
+        }}
       >
-        {(props) => <ProfileScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+        {(props) => (
+          <ProfileScreen
+            {...props}
+            setIsLoggedIn={setIsLoggedIn}
+          />
+        )}
       </Tab.Screen>
     </Tab.Navigator>
   );
@@ -87,19 +113,48 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const token =
-        Platform.OS === 'web'
-          ? localStorage.getItem('access_token')
-          : await AsyncStorage.getItem('access_token');
-      setIsLoggedIn(!!token);
-      setLoading(false);
-    })();
+    checkAuth();
   }, []);
+
+  const getToken = async () => {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem('access_token');
+    }
+
+    return await AsyncStorage.getItem('access_token');
+  };
+
+  const checkAuth = async () => {
+    try {
+      const token = await getToken();
+
+      console.log('TOKEN VALUE:', token);
+
+      if (token) {
+        console.log('✅ Token found');
+        setIsLoggedIn(true);
+      } else {
+        console.log('❌ No token');
+        setIsLoggedIn(false);
+      }
+    } catch (error) {
+      console.log('Auth check error:', error);
+      setIsLoggedIn(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
         <ActivityIndicator color={colors.text} />
       </View>
     );
@@ -109,19 +164,59 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer theme={AppTheme}>
         <StatusBar style="dark" />
-        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: {
+              backgroundColor: colors.background,
+            },
+          }}
+        >
           {!isLoggedIn ? (
             <Stack.Screen name="Login">
-              {(props) => <LoginScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+              {(props) => (
+                <LoginScreen
+                  {...props}
+                  setIsLoggedIn={setIsLoggedIn}
+                />
+              )}
             </Stack.Screen>
           ) : (
             <>
               <Stack.Screen name="MainTabs">
-                {(props) => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
+                {(props) => (
+                  <MainTabs
+                    {...props}
+                    setIsLoggedIn={setIsLoggedIn}
+                  />
+                )}
               </Stack.Screen>
-              <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
-              <Stack.Screen name="TakeAssessment" component={TakeAssessmentScreen} />
-              <Stack.Screen name="QuizResult" component={QuizResultScreen} />
+
+              <Stack.Screen
+                name="CourseDetail"
+                component={CourseDetailScreen}
+              />
+
+              <Stack.Screen
+                name="TakeAssessment"
+                component={TakeAssessmentScreen}
+              />
+
+              <Stack.Screen
+                name="QuizResult"
+                component={QuizResultScreen}
+              />
+
+              <Stack.Screen
+                name="MyTrainingHistory"
+                component={MyTrainingHistoryScreen}
+              />
+
+              <Stack.Screen
+                name="MyCertificates"
+                component={MyCertificatesScreen}
+              />
             </>
           )}
         </Stack.Navigator>

@@ -14,7 +14,7 @@ class Command(BaseCommand):
     help = 'Seeds sample data: tenant, users, 10 courses with lessons'
 
     def handle(self, *args, **options):
-        self.stdout.write('🌱 Seeding sample data...')
+        self.stdout.write('[INFO] Seeding sample data...')
 
         # Create tenant
         tenant, created = Tenant.objects.get_or_create(
@@ -25,7 +25,7 @@ class Command(BaseCommand):
             }
         )
         if created:
-            self.stdout.write(self.style.SUCCESS(f'✅ Created tenant: {tenant.name}'))
+            self.stdout.write(self.style.SUCCESS(f'[SUCCESS] Created tenant: {tenant.name}'))
 
         # Create sample users
         admin_user, created = User.objects.get_or_create(
@@ -43,7 +43,7 @@ class Command(BaseCommand):
         if created:
             admin_user.set_password('admin123')
             admin_user.save()
-            self.stdout.write(self.style.SUCCESS('✅ Created admin user (admin/admin123)'))
+            self.stdout.write(self.style.SUCCESS('[SUCCESS] Created admin user (admin/admin123)'))
 
         instructor, created = User.objects.get_or_create(
             username='instructor',
@@ -58,7 +58,7 @@ class Command(BaseCommand):
         if created:
             instructor.set_password('instructor123')
             instructor.save()
-            self.stdout.write(self.style.SUCCESS('✅ Created instructor user'))
+            self.stdout.write(self.style.SUCCESS('[SUCCESS] Created instructor user'))
 
         trainee, created = User.objects.get_or_create(
             username='trainee',
@@ -74,7 +74,7 @@ class Command(BaseCommand):
         if created:
             trainee.set_password('trainee123')
             trainee.save()
-            self.stdout.write(self.style.SUCCESS('✅ Created trainee user'))
+            self.stdout.write(self.style.SUCCESS('[SUCCESS] Created trainee user'))
 
         # Sample courses data
         courses_data = [
@@ -215,7 +215,7 @@ class Command(BaseCommand):
             )
             
             if created:
-                self.stdout.write(self.style.SUCCESS(f'✅ Created course: {course.display_name}'))
+                self.stdout.write(self.style.SUCCESS(f'[SUCCESS] Created course: {course.display_name}'))
                 
                 # Create lessons
                 for order, lesson_title in enumerate(lessons_data, 1):
@@ -259,10 +259,10 @@ class Command(BaseCommand):
                     }
                 )
             else:
-                self.stdout.write(self.style.WARNING(f'⚠️  Course already exists: {course.display_name}'))
+                self.stdout.write(self.style.WARNING(f'[WARNING] Course already exists: {course.display_name}'))
 
-        self.stdout.write(self.style.SUCCESS('\n✨ Sample data seeding completed!'))
-        self.stdout.write('\n📝 Test Credentials:')
+        self.stdout.write(self.style.SUCCESS('\n[DONE] Sample data seeding completed!'))
+        self.stdout.write('\n[INFO] Test Credentials:')
         self.stdout.write('   Admin: admin / admin123')
         self.stdout.write('   Instructor: instructor / instructor123')
         self.stdout.write('   Trainee: trainee / trainee123')

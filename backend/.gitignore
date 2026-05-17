@@ -5,4 +5,10 @@ __pycache__/
 media/
 staticfiles/
 *.egg-info/
+
 env/
+venv/
+.venv/
+backend/venv/
+
+node_modules/

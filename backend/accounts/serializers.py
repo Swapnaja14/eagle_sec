@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Tenant, Site, Client
+from .models import Tenant, Site, Client, RolePermission, RBACChangeLog
 
 User = get_user_model()
 
@@ -37,7 +37,11 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
-    tenant_name = serializers.CharField(write_only=True, required=False)
+    tenant_name = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True
+    )
 
     class Meta:
         model = User
@@ -45,6 +49,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             'username', 'email', 'password', 'confirm_password',
             'first_name', 'last_name', 'role', 'department', 'tenant_name'
         ]
+        extra_kwargs = {
+            'department': {'required': False, 'allow_blank': True},
+        }
 
     def validate(self, data):
         if data['password'] != data['confirm_password']:
@@ -59,6 +66,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         if tenant_name:
             import re
             slug = re.sub(r'[^a-z0-9]+', '-', tenant_name.lower()).strip('-')
+
             tenant, _ = Tenant.objects.get_or_create(
                 slug=slug,
                 defaults={'name': tenant_name}
@@ -68,6 +76,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             tenant=tenant,
             **validated_data
         )
+
         return user
 
 
@@ -84,8 +93,16 @@ class SiteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Site
         fields = [
-            'id', 'name', 'address', 'city', 'state', 'country',
-            'postal_code', 'is_active', 'client_id'
+            'id',
+            'name',
+            'address',
+            'city',
+            'state',
+            'country',
+            'postal_code',
+            'is_active',
+            'client_id',
+            'client'
         ]
 
 
@@ -96,8 +113,12 @@ class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = [
-            'id', 'name', 'contact_email',
-            'contact_phone', 'industry', 'is_active'
+            'id',
+            'name',
+            'contact_email',
+            'contact_phone',
+            'industry',
+            'is_active'
         ]
 
 
@@ -110,22 +131,70 @@ class EmployeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'first_name',
-            'last_name', 'email', 'department', 'tenant'
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'department',
+            'tenant'
         ]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['employee_id'] = instance.username
-        data['name'] = f"{instance.first_name} {instance.last_name}".strip() or instance.username
+        data['name'] = (
+            f"{instance.first_name} {instance.last_name}".strip()
+            or instance.username
+        )
         return data
 
 
 # =======================
-# JWT Serializer (IMPORTANT)
+# JWT Serializer
 # =======================
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Uses username-based authentication (default Django behavior).
     """
     username_field = "username"
+
+
+# =======================
+# RBAC Serializers
+# =======================
+class RolePermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RolePermission
+        fields = ['id', 'role', 'module_id', 'has_access']
+
+
+class RBACChangeLogSerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RBACChangeLog
+        fields = [
+            'id',
+            'changed_by_name',
+            'role_affected',
+            'module_name',
+            'from_access',
+            'to_access',
+            'reason',
+            'timestamp'
+        ]
+
+    def get_changed_by_name(self, obj):
+        if obj.changed_by:
+            name = f"{obj.changed_by.first_name} {obj.changed_by.last_name}".strip()
+            return name if name else obj.changed_by.username
+
+        return "Unknown"
+
+
+# =======================
+# Bulk Upload Serializer
+# =======================
+class BulkUserUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()

@@ -7,4 +7,5 @@ urlpatterns = [
     path("summary/", views.OverallSummaryView.as_view(), name="analytics-summary"),
     path("report/", views.analytics_report, name="analytics-report"),
     path("gap-analysis/", views.GapAnalysisView.as_view(), name="analytics-gap"),
+    path("bulk-export/", views.BulkExportView.as_view(), name="analytics-bulk-export"),
 ]

@@ -18,6 +18,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
     HRFlowable,
+    Image,
 )
 
 from django.conf import settings as django_settings
@@ -51,52 +52,54 @@ def generate_certificate_pdf(
     doc = SimpleDocTemplate(
         filepath,
         pagesize=landscape(A4),
-        rightMargin=2 * cm,
-        leftMargin=2 * cm,
-        topMargin=2 * cm,
-        bottomMargin=2 * cm,
+        rightMargin=1 * cm,
+        leftMargin=1 * cm,
+        topMargin=1 * cm,
+        bottomMargin=1 * cm,
     )
 
     styles = getSampleStyleSheet()
 
+    # Enhanced styles
     title_style = ParagraphStyle(
         "CertTitle",
         parent=styles["Title"],
-        fontSize=36,
-        textColor=colors.HexColor("#1a3c5e"),
+        fontSize=42,
+        textColor=colors.HexColor("#0f172a"),
         alignment=TA_CENTER,
-        spaceAfter=10,
+        spaceAfter=20,
+        fontName="Helvetica-Bold",
     )
     subtitle_style = ParagraphStyle(
         "CertSubtitle",
         parent=styles["Normal"],
-        fontSize=16,
-        textColor=colors.HexColor("#555555"),
+        fontSize=18,
+        textColor=colors.HexColor("#64748b"),
         alignment=TA_CENTER,
-        spaceAfter=6,
+        spaceAfter=10,
     )
     name_style = ParagraphStyle(
         "CertName",
         parent=styles["Normal"],
-        fontSize=28,
-        textColor=colors.HexColor("#c0392b"),
+        fontSize=36,
+        textColor=colors.HexColor("#3b82f6"),
         alignment=TA_CENTER,
-        spaceAfter=10,
+        spaceAfter=15,
         fontName="Helvetica-Bold",
     )
     body_style = ParagraphStyle(
         "CertBody",
         parent=styles["Normal"],
-        fontSize=14,
-        textColor=colors.HexColor("#333333"),
+        fontSize=16,
+        textColor=colors.HexColor("#1e293b"),
         alignment=TA_CENTER,
-        spaceAfter=6,
+        spaceAfter=10,
     )
-    small_style = ParagraphStyle(
-        "CertSmall",
+    footer_style = ParagraphStyle(
+        "CertFooter",
         parent=styles["Normal"],
-        fontSize=10,
-        textColor=colors.HexColor("#888888"),
+        fontSize=12,
+        textColor=colors.HexColor("#94a3b8"),
         alignment=TA_CENTER,
     )
 
@@ -105,29 +108,44 @@ def generate_certificate_pdf(
     else:
         formatted_date = str(completion_date)
 
-    story = [
+    # Decorative Border using a Table
+    border_color = colors.HexColor("#3b82f6")
+    
+    elements = []
+    
+    # Inner content
+    content = [
+        Spacer(1, 2 * cm),
+        Paragraph("CERTIFICATE", subtitle_style),
+        Paragraph("OF COMPLETION", title_style),
         Spacer(1, 1 * cm),
-        Paragraph("Certificate of Completion", title_style),
-        HRFlowable(width="80%", thickness=2, color=colors.HexColor("#1a3c5e")),
-        Spacer(1, 0.5 * cm),
         Paragraph("This is to certify that", subtitle_style),
-        Spacer(1, 0.3 * cm),
+        Spacer(1, 0.5 * cm),
         Paragraph(employee_name, name_style),
-        Spacer(1, 0.3 * cm),
-        Paragraph("has successfully completed the course", body_style),
-        Spacer(1, 0.3 * cm),
+        Spacer(1, 0.5 * cm),
+        Paragraph("has successfully completed the professional course", body_style),
+        Spacer(1, 0.5 * cm),
         Paragraph(f"<b>{course_name}</b>", body_style),
-        Spacer(1, 0.5 * cm),
-        Paragraph(f"Date of Completion: {formatted_date}", body_style),
+        Spacer(1, 1.5 * cm),
+        Paragraph(f"Issued on {formatted_date}", footer_style),
         Spacer(1, 1 * cm),
-        HRFlowable(width="40%", thickness=1, color=colors.HexColor("#aaaaaa")),
-        Spacer(1, 0.2 * cm),
-        Paragraph("Authorized Signature", small_style),
-        Spacer(1, 0.5 * cm),
-        Paragraph(f"Certificate ID: #{certificate_id}", small_style),
+        Paragraph(f"Certificate ID: {certificate_id}", footer_style),
+        Spacer(1, 1 * cm),
     ]
+    
+    # Wrap in a table to create a border
+    table_data = [[content]]
+    main_table = Table(table_data, colWidths=[24 * cm], rowHeights=[16 * cm])
+    main_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 2, border_color),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    
+    elements.append(main_table)
 
-    doc.build(story)
+    doc.build(elements)
     return filepath
 
 
