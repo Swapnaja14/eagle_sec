@@ -80,10 +80,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'learnsphere.wsgi.application'
 
 # DATABASE CONFIGURATION
-# Use SQLite for quick local dev by default.
-# Set USE_SQLITE=false in .env to use PostgreSQL.
 
-USE_SQLITE = config('USE_SQLITE', default=True, cast=bool)
+USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
 
 if USE_SQLITE:
     DATABASES = {
@@ -92,27 +90,20 @@ if USE_SQLITE:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-# else:
-#     DATABASES = {
-#         'default': {
-#             'ENGINE': 'django.db.backends.postgresql',
-#             'NAME': config('DB_NAME', default='learnsphere_db'),
-#             'USER': config('DB_USER', default='postgres'),
-#             'PASSWORD': config('DB_PASSWORD'),
-#             'HOST': config('DB_HOST', default='localhost'),
-#             'PORT': config('DB_PORT', default='5432'),
-#         }
-#     }
 
 else:
     import dj_database_url
+
+    # DEBUG PRINT
+    print("DATABASE_URL =", config('DATABASE_URL'))
+
     DATABASES = {
-        'default': dj_database_url.config(
-            default=config('DATABASE_URL'),
-            conn_max_age=600
+        'default': dj_database_url.parse(
+            config('DATABASE_URL'),
+            conn_max_age=600,
+            ssl_require=True
         )
     }
-
 
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
@@ -167,8 +158,13 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'UPDATE_LAST_LOGIN': True,
-}
 
+    # ADD THIS
+    'SIGNING_KEY': config(
+        'JWT_SECRET_KEY',
+        default='super-long-development-secret-key-at-least-32-characters'
+    ),
+}
 # CORS SETTINGS
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True

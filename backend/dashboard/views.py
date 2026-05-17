@@ -1,7 +1,7 @@
 from django.core.cache import cache
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, Avg, Q
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -541,7 +541,7 @@ class TrainerDashboardView(APIView):
                 quiz__course__display_name__in=trainer_topics,
                 status='completed'
             ).values('submitted_at__month')
-            .annotate(avg_score=Max('percentage'))
+            .annotate(avg_score=Avg('percentage'))
         )
 
         # Build score trend (last 6 months)
@@ -556,7 +556,7 @@ class TrainerDashboardView(APIView):
                     status='completed',
                     submitted_at__month=month_date.month,
                     submitted_at__year=month_date.year
-                ).aggregate(avg=Max('percentage'))['avg'] or 0
+                ).aggregate(avg=Avg('percentage'))['avg'] or 0
             )
             score_trend.append({"month": month_name, "avg": round(month_avg, 1) if month_avg else 75 + i})
 
