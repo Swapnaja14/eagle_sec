@@ -103,6 +103,7 @@ def logout_view(request):
 class SiteListCreateView(generics.ListCreateAPIView):
     serializer_class = SiteSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['is_active']
 
@@ -120,6 +121,7 @@ class SiteListCreateView(generics.ListCreateAPIView):
 class ClientListCreateView(generics.ListCreateAPIView):
     serializer_class = ClientSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['is_active']
 
