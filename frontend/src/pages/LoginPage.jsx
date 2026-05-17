@@ -78,6 +78,7 @@ export default function LoginPage() {
         username: registerForm.username,
         email: registerForm.email,
         password: registerForm.password,
+        confirm_password: registerForm.confirm_password,
         role: registerForm.role,
         department: registerForm.department.trim() || undefined,
         tenant_name: registerForm.tenant_name.trim() || undefined,
