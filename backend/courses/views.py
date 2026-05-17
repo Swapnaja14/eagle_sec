@@ -49,7 +49,8 @@ class CourseViewSet(viewsets.ModelViewSet):
             else:
                 qs = qs.none()
         if user.role == 'trainee':
-            qs = qs.filter(status='active', department=user.department or '')
+            # Show all active courses to trainees (removed department filter)
+            qs = qs.filter(status='active')
         return qs.select_related('created_by', 'pre_assessment', 'post_assessment', 'certification') \
                  .prefetch_related('lessons__files')
 
