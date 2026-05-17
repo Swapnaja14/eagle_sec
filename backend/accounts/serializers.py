@@ -37,7 +37,7 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
-    tenant_name = serializers.CharField(write_only=True, required=False)
+    tenant_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -45,6 +45,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             'username', 'email', 'password', 'confirm_password',
             'first_name', 'last_name', 'role', 'department', 'tenant_name'
         ]
+        extra_kwargs = {
+            'department': {'required': False, 'allow_blank': True},
+        }
 
     def validate(self, data):
         if data['password'] != data['confirm_password']:
