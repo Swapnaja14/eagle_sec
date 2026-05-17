@@ -12,6 +12,7 @@ from .serializers import TrainingSessionSerializer
 from courses.models import TrainingAssignment
 from assessments.models import Submission
 from certificates.models import IssuedCertificate
+from feedback.models import Feedback
 from .services import (
     get_dashboard_summary,
     get_department_completion,

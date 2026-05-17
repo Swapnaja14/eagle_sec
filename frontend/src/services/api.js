@@ -125,10 +125,17 @@ export const trainingHistoryAPI = {
 // ===================== SESSIONS =====================
 export const sessionsAPI = {
   calendar: (params) => api.get('/sessions/calendar/', { params }),
+
   list: (params) => api.get('/sessions/', { params }),
+
+  getMySessions: () => api.get('/sessions/'),
+
   create: (data) => api.post('/sessions/', data),
+
   update: (id, data) => api.patch(`/sessions/${id}/`, data),
+
   remove: (id) => api.delete(`/sessions/${id}/`),
+
   trainers: () => api.get('/sessions/trainers/'),
 }
 
@@ -170,3 +177,65 @@ export const analyticsAPI = {
   gapAnalysis: (params) => api.get('/analytics/gap-analysis/', { params }),
   report: () => api.get('/analytics/report/', { responseType: 'blob' }),
 }
+
+
+export const bulkExportAPI = {
+  exportData: (data) =>
+    api.post("/bulk-export/", data),
+};
+
+export const bulkUploadAPI = {
+  uploadUsers: (formData) =>
+    api.post("/bulk-upload/users/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }),
+};
+
+export const rbacAPI = {
+  getPermissions: () =>
+    api.get("/rbac/permissions/"),
+
+  updatePermissions: (data) =>
+    api.post("/rbac/permissions/update/", data),
+
+  getAuditLogs: () =>
+    api.get("/rbac/audit-logs/"),
+};
+
+
+export const dashboardAPI = {
+  trainerDashboard: () =>
+    api.get("/trainer/overview/"),
+
+  trainerSessions: () =>
+    api.get("/trainer/sessions/"),
+
+  traineeDashboard: () =>
+    api.get("/trainee/dashboard/"),
+
+  traineeCourses: () =>
+    api.get("/trainee/courses/"),
+
+  getSummary: () =>
+    api.get("/dashboard/summary/"),
+};
+
+
+export const assessmentsAPI = {
+  getQuizResults: (quizId) =>
+    api.get(`/assessments/quizzes/${quizId}/results/`),
+
+  getQuizzes: () =>
+    api.get("/assessments/quizzes/"),
+
+  getQuizById: (id) =>
+    api.get(`/assessments/quizzes/${id}/`),
+
+  submitQuiz: (id, data) =>
+    api.post(`/assessments/quizzes/${id}/submit/`, data),
+
+  getSubmissions: () =>
+    api.get("/assessments/submissions/"),
+};

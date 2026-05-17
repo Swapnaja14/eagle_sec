@@ -73,3 +73,43 @@ class Site(models.Model):
     class Meta:
         ordering = ['name']
         unique_together = ['tenant', 'name']
+
+
+class RolePermission(models.Model):
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='role_permissions',
+        null=True,
+        blank=True
+    )
+    role = models.CharField(max_length=20, choices=User.ROLE_CHOICES)
+    module_id = models.CharField(max_length=50)
+    has_access = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ['tenant', 'role', 'module_id']
+
+
+class RBACChangeLog(models.Model):
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+    role_affected = models.CharField(max_length=20)
+    module_name = models.CharField(max_length=100)
+    from_access = models.BooleanField()
+    to_access = models.BooleanField()
+    reason = models.TextField()
+
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
