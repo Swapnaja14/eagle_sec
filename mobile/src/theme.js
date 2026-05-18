@@ -1,5 +1,5 @@
 // Edspunk-style light theme: yellow accent, cream background, dark text.
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 export const colors = {
   primary:        '#FFD93D',  // bright yellow (accent buttons, highlights)
@@ -42,20 +42,30 @@ export const typography = {
 };
 
 export const shadows = {
-  card: {
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  pill: {
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
+  card: Platform.select({
+    web: {
+      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.06)',
+    },
+    default: {
+      shadowColor: '#000',
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+  }),
+  pill: Platform.select({
+    web: {
+      boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.04)',
+    },
+    default: {
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    },
+  }),
 };
 
 // Common reusable styles

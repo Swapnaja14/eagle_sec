@@ -1,131 +1,164 @@
-import React, { useEffect, useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { LayoutDashboard, Compass, User, Calendar } from 'lucide-react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, ActivityIndicator, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { AuthProvider } from './src/context/AuthContext';
+import { AppNavigator } from './src/navigation/AppNavigator';
+import { COLORS } from './src/utils/constants';
+import { MaterialIcons } from '@expo/vector-icons';
 
-import DashboardScreen from './src/screens/DashboardScreen';
-import CatalogScreen from './src/screens/CatalogScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-import LoginScreen from './src/screens/LoginScreen';
-import CourseDetailScreen from './src/screens/CourseDetailScreen';
-import TakeAssessmentScreen from './src/screens/TakeAssessmentScreen';
-import QuizResultScreen from './src/screens/QuizResultScreen';
-import CalendarSessionsScreen from './src/screens/CalendarSessionsScreen';
-import { colors } from './src/theme';
+console.log('[App] Starting application...');
+console.log('[App] Platform:', Platform.OS);
+console.log('[App] DEV mode:', __DEV__);
 
-const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
-
-// Light yellow theme for navigation surfaces
-const AppTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.background,
-    card: colors.card,
-    text: colors.text,
-    border: colors.border,
-    primary: colors.primary,
-  },
-};
-
-function MainTabs({ setIsLoggedIn }) {
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.tabBg,
-          borderTopWidth: 0,
-          height: 70,
-          paddingBottom: 12,
-          paddingTop: 10,
-          // Floating dark footer with rounded top
-          marginHorizontal: 0,
-          elevation: 8,
-        },
-        tabBarActiveTintColor: colors.tabActive,
-        tabBarInactiveTintColor: colors.tabInactive,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={{ tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="Catalog"
-        component={CatalogScreen}
-        options={{
-          tabBarLabel: 'Explore',
-          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Calendar"
-        component={CalendarSessionsScreen}
-        options={{ tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="Profile"
-        options={{ tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }}
-      >
-        {(props) => <ProfileScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
-      </Tab.Screen>
-    </Tab.Navigator>
-  );
-}
-
-export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const token =
-        Platform.OS === 'web'
-          ? localStorage.getItem('access_token')
-          : await AsyncStorage.getItem('access_token');
-      setIsLoggedIn(!!token);
-      setLoading(false);
-    })();
-  }, []);
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator color={colors.text} />
-      </View>
-    );
+// ============ ERROR BOUNDARY ============
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  return (
-    <SafeAreaProvider>
-      <NavigationContainer theme={AppTheme}>
-        <StatusBar style="dark" />
-        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-          {!isLoggedIn ? (
-            <Stack.Screen name="Login">
-              {(props) => <LoginScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
-            </Stack.Screen>
-          ) : (
-            <>
-              <Stack.Screen name="MainTabs">
-                {(props) => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
-              </Stack.Screen>
-              <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
-              <Stack.Screen name="TakeAssessment" component={TakeAssessmentScreen} />
-              <Stack.Screen name="QuizResult" component={QuizResultScreen} />
-            </>
+  static getDerivedStateFromError(error) {
+    console.error('[ErrorBoundary] Error caught:', error);
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[ErrorBoundary] Component error:', error);
+    console.error('[ErrorBoundary] Error info:', errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  handleReset = () => {
+    console.log('[ErrorBoundary] Resetting error state');
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={64} color={COLORS.error} />
+          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorText}>
+            {this.state.error?.message || 'An unexpected error occurred'}
+          </Text>
+          {__DEV__ && this.state.errorInfo && (
+            <Text style={styles.errorStack}>
+              {this.state.errorInfo.componentStack}
+            </Text>
           )}
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
-  );
+          <TouchableOpacity style={styles.retryButton} onPress={this.handleReset}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
 }
+
+// ============ LOADING SCREEN ============
+const LoadingScreen = () => {
+  console.log('[LoadingScreen] Rendering...');
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={COLORS.primary} />
+      <Text style={styles.loadingText}>Loading...</Text>
+    </View>
+  );
+};
+
+// ============ MAIN APP ============
+class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { isReady: false };
+    console.log('[App] Constructor called');
+  }
+
+  componentDidMount() {
+    console.log('[App] Component mounted');
+    // Simulate minimal initialization
+    setTimeout(() => {
+      console.log('[App] App ready');
+      this.setState({ isReady: true });
+    }, 100);
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[App] Uncaught error:', error, errorInfo);
+  }
+
+  render() {
+    console.log('[App] Rendering, isReady:', this.state.isReady);
+    
+    if (!this.state.isReady) {
+      return <LoadingScreen />;
+    }
+
+    return (
+      <ErrorBoundary>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </ErrorBoundary>
+    );
+  }
+}
+
+// ============ STYLES ============
+const styles = StyleSheet.create({
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  errorStack: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    textAlign: 'left',
+    marginTop: 8,
+    maxHeight: 200,
+    overflow: 'scroll',
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+});
+
+export default App;

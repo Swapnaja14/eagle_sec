@@ -1,0 +1,237 @@
+═══════════════════════════════════════════════════════════════
+  EXPO WHITE SCREEN FIX - COMMAND REFERENCE
+═══════════════════════════════════════════════════════════════
+
+🚀 QUICK START
+═══════════════════════════════════════════════════════════════
+
+Terminal 1 - Backend:
+  cd backend
+  python manage.py runserver
+
+Terminal 2 - Frontend:
+  cd mobile
+  npm run start:web:clean
+
+Browser:
+  http://localhost:19006
+
+
+🔧 TROUBLESHOOTING COMMANDS
+═══════════════════════════════════════════════════════════════
+
+Check System Status:
+  cd mobile
+  npm run diagnose
+
+Clear Cache Only:
+  cd mobile
+  npm run clear
+
+Start with Clean Cache:
+  cd mobile
+  npm run start:web:clean
+
+Full Reset (Nuclear Option):
+  cd mobile
+  npm run reset
+  npm run start:web:clean
+
+
+🔌 PORT MANAGEMENT
+═══════════════════════════════════════════════════════════════
+
+Kill Port 19006 (Windows):
+  netstat -ano | findstr :19006
+  taskkill /PID <PID> /F
+
+Kill Port 19006 (Mac/Linux):
+  lsof -ti:19006 | xargs kill -9
+
+Kill All Node Processes (Windows):
+  taskkill /F /IM node.exe
+
+Kill All Node Processes (Mac/Linux):
+  killall node
+
+
+📦 DEPENDENCY MANAGEMENT
+═══════════════════════════════════════════════════════════════
+
+Reinstall Dependencies:
+  cd mobile
+  rm -rf node_modules
+  rm package-lock.json
+  npm install
+
+Clear NPM Cache:
+  npm cache clean --force
+
+
+🧹 CACHE CLEARING
+═══════════════════════════════════════════════════════════════
+
+Clear Metro Cache:
+  cd mobile
+  rm -rf .expo
+  rm -rf node_modules/.cache
+
+Clear All Caches (Windows):
+  cd mobile
+  rmdir /s /q .expo
+  rmdir /s /q node_modules\.cache
+
+Clear All Caches (Mac/Linux):
+  cd mobile
+  rm -rf .expo node_modules/.cache
+  rm -rf $TMPDIR/metro-*
+  rm -rf $TMPDIR/haste-*
+
+
+🐛 DEBUGGING
+═══════════════════════════════════════════════════════════════
+
+Check Backend:
+  curl http://localhost:8000/api/
+
+Check Frontend:
+  curl http://localhost:19006/
+
+View Expo Logs:
+  cd mobile
+  npx expo start --web
+
+View Backend Logs:
+  cd backend
+  python manage.py runserver
+
+
+✅ VERIFICATION
+═══════════════════════════════════════════════════════════════
+
+Test Backend API:
+  curl http://localhost:8000/api/auth/me/
+
+Check Node Version:
+  node --version
+
+Check NPM Version:
+  npm --version
+
+Check Expo Version:
+  npx expo --version
+
+
+📝 NPM SCRIPTS AVAILABLE
+═══════════════════════════════════════════════════════════════
+
+npm run start              - Start Expo normally
+npm run start:clean        - Start with clean cache
+npm run start:web          - Start web only
+npm run start:web:clean    - Start web with clean cache
+npm run android            - Start Android
+npm run ios                - Start iOS
+npm run clear              - Clear cache
+npm run reset              - Full reset
+npm run diagnose           - Run diagnostics
+
+
+🎯 COMMON ISSUES & FIXES
+═══════════════════════════════════════════════════════════════
+
+Issue: White Screen
+Fix:
+  1. Open browser console (F12)
+  2. Check for errors
+  3. npm run start:web:clean
+
+Issue: WebSocket Connection Failed
+Fix:
+  - This is normal, app still works
+  - WebSocket only for hot reload
+  - Can be safely ignored
+
+Issue: Backend Connection Failed
+Fix:
+  1. Check backend is running
+  2. Verify http://localhost:8000
+  3. Check CORS settings
+
+Issue: Metro Bundler Crash
+Fix:
+  1. Kill all node processes
+  2. npm run clear
+  3. npm run start:web:clean
+
+Issue: Port Already in Use
+Fix:
+  1. Kill process on port 19006
+  2. npm run start:web:clean
+
+
+🔍 FILES MODIFIED
+═══════════════════════════════════════════════════════════════
+
+Core Files:
+  ✅ App.js - Complete rewrite with error boundaries
+  ✅ src/context/AuthContext.js - Added timeout & error handling
+  ✅ src/navigation/AppNavigator.js - Added fallbacks & logging
+  ✅ src/api/client.js - Added timeout & better errors
+
+Config Files:
+  ✅ babel.config.js - Changed to expo preset
+  ✅ metro.config.js - Added .cjs support
+  ✅ app.json - Added full Expo config
+  ✅ index.js - Changed to Expo entry point
+
+Style Files:
+  ✅ src/theme.js - Fixed shadow props for web
+
+New Files:
+  ✅ TROUBLESHOOTING.md - Complete guide
+  ✅ QUICK_START.md - Quick reference
+  ✅ COMMANDS.txt - This file
+  ✅ diagnose.js - Diagnostic tool
+  ✅ webpack.config.js - Web config
+  ✅ start-clean.sh - Clean start script (Mac/Linux)
+  ✅ start-clean.bat - Clean start script (Windows)
+
+
+📚 DOCUMENTATION
+═══════════════════════════════════════════════════════════════
+
+QUICK_START.md       - Quick start guide
+TROUBLESHOOTING.md   - Detailed troubleshooting
+COMMANDS.txt         - This command reference
+README.md            - Project overview
+ARCHITECTURE.md      - System architecture
+
+
+🎉 SUCCESS INDICATORS
+═══════════════════════════════════════════════════════════════
+
+✅ No white screen
+✅ Loading spinner appears
+✅ Login/Dashboard renders
+✅ Console shows initialization logs
+✅ No unhandled errors
+✅ WebSocket errors don't crash app
+✅ App works even when backend is down
+
+
+💡 PRO TIPS
+═══════════════════════════════════════════════════════════════
+
+1. Always start backend first
+2. Use npm run start:web:clean when in doubt
+3. Check browser console (F12) for errors
+4. WebSocket errors are normal and safe
+5. Run npm run diagnose to check status
+6. Backend must be on port 8000
+7. Frontend must be on port 19006
+
+
+═══════════════════════════════════════════════════════════════
+  END OF COMMAND REFERENCE
+═══════════════════════════════════════════════════════════════
+

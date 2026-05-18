@@ -4,9 +4,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  GraduationCap, BookOpen, Award, Calendar, Bell, ChevronRight, TrendingUp, CheckCircle2,
+  GraduationCap, BookOpen, Award, Calendar, Bell, ChevronRight, TrendingUp, CheckCircle2, ClipboardList,
 } from 'lucide-react-native';
 import { dashboardAPI, authAPI, certificatesAPI } from '../services/api';
+import { useAssignments } from '../hooks/useAssignments';
 import { colors, spacing, radius, typography, shared, shadows } from '../theme';
 
 export default function DashboardScreen({ navigation }) {
@@ -15,6 +16,8 @@ export default function DashboardScreen({ navigation }) {
   const [certs, setCerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  const { getPendingCount, getCompletedCount } = useAssignments(true);
 
   const load = useCallback(async (refresh = false) => {
     try {
@@ -50,6 +53,8 @@ export default function DashboardScreen({ navigation }) {
   const completed = myTraining.filter((t) => t.status === 'passed' || t.status === 'completed').length;
   const inProgress = myTraining.filter((t) => t.status !== 'passed' && t.status !== 'completed').length;
   const greetName = me?.first_name || me?.username || 'there';
+  const pendingAssignments = getPendingCount();
+  const completedAssignments = getCompletedCount();
 
   return (
     <SafeAreaView style={shared.screen} edges={['top', 'left', 'right']}>
@@ -83,6 +88,12 @@ export default function DashboardScreen({ navigation }) {
         </View>
         <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
           <ActionRow
+            icon={ClipboardList}
+            title="My Assignments"
+            sub={pendingAssignments > 0 ? `${pendingAssignments} pending` : 'All caught up!'}
+            onPress={() => navigation.navigate('Assignments')}
+          />
+          <ActionRow
             icon={GraduationCap}
             title="Browse Courses"
             sub="Explore all available training modules"
@@ -98,7 +109,7 @@ export default function DashboardScreen({ navigation }) {
             icon={Award}
             title="My Certificates"
             sub={certs.length ? `${certs.length} earned` : 'No certificates yet'}
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigation.navigate('Certificates')}
           />
         </View>
 

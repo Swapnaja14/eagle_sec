@@ -111,6 +111,24 @@ export default function CourseDetailScreen({ navigation, route }) {
             </View>
           </View>
 
+          {/* Lessons Section */}
+          <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Course Content</Text>
+          <TouchableOpacity
+            style={styles.lessonsBtn}
+            onPress={() => navigation.navigate('Lessons', { courseId, courseName: course.display_name })}
+          >
+            <View style={styles.lessonsBtnIcon}>
+              <BookOpen size={20} color={colors.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.lessonsBtnTitle}>View Lessons & Materials</Text>
+              <Text style={styles.lessonsBtnSub}>
+                {course.lesson_count || 0} lessons with study materials
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
           {/* Assessments / quizzes list */}
           <Text style={[shared.sectionTitle, { marginTop: spacing.xl }]}>Assessments</Text>
           {quizzes.length === 0 ? (
@@ -220,6 +238,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.pill,
   },
+  lessonsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    ...shadows.pill,
+  },
+  lessonsBtnIcon: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  lessonsBtnTitle: { fontWeight: '700', color: colors.text, fontSize: 15 },
+  lessonsBtnSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   quizRow: {
     flexDirection: 'row',
     alignItems: 'center',
