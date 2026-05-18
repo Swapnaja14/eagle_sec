@@ -10,7 +10,7 @@ class TagSerializer(serializers.ModelSerializer):
 
 class ContentFileSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, read_only=True)
-    tag_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
+    tag_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False, allow_empty=True)
     uploaded_by_name = serializers.SerializerMethodField()
     file_size_display = serializers.SerializerMethodField()
 
@@ -23,7 +23,12 @@ class ContentFileSerializer(serializers.ModelSerializer):
             'subject', 'language', 'difficulty', 'tags', 'tag_names',
             'uploaded_by_name',
         ]
-        read_only_fields = ['id', 'upload_date', 'updated_at', 'uploaded_by_name']
+        read_only_fields = ['id', 'upload_date', 'updated_at', 'uploaded_by_name', 'file_size_display']
+        extra_kwargs = {
+            'original_filename': {'required': False},
+            'file_type': {'required': False},
+            'file_size': {'required': False},
+        }
 
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
@@ -31,7 +36,7 @@ class ContentFileSerializer(serializers.ModelSerializer):
         return None
 
     def get_file_size_display(self, obj):
-        size = obj.file_size
+        size = obj.file_size or 0
         if size < 1024:
             return f"{size} B"
         elif size < 1024 ** 2:
@@ -43,11 +48,23 @@ class ContentFileSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         tag_names = validated_data.pop('tag_names', [])
         tenant = self.context['request'].user.tenant
-        content_file = ContentFile.objects.create(tenant=tenant, **validated_data)
+        
+        # Set defaults for empty values
+        if not validated_data.get('subject'):
+            validated_data['subject'] = 'other'
+        if not validated_data.get('language'):
+            validated_data['language'] = 'en'
+        if not validated_data.get('difficulty'):
+            validated_data['difficulty'] = 'medium'
+        
+        content_file = ContentFile.objects.create(**validated_data)
 
-        for tag_name in tag_names:
-            tag, _ = Tag.objects.get_or_create(name=tag_name.strip(), tenant=tenant)
-            content_file.tags.add(tag)
+        # Handle tags
+        if tag_names:
+            for tag_name in tag_names:
+                if tag_name and tag_name.strip():
+                    tag, _ = Tag.objects.get_or_create(name=tag_name.strip(), tenant=tenant)
+                    content_file.tags.add(tag)
 
         return content_file
 
@@ -61,7 +78,8 @@ class ContentFileSerializer(serializers.ModelSerializer):
             instance.tags.clear()
             tenant = self.context['request'].user.tenant
             for tag_name in tag_names:
-                tag, _ = Tag.objects.get_or_create(name=tag_name.strip(), tenant=tenant)
-                instance.tags.add(tag)
+                if tag_name and tag_name.strip():
+                    tag, _ = Tag.objects.get_or_create(name=tag_name.strip(), tenant=tenant)
+                    instance.tags.add(tag)
 
         return instance
