@@ -39,23 +39,71 @@ class ContentFileViewSet(viewsets.ModelViewSet):
             qs = qs.exclude(status='archived')
         return qs.select_related('uploaded_by').prefetch_related('tags')
 
-    def perform_create(self, serializer):
-        file_obj = self.request.FILES.get('file')
+    def create(self, request, *args, **kwargs):
+        file_obj = request.FILES.get('file')
+
+        if not file_obj:
+            return Response(
+                {'detail': 'No file was submitted.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Detect file type
         file_type = 'document'
-        if file_obj:
-            name = file_obj.name.lower()
-            if any(name.endswith(ext) for ext in ['.mp4', '.mov', '.avi', '.mkv']):
-                file_type = 'video'
-            elif any(name.endswith(ext) for ext in ['.ppt', '.pptx']):
-                file_type = 'presentation'
-            elif any(name.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif']):
-                file_type = 'image'
+        name = file_obj.name.lower()
+
+        if any(name.endswith(ext) for ext in ['.mp4', '.mov', '.avi', '.mkv']):
+            file_type = 'video'
+
+        elif any(name.endswith(ext) for ext in ['.ppt', '.pptx']):
+            file_type = 'presentation'
+
+        elif any(name.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif']):
+            file_type = 'image'
+
+        # Build normal dictionary manually
+        data = {
+            'title': request.data.get('title'),
+            'description': request.data.get('description'),
+            'subject': request.data.get('subject'),
+            'language': request.data.get('language'),
+            'difficulty': request.data.get('difficulty'),
+            'duration': request.data.get('duration') or '00:00:00',
+            'permissions': request.data.get('permissions'),
+
+            # convert comma-separated string to list
+            'tag_names': [
+                tag.strip()
+                for tag in request.data.get('tag_names', '').split(',')
+                if tag.strip()
+            ],
+
+            'original_filename': file_obj.name,
+            'file_size': file_obj.size,
+            'file_type': file_type,
+            'file': file_obj,
+        }
+        serializer = self.get_serializer(data=data)
+
+        serializer.is_valid(raise_exception=True)
 
         serializer.save(
+            uploaded_by=request.user,
+            tenant=request.user.tenant,
+        )
+
+        headers = self.get_success_headers(serializer.data)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
+    
+    def perform_create(self, serializer):
+        serializer.save(
             uploaded_by=self.request.user,
-            original_filename=file_obj.name if file_obj else '',
-            file_size=file_obj.size if file_obj else 0,
-            file_type=file_type,
+            tenant=self.request.user.tenant,
         )
 
     @action(detail=True, methods=['post'])

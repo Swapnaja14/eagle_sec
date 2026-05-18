@@ -52,10 +52,18 @@ export default function CourseBuilderPage() {
   const [exporting, setExporting] = useState(false)
 
   // Level 1 — Global Metadata
+  
   const [meta, setMeta] = useState({
-    display_name: '', description: '', start_date: '', end_date: '',
-    compliance_taxonomy: 'none', skills_taxonomy: 'none',
+    display_name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    duration: 0,
+    department: '',
+    compliance_taxonomy: 'none',
+    skills_taxonomy: 'none',
   })
+
   const [customSkillInput, setCustomSkillInput] = useState('')
   const [customSkills, setCustomSkills] = useState([])
 
@@ -184,7 +192,13 @@ export default function CourseBuilderPage() {
           showNotif('End date must be after start date.', 'error'); setSaving(false); return
         }
         if (!id && !course) {
-          const res = await coursesAPI.create(meta)
+          const payload = {
+            ...meta,
+            start_date: meta.start_date || null,
+            end_date: meta.end_date || null,
+          }
+
+          const res = await coursesAPI.create(payload)
           const c = res.data
           setCourse(c)
           if (c.pre_assessment) setPreAssess(prev => ({ ...prev, ...c.pre_assessment, questions: c.pre_assessment.questions || [] }))
@@ -201,7 +215,13 @@ export default function CourseBuilderPage() {
             return
           }
           console.log('[DEBUG] Updating course:', cid, 'with data:', meta)
-          const res = await coursesAPI.update(cid, meta)
+          const payload = {
+          ...meta,
+          start_date: meta.start_date || null,
+          end_date: meta.end_date || null,
+          }
+
+const res = await coursesAPI.create(payload)
           console.log('[DEBUG] Update response:', res.data)
           setCourse(prev => ({ ...prev, ...res.data }))
           showNotif('Metadata saved!')
@@ -271,7 +291,7 @@ export default function CourseBuilderPage() {
       }
     } catch (err) {
       console.error('Save error:', err)
-      console.error('Error response:', err.response?.data)
+      console.error('FULL ERROR DATA:', JSON.stringify(err.response?.data, null, 2))
       showNotif(err.response?.data?.detail || err.response?.data?.error || err.message || 'Save failed.', 'error')
     } finally { setSaving(false) }
   }

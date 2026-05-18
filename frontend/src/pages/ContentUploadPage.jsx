@@ -32,19 +32,19 @@ const LANGUAGES = [
 function FileIcon({ type }) {
   if (type === 'video') return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
-      <rect x="2" y="2" width="20" height="20" rx="3"/>
-      <polygon points="10,8 16,12 10,16" fill="#3b82f6" stroke="none"/>
+      <rect x="2" y="2" width="20" height="20" rx="3" />
+      <polygon points="10,8 16,12 10,16" fill="#3b82f6" stroke="none" />
     </svg>
   )
   if (type === 'presentation') return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2">
-      <rect x="3" y="3" width="18" height="16" rx="2"/><path d="M8 21h8M12 17v4"/>
+      <rect x="3" y="3" width="18" height="16" rx="2" /><path d="M8 21h8M12 17v4" />
     </svg>
   )
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
     </svg>
   )
 }
@@ -66,13 +66,13 @@ function UploadQueueItem({ file, progress, onRemove }) {
         <span className="upload-pct">{progress}%</span>
         <button className="upload-remove-btn" onClick={onRemove} title="Cancel">
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M18 6L6 18M6 6l12 12"/>
+            <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
       </div>
       <div className="upload-queue-bar">
         <div className="progress-bar-track">
-          <div className="progress-bar-fill" style={{width: `${progress}%`}} />
+          <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
         </div>
       </div>
     </div>
@@ -110,29 +110,63 @@ export default function ContentUploadPage() {
     return 'document'
   }
 
-  const onDrop = useCallback((acceptedFiles) => {
+  const extractVideoDuration = useCallback((file) => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src)
+        const duration = Math.floor(video.duration)
+        const hours = Math.floor(duration / 3600)
+        const minutes = Math.floor((duration % 3600) / 60)
+        const seconds = duration % 60
+        const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        resolve(formatted)
+      }
+
+      video.onerror = () => {
+        window.URL.revokeObjectURL(video.src)
+        resolve('')
+      }
+
+      video.src = URL.createObjectURL(file)
+    })
+  }, [])
+
+  const onDrop = useCallback(async (acceptedFiles) => {
     const newFiles = acceptedFiles.map(f => {
       f._fileType = detectFileType(f.name)
+      f._uploadId = Math.random() // Assign unique ID to each file
       return f
     })
-    setUploadQueue(prev => [...prev, ...newFiles.map(f => ({ file: f, progress: 0, id: Math.random() }))])
+
+    // Add files to queue ONCE with their IDs
+    setUploadQueue(prev => [...prev, ...newFiles.map(f => ({ file: f, progress: 0, id: f._uploadId }))])
+
     if (newFiles.length > 0) {
       setActiveFileType(newFiles[0]._fileType)
       setMetadata(prev => ({ ...prev, title: newFiles[0].name.replace(/\.[^.]+$/, '') }))
+
+      // Extract video duration if it's a video file
+      if (newFiles[0]._fileType === 'video') {
+        const duration = await extractVideoDuration(newFiles[0])
+        if (duration) {
+          setVideoOpts(prev => ({ ...prev, duration }))
+        }
+      }
     }
 
     // Simulate upload progress for each file
-    newFiles.forEach((f, idx) => {
-      const id = Math.random()
+    newFiles.forEach((f) => {
       let prog = 0
-      setUploadQueue(prev => [...prev, { file: f, progress: 0, id }])
       const timer = setInterval(() => {
         prog += Math.random() * 8 + 2
         if (prog >= 100) { prog = 100; clearInterval(timer) }
         setUploadQueue(prev => prev.map(item => item.file === f ? { ...item, progress: Math.min(100, Math.round(prog)) } : item))
       }, 300)
     })
-  }, [])
+  }, [extractVideoDuration])
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -174,18 +208,18 @@ export default function ContentUploadPage() {
         const formData = new FormData()
         formData.append('file', item.file)
         formData.append('title', metadata.title || item.file.name)
-        formData.append('description', metadata.description)
-        formData.append('subject', taxonomy.subject)
-        formData.append('language', taxonomy.language)
-        formData.append('difficulty', taxonomy.difficulty)
+        formData.append('description', metadata.description || '')
+        formData.append('subject', taxonomy.subject || 'other')
+        formData.append('language', taxonomy.language || 'en')
+        formData.append('difficulty', taxonomy.difficulty || 'medium')
         if (activeFileType === 'video' && videoOpts.duration) formData.append('duration', videoOpts.duration)
         if (activeFileType === 'document' && docOpts.page_count) formData.append('page_count', docOpts.page_count)
-        formData.append('permissions', docOpts.permissions)
+        formData.append('permissions', docOpts.permissions || 'view_only')
         if (smartTags.length > 0) {
           smartTags.forEach(tag => formData.append('tag_names', tag))
         }
 
-        await contentAPI.upload(formData, () => {})
+        await contentAPI.upload(formData, () => { })
       }
       // Also save queued files that aren't done yet as metadata-only
       showNotif('Content saved successfully!', 'success')
@@ -194,7 +228,11 @@ export default function ContentUploadPage() {
       setSmartTags([])
       fetchContent()
     } catch (err) {
-      showNotif(err.response?.data?.detail || 'Failed to save content.', 'error')
+      console.error('Upload error:', err.response?.data)
+      const errorMsg = err.response?.data?.detail ||
+        JSON.stringify(err.response?.data) ||
+        'Failed to save content.'
+      showNotif(errorMsg, 'error')
     } finally {
       setSaving(false)
     }
@@ -282,16 +320,16 @@ export default function ContentUploadPage() {
                 className="form-input"
                 placeholder="e.g. Introduction to Network Security"
                 value={metadata.title}
-                onChange={e => setMetadata(p => ({...p, title: e.target.value}))}
+                onChange={e => setMetadata(p => ({ ...p, title: e.target.value }))}
               />
             </div>
-            <div className="form-group" style={{marginTop: 14}}>
+            <div className="form-group" style={{ marginTop: 14 }}>
               <label className="form-label">Description</label>
               <textarea
                 className="form-textarea"
                 placeholder="Briefly describe the contents of this file..."
                 value={metadata.description}
-                onChange={e => setMetadata(p => ({...p, description: e.target.value}))}
+                onChange={e => setMetadata(p => ({ ...p, description: e.target.value }))}
                 rows={4}
               />
             </div>
@@ -305,7 +343,7 @@ export default function ContentUploadPage() {
                 <h4 className="cup-section-subtitle">VIDEO OPTIONS</h4>
               </div>
               <div className="cup-options-row">
-                <div className="form-group" style={{flex:1}}>
+                <div className="form-group" style={{ flex: 1 }}>
                   <label className="form-label">Video Duration</label>
                   <div className="cup-duration-input">
                     <span className="cup-duration-icon">⏱</span>
@@ -313,7 +351,7 @@ export default function ContentUploadPage() {
                       className="form-input"
                       placeholder="00:00:00"
                       value={videoOpts.duration}
-                      onChange={e => setVideoOpts(p => ({...p, duration: e.target.value}))}
+                      onChange={e => setVideoOpts(p => ({ ...p, duration: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -330,8 +368,8 @@ export default function ContentUploadPage() {
                       ref={thumbnailRef}
                       type="file"
                       accept="image/*"
-                      style={{display:'none'}}
-                      onChange={e => setVideoOpts(p => ({...p, thumbnail: e.target.files[0]}))}
+                      style={{ display: 'none' }}
+                      onChange={e => setVideoOpts(p => ({ ...p, thumbnail: e.target.files[0] }))}
                     />
                     <button className="btn btn-secondary btn-sm" onClick={() => thumbnailRef.current.click()}>
                       Upload Image
@@ -344,48 +382,48 @@ export default function ContentUploadPage() {
 
           {/* Document Options */}
           {(activeFileType === 'document' || activeFileType === 'presentation' ||
-            uploadQueue.some(i => ['document','presentation'].includes(i.file._fileType))) && (
-            <div className="cup-section card">
-              <div className="cup-section-header">
-                <span className="cup-section-dot cup-dot-green" />
-                <h4 className="cup-section-subtitle">DOCUMENT OPTIONS (PDF/PPT)</h4>
-              </div>
-              <div className="cup-options-row">
-                <div className="form-group">
-                  <label className="form-label">Page Count</label>
-                  <input
-                    className="form-input"
-                    type="number"
-                    placeholder="—"
-                    style={{width: 100}}
-                    value={docOpts.page_count}
-                    onChange={e => setDocOpts(p => ({...p, page_count: e.target.value}))}
-                  />
+            uploadQueue.some(i => ['document', 'presentation'].includes(i.file._fileType))) && (
+              <div className="cup-section card">
+                <div className="cup-section-header">
+                  <span className="cup-section-dot cup-dot-green" />
+                  <h4 className="cup-section-subtitle">DOCUMENT OPTIONS (PDF/PPT)</h4>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Permissions</label>
-                  <div className="cup-permissions">
-                    {[{value: 'view_only', label: 'View Only'}, {value: 'allow_download', label: 'Allow Download'}].map(opt => (
-                      <button
-                        key={opt.value}
-                        className={`btn btn-sm ${docOpts.permissions === opt.value ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setDocOpts(p => ({...p, permissions: opt.value}))}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                <div className="cup-options-row">
+                  <div className="form-group">
+                    <label className="form-label">Page Count</label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      placeholder="—"
+                      style={{ width: 100 }}
+                      value={docOpts.page_count}
+                      onChange={e => setDocOpts(p => ({ ...p, page_count: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Permissions</label>
+                    <div className="cup-permissions">
+                      {[{ value: 'view_only', label: 'View Only' }, { value: 'allow_download', label: 'Allow Download' }].map(opt => (
+                        <button
+                          key={opt.value}
+                          className={`btn btn-sm ${docOpts.permissions === opt.value ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={() => setDocOpts(p => ({ ...p, permissions: opt.value }))}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Manage Content Table */}
           <div className="cup-manage card">
             <div className="cup-manage-header">
-              <h3 className="cup-section-title" style={{margin:0}}>Manage Content</h3>
-              <label className="toggle-wrapper" style={{gap:8}}>
-                <span style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>Show Archived Content</span>
+              <h3 className="cup-section-title" style={{ margin: 0 }}>Manage Content</h3>
+              <label className="toggle-wrapper" style={{ gap: 8 }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Show Archived Content</span>
                 <label className="toggle">
                   <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
                   <span className="toggle-slider" />
@@ -419,7 +457,7 @@ export default function ContentUploadPage() {
                         </div>
                       </td>
                       <td><span className="cup-version">{item.version}</span></td>
-                      <td><span style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>{new Date(item.upload_date).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})}</span></td>
+                      <td><span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(item.upload_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></td>
                       <td>
                         <span className={`badge badge-${item.status}`}>
                           {item.status === 'active' ? '● Active' : item.status}
@@ -450,16 +488,16 @@ export default function ContentUploadPage() {
 
             <div className="form-group">
               <label className="form-label">Subject Mapping</label>
-              <select className="form-select" value={taxonomy.subject} onChange={e => setTaxonomy(p => ({...p, subject: e.target.value}))}>
+              <select className="form-select" value={taxonomy.subject} onChange={e => setTaxonomy(p => ({ ...p, subject: e.target.value }))}>
                 {SUBJECTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
 
-            <div className="form-group" style={{marginTop: 16}}>
+            <div className="form-group" style={{ marginTop: 16 }}>
               <label className="form-label">Smart Tags</label>
               <div className="cup-tag-input-wrapper">
                 <svg width="14" height="14" fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                 </svg>
                 <input
                   className="cup-tag-input"
@@ -481,21 +519,21 @@ export default function ContentUploadPage() {
               )}
             </div>
 
-            <div className="form-group" style={{marginTop: 16}}>
+            <div className="form-group" style={{ marginTop: 16 }}>
               <label className="form-label">Language Tags</label>
-              <select className="form-select" value={taxonomy.language} onChange={e => setTaxonomy(p => ({...p, language: e.target.value}))}>
+              <select className="form-select" value={taxonomy.language} onChange={e => setTaxonomy(p => ({ ...p, language: e.target.value }))}>
                 {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
               </select>
             </div>
 
-            <div className="form-group" style={{marginTop: 16}}>
+            <div className="form-group" style={{ marginTop: 16 }}>
               <label className="form-label">Difficulty Level</label>
               <div className="cup-difficulty">
                 {['easy', 'medium', 'hard'].map(d => (
                   <button
                     key={d}
                     className={`cup-diff-btn ${taxonomy.difficulty === d ? 'active' : ''} cup-diff-${d}`}
-                    onClick={() => setTaxonomy(p => ({...p, difficulty: d}))}
+                    onClick={() => setTaxonomy(p => ({ ...p, difficulty: d }))}
                   >
                     {d.charAt(0).toUpperCase() + d.slice(1)}
                   </button>
@@ -515,11 +553,11 @@ export default function ContentUploadPage() {
 
           {/* Save Actions */}
           <div className="cup-save-actions">
-            <button className="btn btn-secondary" onClick={() => { setUploadQueue([]); setMetadata({title:'',description:''}); setSmartTags([]) }}>
+            <button className="btn btn-secondary" onClick={() => { setUploadQueue([]); setMetadata({ title: '', description: '' }); setSmartTags([]) }}>
               Cancel
             </button>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? <><span className="spinner" style={{width:16,height:16}} /> Saving...</> : '💾 Save Content'}
+              {saving ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Saving...</> : '💾 Save Content'}
             </button>
           </div>
         </div>
