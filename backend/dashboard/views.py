@@ -286,7 +286,7 @@ class TraineeDashboardView(APIView):
         
         # Get pending assessments (quizzes not yet attempted)
         quizzes = Quiz.objects.filter(
-            course__trainingassignment__trainee=user,
+            course__training_assignments__trainee=user,
             is_active=True
         )
         if user.tenant:
