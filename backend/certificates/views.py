@@ -167,3 +167,104 @@ def employee_certificates(request, employee_id):
     return Response(
         IssuedCertificateSerializer(qs, many=True, context={"request": request}).data
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def auto_generate_course_certificate(request):
+    """
+    POST /api/certificates/auto-generate/
+    Automatically generates a certificate for a trainee after completing all assignments for a course.
+    
+    Request body:
+    {
+        "course_id": 1
+    }
+    """
+    course_id = request.data.get('course_id')
+    if not course_id:
+        return Response(
+            {"detail": "course_id is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    user = request.user
+    
+    # Get the course
+    from courses.models import Course, TrainingAssignment
+    try:
+        course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        return Response(
+            {"detail": "Course not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Check if user has a training assignment for this course
+    try:
+        assignment = TrainingAssignment.objects.get(
+            trainee=user,
+            course=course
+        )
+    except TrainingAssignment.DoesNotExist:
+        return Response(
+            {"detail": "You are not assigned to this course."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Check if assignment is completed
+    if assignment.status != TrainingAssignment.STATUS_COMPLETED:
+        return Response(
+            {"detail": f"Course not completed yet. Current status: {assignment.status}"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Check if certificate already exists for this course
+    existing_cert = IssuedCertificate.objects.filter(
+        employee=user,
+        course=course
+    ).first()
+    
+    if existing_cert:
+        return Response(
+            IssuedCertificateSerializer(existing_cert, context={"request": request}).data,
+            status=status.HTTP_200_OK
+        )
+    
+    # Find the best submission for post-assessment
+    best_submission = None
+    if hasattr(course, 'post_assessment') and course.post_assessment:
+        best_submission = Submission.objects.filter(
+            user=user,
+            quiz__course=course,
+            status='completed',
+            passed=True
+        ).order_by('-percentage', '-submitted_at').first()
+    
+    # Create certificate
+    cert = IssuedCertificate(
+        tenant=course.tenant,
+        employee=user,
+        course=course,
+        submission=best_submission,
+        file_path="",
+    )
+    cert.save()
+    
+    # Generate PDF
+    employee_name = f"{user.first_name} {user.last_name}".strip() or user.username
+    completion_date = assignment.updated_at or timezone.now()
+    
+    file_path = generate_certificate_pdf(
+        employee_name=employee_name,
+        course_name=course.display_name,
+        completion_date=completion_date,
+        certificate_id=cert.id,
+    )
+    cert.file_path = file_path
+    cert.save(update_fields=["file_path"])
+    
+    return Response(
+        IssuedCertificateSerializer(cert, context={"request": request}).data,
+        status=status.HTTP_201_CREATED
+    )

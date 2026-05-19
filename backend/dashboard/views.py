@@ -87,7 +87,8 @@ class TrainingTrendView(CachedAPIView):
         return Response(self._get_or_compute(request, get_training_trend))
 
 
-class UpcomingSessionsView(CachedAPIView):
+class UpcomingSessionsView(APIView):
+    permission_classes = [IsAuthenticated]
     cache_ttl = 60
     cache_prefix = "dashboard:upcoming-sessions"
 
@@ -265,7 +266,31 @@ class TraineeDashboardView(APIView):
                 'certificate_id': cert.id if cert else None,
             })
         
-        # Get upcoming sessions
+        # Also include courses from the same department if trainee has department
+        if user.department:
+            from courses.models import Course
+            dept_courses = Course.objects.filter(
+                tenant=user.tenant,
+                status='active',
+                created_by__department=user.department
+            ).exclude(
+                id__in=assignments.values_list('course_id', flat=True)
+            )
+            
+            # Add department courses that aren't assigned yet
+            for course in dept_courses:
+                my_training.append({
+                    'id': course.id,
+                    'course_id': course.course_id,
+                    'module': course.display_name,
+                    'date': course.created_at.strftime('%Y-%m-%d'),
+                    'score': None,
+                    'status': 'not-started',
+                    'certificateReady': False,
+                    'certificate_id': None,
+                })
+        
+        # Get upcoming sessions from trainers in the same department
         upcoming_sessions = TrainingSession.objects.filter(
             is_active=True,
             date_time__gte=timezone.now()
@@ -273,15 +298,33 @@ class TraineeDashboardView(APIView):
         if user.tenant:
             upcoming_sessions = upcoming_sessions.filter(tenant=user.tenant)
         
+        # Filter by trainer's department OR session's department field
+        if user.department:
+            upcoming_sessions = upcoming_sessions.filter(
+                Q(trainer__department=user.department) | 
+                Q(department=user.department) |
+                Q(trainer__isnull=True, department='')  # Include sessions without trainer/dept
+            )
+        
         sessions_list = []
-        for session in upcoming_sessions[:5]:
+        for session in upcoming_sessions.order_by('date_time')[:5]:
             is_virtual = session.session_type == 'virtual'
+            trainer_name = 'TBA'
+            trainer_dept = None
+            
+            if session.trainer:
+                trainer_name = session.trainer.get_full_name() or session.trainer.username
+                trainer_dept = session.trainer.department
+            
             sessions_list.append({
                 'id': session.id,
                 'module': session.topic,
                 'date': session.date_time.strftime('%Y-%m-%d at %I:%M %p'),
                 'type': 'virtual' if is_virtual else 'classroom',
                 'venue': session.meeting_link if is_virtual else session.venue,
+                'trainer': trainer_name,
+                'trainer_department': trainer_dept or session.department,
+                'session_department': session.department,
             })
         
         # Get pending assessments (quizzes not yet attempted)
@@ -311,8 +354,61 @@ class TraineeDashboardView(APIView):
                     'attempted': False,
                 })
         
+        # Get recent training (recently accessed or in-progress courses)
+        from courses.models import Course
+        recent_training = []
+        
+        # Get courses with recent submissions
+        recent_submissions = Submission.objects.filter(
+            user=user,
+            quiz__course__isnull=False
+        ).select_related('quiz__course').order_by('-created_at')[:5]
+        
+        seen_courses = set()
+        for submission in recent_submissions:
+            course = submission.quiz.course
+            if course.id not in seen_courses:
+                seen_courses.add(course.id)
+                
+                # Get progress
+                best_submission = Submission.objects.filter(
+                    user=user,
+                    quiz__course=course,
+                    status='completed'
+                ).order_by('-percentage').first()
+                
+                progress = 0
+                if best_submission:
+                    progress = int(best_submission.percentage)
+                
+                recent_training.append({
+                    'id': course.id,
+                    'course_id': course.course_id,
+                    'title': course.display_name,
+                    'description': course.description[:100] + '...' if len(course.description) > 100 else course.description,
+                    'progress': progress,
+                    'last_accessed': submission.created_at.strftime('%Y-%m-%d'),
+                    'status': 'completed' if best_submission and best_submission.passed else 'in-progress',
+                })
+        
+        # If less than 3 recent courses, add assigned courses
+        if len(recent_training) < 3:
+            for assignment in assignments[:3]:
+                if assignment.course.id not in seen_courses:
+                    seen_courses.add(assignment.course.id)
+                    recent_training.append({
+                        'id': assignment.course.id,
+                        'course_id': assignment.course.course_id,
+                        'title': assignment.course.display_name,
+                        'description': assignment.course.description[:100] + '...' if len(assignment.course.description) > 100 else assignment.course.description,
+                        'progress': 0,
+                        'last_accessed': assignment.assigned_at.strftime('%Y-%m-%d'),
+                        'status': 'not-started',
+                    })
+        
         return Response({
             'my_training': my_training,
+            'recent_training': recent_training[:5],
             'upcoming_sessions': sessions_list,
             'pending_assessments': pending_assessments,
         })

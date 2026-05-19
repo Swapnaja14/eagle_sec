@@ -566,6 +566,31 @@ def trainee_courses_view(request):
         total_videos = sum(l['video_count'] for l in lessons_data)
         total_documents = sum(l['document_count'] for l in lessons_data)
         
+        # Get enrolled count for this course
+        enrolled_count = TrainingAssignment.objects.filter(course=course).count()
+        
+        # Check if certificate is available
+        from certificates.models import IssuedCertificate
+        certificate = IssuedCertificate.objects.filter(
+            employee=user,
+            course=course
+        ).first()
+        
+        certificate_info = None
+        if certificate:
+            certificate_info = {
+                'id': certificate.id,
+                'issued_at': certificate.issued_at,
+                'download_url': request.build_absolute_uri(f'/api/certificates/{certificate.id}/download/'),
+            }
+        
+        # Check if certificate can be generated (all assignments completed)
+        can_generate_certificate = (
+            assignment and 
+            assignment.status == TrainingAssignment.STATUS_COMPLETED and
+            not certificate
+        )
+        
         course_data = {
             'id': course.id,
             'course_id': course.course_id,
@@ -580,12 +605,15 @@ def trainee_courses_view(request):
             'lesson_count': len(lessons_data),
             'total_videos': total_videos,
             'total_documents': total_documents,
+            'enrolled_count': enrolled_count,
             'has_pre_assessment': hasattr(course, 'pre_assessment') and course.pre_assessment.is_active,
             'has_post_assessment': hasattr(course, 'post_assessment') and course.post_assessment.is_active,
             'has_certification': hasattr(course, 'certification'),
             'assignment_status': assignment.status if assignment else None,
             'due_date': assignment.due_date if assignment else None,
             'assigned_at': assignment.assigned_at if assignment else None,
+            'certificate': certificate_info,
+            'can_generate_certificate': can_generate_certificate,
         }
         
         courses_data.append(course_data)

@@ -46,9 +46,10 @@ export default function DashboardScreen({ navigation }) {
     );
   }
 
-  const myTraining = overview?.my_training || [];
-  const completed = myTraining.filter((t) => t.status === 'passed' || t.status === 'completed').length;
-  const inProgress = myTraining.filter((t) => t.status !== 'passed' && t.status !== 'completed').length;
+  const myTraining = overview?.recent_training || [];
+  const allTraining = overview?.my_training || [];
+  const completed = allTraining.filter((t) => t.status === 'passed' || t.status === 'completed').length;
+  const inProgress = allTraining.filter((t) => t.status !== 'passed' && t.status !== 'completed').length;
   const greetName = me?.first_name || me?.username || 'there';
 
   return (
@@ -72,7 +73,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Stats grid */}
         <View style={styles.stats}>
-          <StatCard icon={BookOpen} value={myTraining.length} label="Enrolled" />
+          <StatCard icon={BookOpen} value={allTraining.length} label="Enrolled" />
           <StatCard icon={CheckCircle2} value={completed} label="Completed" />
           <StatCard icon={Award} value={certs.length} label="Certificates" />
         </View>
@@ -102,9 +103,9 @@ export default function DashboardScreen({ navigation }) {
           />
         </View>
 
-        {/* My Training */}
+        {/* My Recent Training */}
         <View style={shared.sectionHeader}>
-          <Text style={shared.sectionTitle}>My Training</Text>
+          <Text style={shared.sectionTitle}>My Recent Training</Text>
           <Text style={shared.sectionLink}>{myTraining.length} items</Text>
         </View>
         <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
@@ -115,14 +116,18 @@ export default function DashboardScreen({ navigation }) {
             </View>
           ) : (
             myTraining.map((t) => (
-              <View key={t.id} style={styles.tCard}>
+              <TouchableOpacity 
+                key={t.id} 
+                style={styles.tCard}
+                onPress={() => navigation.navigate('CourseDetail', { courseId: t.id })}
+              >
                 <View style={styles.tIcon}>
                   <TrendingUp size={18} color={colors.text} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.tTitle} numberOfLines={1}>{t.module}</Text>
+                  <Text style={styles.tTitle} numberOfLines={1}>{t.title || t.module}</Text>
                   <Text style={styles.tSub}>
-                    {t.date} • Score: {t.score ?? '—'}{t.score != null ? '%' : ''}
+                    {t.last_accessed} • Progress: {t.progress ?? 0}%
                   </Text>
                 </View>
                 <View
@@ -132,8 +137,8 @@ export default function DashboardScreen({ navigation }) {
                       backgroundColor:
                         t.status === 'passed' || t.status === 'completed'
                           ? '#DCFCE7'
-                          : t.status === 'failed'
-                          ? '#FEE2E2'
+                          : t.status === 'in-progress'
+                          ? '#FEF3C7'
                           : colors.cardSoft,
                     },
                   ]}
@@ -145,8 +150,8 @@ export default function DashboardScreen({ navigation }) {
                         color:
                           t.status === 'passed' || t.status === 'completed'
                             ? '#15803D'
-                            : t.status === 'failed'
-                            ? '#B91C1C'
+                            : t.status === 'in-progress'
+                            ? '#92400E'
                             : colors.text,
                       },
                     ]}
@@ -154,7 +159,8 @@ export default function DashboardScreen({ navigation }) {
                     {t.status}
                   </Text>
                 </View>
-              </View>
+                <ChevronRight size={18} color={colors.textMuted} style={{ marginLeft: spacing.sm }} />
+              </TouchableOpacity>
             ))
           )}
         </View>
