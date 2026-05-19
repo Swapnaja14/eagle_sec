@@ -119,3 +119,50 @@ class CourseSerializer(serializers.ModelSerializer):
             PostAssessment.objects.create(course=course)
             Certification.objects.create(course=course)
         return course
+
+
+class TraineeCourseSerializer(serializers.ModelSerializer):
+    """Optimized serializer for trainee mobile app with videos and documents"""
+    lessons = LessonSerializer(many=True, read_only=True)
+    total_videos = serializers.SerializerMethodField()
+    total_documents = serializers.SerializerMethodField()
+    total_files = serializers.SerializerMethodField()
+    has_pre_assessment = serializers.SerializerMethodField()
+    has_post_assessment = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Course
+        fields = [
+            'id', 'course_id', 'display_name', 'description',
+            'start_date', 'end_date', 'compliance_taxonomy', 'skills_taxonomy',
+            'department', 'status', 'created_at', 'updated_at',
+            'lessons', 'total_videos', 'total_documents', 'total_files',
+            'has_pre_assessment', 'has_post_assessment'
+        ]
+        read_only_fields = ['id', 'course_id', 'created_at', 'updated_at']
+    
+    def get_total_videos(self, obj):
+        """Count total video files across all lessons"""
+        return sum(
+            lesson.files.filter(file_type='video').count() 
+            for lesson in obj.lessons.all()
+        )
+    
+    def get_total_documents(self, obj):
+        """Count total document files across all lessons"""
+        return sum(
+            lesson.files.filter(file_type__in=['document', 'presentation']).count() 
+            for lesson in obj.lessons.all()
+        )
+    
+    def get_total_files(self, obj):
+        """Count total files across all lessons"""
+        return sum(lesson.files.count() for lesson in obj.lessons.all())
+    
+    def get_has_pre_assessment(self, obj):
+        """Check if course has an active pre-assessment"""
+        return hasattr(obj, 'pre_assessment') and obj.pre_assessment.is_active
+    
+    def get_has_post_assessment(self, obj):
+        """Check if course has an active post-assessment"""
+        return hasattr(obj, 'post_assessment') and obj.post_assessment.is_active

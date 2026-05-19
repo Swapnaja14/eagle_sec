@@ -2,7 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested import routers as nested_routers
 from .views import (CourseViewSet, LessonViewSet, LessonFileViewSet,
-                    PreAssessmentViewSet, PostAssessmentViewSet, CertificationViewSet, training_topics_view)
+                    PreAssessmentViewSet, PostAssessmentViewSet, CertificationViewSet, 
+                    training_topics_view, trainee_courses_view)
 
 router = DefaultRouter()
 router.register(r'', CourseViewSet, basename='course')
@@ -20,6 +21,7 @@ lessons_router.register(r'files', LessonFileViewSet, basename='lesson-file')
 
 urlpatterns = [
     path('training-topics/', training_topics_view, name='training-topics'),
+    path('trainee-courses/', trainee_courses_view, name='trainee-courses'),
     path('', include(router.urls)),
     path('', include(courses_router.urls)),
     path('', include(lessons_router.urls)),

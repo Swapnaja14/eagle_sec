@@ -8,7 +8,7 @@ from django_filters import rest_framework as dj_filters
 from .models import Course, Lesson, LessonFile, PreAssessment, PostAssessment, Certification, BatchExpiry
 from .serializers import (CourseSerializer, LessonSerializer, LessonFileSerializer,
                            PreAssessmentSerializer, PostAssessmentSerializer,
-                           CertificationSerializer, BatchExpirySerializer)
+                           CertificationSerializer, BatchExpirySerializer, TraineeCourseSerializer)
 
 
 class CourseFilter(dj_filters.FilterSet):
@@ -337,3 +337,38 @@ def training_topics_view(request):
         ]
     
     return Response(topics)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def trainee_courses_view(request):
+    """
+    Get courses for trainee mobile app filtered by trainer's company and department.
+    Returns active courses with videos and documents included.
+    """
+    user = request.user
+    
+    if user.role != 'trainee':
+        return Response(
+            {'detail': 'This endpoint is only for trainees.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Filter courses by trainee's tenant (company) and department
+    courses_qs = Course.objects.filter(
+        tenant=user.tenant,
+        status='active'
+    ).select_related('created_by', 'pre_assessment', 'post_assessment', 'certification') \
+     .prefetch_related('lessons__files')
+    
+    # If trainee has a department, filter by matching department
+    if user.department:
+        courses_qs = courses_qs.filter(department=user.department)
+    
+    # Serialize the courses with all nested data
+    serializer = TraineeCourseSerializer(courses_qs, many=True, context={'request': request})
+    
+    return Response({
+        'count': courses_qs.count(),
+        'courses': serializer.data
+    })

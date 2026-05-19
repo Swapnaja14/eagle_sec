@@ -290,6 +290,153 @@ This backend serves as the **single source of truth** for both web and mobile ap
 
 ---
 
+### Get Trainee Courses (Mobile App)
+**GET** `/api/courses/trainee-courses/`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Description:** 
+Fetches all active courses that match the trainee's company (tenant) and department. This endpoint is specifically designed for the trainee mobile app and includes all videos and documents within lessons.
+
+**Access:** Trainee role only
+
+**Filtering Logic:**
+- Filters by trainee's tenant (company)
+- Filters by trainee's department (if set)
+- Only returns active courses
+- Includes all lessons with their files (videos, documents, presentations)
+
+**Response (200):**
+```json
+{
+  "count": 3,
+  "courses": [
+    {
+      "id": 1,
+      "course_id": "CS-1-A1B2C3D4",
+      "display_name": "Cybersecurity Fundamentals",
+      "description": "Learn the basics of cybersecurity...",
+      "status": "active",
+      "compliance_taxonomy": "ISO 27001",
+      "skills_taxonomy": "Threat Analysis",
+      "department": "IT Security",
+      "start_date": "2024-01-01",
+      "end_date": "2024-12-31",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z",
+      "total_videos": 5,
+      "total_documents": 8,
+      "total_files": 13,
+      "has_pre_assessment": true,
+      "has_post_assessment": true,
+      "lessons": [
+        {
+          "id": 1,
+          "title": "Introduction to Cybersecurity",
+          "order": 1,
+          "file_count": 3,
+          "created_at": "2024-01-15T10:35:00Z",
+          "files": [
+            {
+              "id": 1,
+              "original_filename": "intro_video.mp4",
+              "file": "/media/lesson_files/2024/01/intro_video.mp4",
+              "file_type": "video",
+              "language": "en",
+              "allow_offline_download": true,
+              "uploaded_at": "2024-01-15T10:40:00Z"
+            },
+            {
+              "id": 2,
+              "original_filename": "lesson_notes.pdf",
+              "file": "/media/lesson_files/2024/01/lesson_notes.pdf",
+              "file_type": "document",
+              "language": "en",
+              "allow_offline_download": true,
+              "uploaded_at": "2024-01-15T10:45:00Z"
+            },
+            {
+              "id": 3,
+              "original_filename": "slides.pptx",
+              "file": "/media/lesson_files/2024/01/slides.pptx",
+              "file_type": "presentation",
+              "language": "en",
+              "allow_offline_download": false,
+              "uploaded_at": "2024-01-15T10:50:00Z"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Network Security Basics",
+          "order": 2,
+          "file_count": 2,
+          "created_at": "2024-01-16T09:00:00Z",
+          "files": [
+            {
+              "id": 4,
+              "original_filename": "network_security.mp4",
+              "file": "/media/lesson_files/2024/01/network_security.mp4",
+              "file_type": "video",
+              "language": "en",
+              "allow_offline_download": true,
+              "uploaded_at": "2024-01-16T09:10:00Z"
+            },
+            {
+              "id": 5,
+              "original_filename": "network_guide.pdf",
+              "file": "/media/lesson_files/2024/01/network_guide.pdf",
+              "file_type": "document",
+              "language": "en",
+              "allow_offline_download": true,
+              "uploaded_at": "2024-01-16T09:15:00Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Error Responses:**
+
+**403 Forbidden** - Non-trainee user:
+```json
+{
+  "detail": "This endpoint is only for trainees."
+}
+```
+
+**Mobile App Usage Example:**
+```javascript
+// React Native Example
+const fetchTraineeCourses = async () => {
+  const token = await AsyncStorage.getItem('access_token');
+  
+  try {
+    const response = await fetch('http://your-server.com/api/courses/trainee-courses/', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    // data.courses contains all courses with videos and documents
+    // Filter videos: lesson.files.filter(f => f.file_type === 'video')
+    // Filter documents: lesson.files.filter(f => f.file_type === 'document')
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+  }
+};
+```
+
+---
+
 ## 🎓 Certificates API
 
 ### Generate Certificate
