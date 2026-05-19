@@ -56,10 +56,19 @@ class QuizViewSet(viewsets.ModelViewSet):
             status='in_progress'
         )
         
-        return Response(
-            SubmissionSerializer(submission).data,
-            status=status.HTTP_201_CREATED
-        )
+        # Calculate deadline based on time limit
+        deadline = None
+        if quiz.time_limit_minutes > 0:
+            deadline = timezone.now() + timezone.timedelta(minutes=quiz.time_limit_minutes)
+        
+        response_data = SubmissionSerializer(submission).data
+        response_data['quiz_info'] = {
+            'time_limit_minutes': quiz.time_limit_minutes,
+            'deadline': deadline.isoformat() if deadline else None,
+            'started_at': submission.started_at.isoformat(),
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['get'])
     def questions(self, request, pk=None):
@@ -194,14 +203,34 @@ class SubmissionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Calculate time taken
+        time_taken = (timezone.now() - submission.started_at).total_seconds()
+        
+        # Check if time limit exceeded
+        quiz = submission.quiz
+        if quiz.time_limit_minutes > 0:
+            time_limit_seconds = quiz.time_limit_minutes * 60
+            if time_taken > time_limit_seconds:
+                # Mark as expired
+                submission.status = 'expired'
+                submission.submitted_at = timezone.now()
+                submission.time_taken_seconds = int(time_taken)
+                submission.save()
+                return Response(
+                    {
+                        'error': 'Time limit exceeded',
+                        'status': 'expired',
+                        'time_taken_seconds': int(time_taken),
+                        'time_limit_seconds': time_limit_seconds
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Calculate score
         answers = submission.answers.all()
         total_score = sum(answer.points_earned for answer in answers)
         total_points = sum(qq.points for qq in submission.quiz.quiz_questions.all())
         percentage = (total_score / total_points * 100) if total_points > 0 else 0
-        
-        # Calculate time taken
-        time_taken = (timezone.now() - submission.started_at).total_seconds()
         
         # Update submission
         submission.score = total_score
@@ -213,13 +242,75 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         submission.time_taken_seconds = int(time_taken)
         submission.save()
         
-        return Response(SubmissionSerializer(submission).data)
+        # Auto-generate certificate if passed and quiz has a course
+        certificate_generated = False
+        certificate_id = None
+        if submission.passed and quiz.course:
+            from certificates.models import IssuedCertificate
+            from utils.pdf import generate_certificate_pdf
+            
+            # Check if certificate already exists
+            existing_cert = IssuedCertificate.objects.filter(submission=submission).first()
+            
+            if not existing_cert:
+                try:
+                    # Create certificate
+                    cert = IssuedCertificate(
+                        tenant=quiz.tenant,
+                        employee=submission.user,
+                        course=quiz.course,
+                        submission=submission,
+                        file_path="",
+                    )
+                    cert.save()
+                    
+                    # Generate PDF
+                    employee_name = (
+                        f"{submission.user.first_name} {submission.user.last_name}".strip()
+                        or submission.user.username
+                    )
+                    file_path = generate_certificate_pdf(
+                        employee_name=employee_name,
+                        course_name=quiz.course.display_name,
+                        completion_date=submission.submitted_at,
+                        certificate_id=cert.id,
+                    )
+                    cert.file_path = file_path
+                    cert.save(update_fields=["file_path"])
+                    
+                    certificate_generated = True
+                    certificate_id = cert.id
+                except Exception as e:
+                    print(f"Failed to auto-generate certificate: {str(e)}")
+            else:
+                certificate_generated = True
+                certificate_id = existing_cert.id
+        
+        response_data = SubmissionSerializer(submission).data
+        response_data['certificate_generated'] = certificate_generated
+        response_data['certificate_id'] = certificate_id
+        
+        return Response(response_data)
     
     @action(detail=False, methods=['get'])
     def my_submissions(self, request):
         """Get current user's submissions"""
         submissions = self.get_queryset()
         serializer = self.get_serializer(submissions, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def active_submission(self, request):
+        """Get current user's active (in_progress) submission with countdown timer"""
+        submission = Submission.objects.filter(
+            user=request.user,
+            status='in_progress'
+        ).select_related('quiz').first()
+        
+        if not submission:
+            return Response({'detail': 'No active submission found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = self.get_serializer(submission)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])

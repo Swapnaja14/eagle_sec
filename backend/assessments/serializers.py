@@ -80,13 +80,18 @@ class SubmissionSerializer(serializers.ModelSerializer):
     # Nested user info for certificate issuing page
     user = serializers.SerializerMethodField()
     quiz = serializers.SerializerMethodField()
+    # Countdown timer info
+    time_limit_minutes = serializers.IntegerField(source='quiz.time_limit_minutes', read_only=True)
+    deadline = serializers.SerializerMethodField()
+    time_remaining_seconds = serializers.SerializerMethodField()
 
     class Meta:
         model = Submission
         fields = [
             'id', 'user', 'user_name', 'quiz', 'quiz_title', 'attempt_number',
             'score', 'total_points', 'percentage', 'status', 'started_at',
-            'submitted_at', 'time_taken_seconds', 'passed', 'answers'
+            'submitted_at', 'time_taken_seconds', 'passed', 'answers',
+            'time_limit_minutes', 'deadline', 'time_remaining_seconds'
         ]
         read_only_fields = ['score', 'total_points', 'percentage', 'passed', 'started_at', 'submitted_at']
 
@@ -108,6 +113,24 @@ class SubmissionSerializer(serializers.ModelSerializer):
             'passing_score': q.passing_score,
             'course_id': q.course_id,
         }
+    
+    def get_deadline(self, obj):
+        """Calculate deadline based on start time and time limit"""
+        if obj.quiz.time_limit_minutes > 0 and obj.status == 'in_progress':
+            from django.utils import timezone
+            deadline = obj.started_at + timezone.timedelta(minutes=obj.quiz.time_limit_minutes)
+            return deadline.isoformat()
+        return None
+    
+    def get_time_remaining_seconds(self, obj):
+        """Calculate remaining time in seconds"""
+        if obj.quiz.time_limit_minutes > 0 and obj.status == 'in_progress':
+            from django.utils import timezone
+            deadline = obj.started_at + timezone.timedelta(minutes=obj.quiz.time_limit_minutes)
+            now = timezone.now()
+            remaining = (deadline - now).total_seconds()
+            return max(0, int(remaining))  # Don't return negative values
+        return None
 
 
 class SubmitAnswerSerializer(serializers.Serializer):

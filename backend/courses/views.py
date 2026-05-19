@@ -473,3 +473,160 @@ def training_topics_view(request):
     all_topics = list(dict.fromkeys(course_topics + default_topics))
     
     return Response(all_topics)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def trainee_courses_view(request):
+    """
+    Get courses for trainee mobile app matching their company (tenant) and department.
+    Includes videos and documents (PDFs) for each course.
+    Filters courses created by trainers in the same company and department.
+    """
+    user = request.user
+    
+    # Ensure user is a trainee
+    if user.role != User.ROLE_TRAINEE:
+        return Response(
+            {'detail': 'This endpoint is only accessible to trainees.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Get courses matching trainee's tenant (company) and department
+    courses_query = Course.objects.filter(
+        tenant=user.tenant,
+        status='active'  # Only show active courses
+    ).select_related(
+        'created_by', 'pre_assessment', 'post_assessment', 'certification'
+    ).prefetch_related(
+        'lessons__files'
+    )
+    
+    # Filter by department: match courses created by trainers in the same department
+    if user.department:
+        courses_query = courses_query.filter(
+            created_by__department=user.department
+        )
+    
+    courses_data = []
+    for course in courses_query:
+        # Get training assignment status for this trainee
+        assignment = TrainingAssignment.objects.filter(
+            trainee=user,
+            course=course
+        ).first()
+        
+        # Get trainer/instructor info
+        trainer_info = None
+        if course.created_by:
+            trainer_info = {
+                'id': course.created_by.id,
+                'name': course.created_by.get_full_name() or course.created_by.username,
+                'email': course.created_by.email,
+                'department': course.created_by.department,
+            }
+        
+        # Prepare lessons with videos and documents (PDFs)
+        lessons_data = []
+        for lesson in course.lessons.all():
+            files_data = []
+            videos = []
+            documents = []
+            
+            for file in lesson.files.all():
+                file_info = {
+                    'id': file.id,
+                    'filename': file.original_filename,
+                    'file_url': request.build_absolute_uri(file.file.url) if file.file else None,
+                    'file_type': file.file_type,
+                    'language': file.language,
+                    'allow_offline_download': file.allow_offline_download,
+                    'uploaded_at': file.uploaded_at,
+                }
+                files_data.append(file_info)
+                
+                # Separate videos and documents
+                if file.file_type == 'video':
+                    videos.append(file_info)
+                elif file.file_type in ['document', 'pdf', 'presentation']:
+                    documents.append(file_info)
+            
+            lessons_data.append({
+                'id': lesson.id,
+                'title': lesson.title,
+                'order': lesson.order,
+                'files': files_data,
+                'videos': videos,
+                'documents': documents,
+                'video_count': len(videos),
+                'document_count': len(documents),
+            })
+        
+        # Calculate totals
+        total_videos = sum(l['video_count'] for l in lessons_data)
+        total_documents = sum(l['document_count'] for l in lessons_data)
+        
+        # Get enrolled count for this course
+        enrolled_count = TrainingAssignment.objects.filter(course=course).count()
+        
+        # Check if certificate is available
+        from certificates.models import IssuedCertificate
+        certificate = IssuedCertificate.objects.filter(
+            employee=user,
+            course=course
+        ).first()
+        
+        certificate_info = None
+        if certificate:
+            certificate_info = {
+                'id': certificate.id,
+                'issued_at': certificate.issued_at,
+                'download_url': request.build_absolute_uri(f'/api/certificates/{certificate.id}/download/'),
+            }
+        
+        # Check if certificate can be generated (all assignments completed)
+        can_generate_certificate = (
+            assignment and 
+            assignment.status == TrainingAssignment.STATUS_COMPLETED and
+            not certificate
+        )
+        
+        course_data = {
+            'id': course.id,
+            'course_id': course.course_id,
+            'title': course.display_name,
+            'description': course.description,
+            'start_date': course.start_date,
+            'end_date': course.end_date,
+            'compliance_taxonomy': course.compliance_taxonomy,
+            'skills_taxonomy': course.skills_taxonomy,
+            'trainer': trainer_info,
+            'lessons': lessons_data,
+            'lesson_count': len(lessons_data),
+            'total_videos': total_videos,
+            'total_documents': total_documents,
+            'enrolled_count': enrolled_count,
+            'has_pre_assessment': hasattr(course, 'pre_assessment') and course.pre_assessment.is_active,
+            'has_post_assessment': hasattr(course, 'post_assessment') and course.post_assessment.is_active,
+            'has_certification': hasattr(course, 'certification'),
+            'assignment_status': assignment.status if assignment else None,
+            'due_date': assignment.due_date if assignment else None,
+            'assigned_at': assignment.assigned_at if assignment else None,
+            'certificate': certificate_info,
+            'can_generate_certificate': can_generate_certificate,
+        }
+        
+        courses_data.append(course_data)
+    
+    return Response({
+        'trainee': {
+            'id': user.id,
+            'username': user.username,
+            'full_name': user.get_full_name(),
+            'email': user.email,
+            'department': user.department,
+            'company': user.tenant.name if user.tenant else None,
+        },
+        'courses': courses_data,
+        'total_courses': len(courses_data),
+    })

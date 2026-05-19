@@ -219,6 +219,14 @@ def get_calendar_sessions(user, params):
     start, end = _parse_date_range(params)
     qs = _scope_sessions(user, params).filter(date_time__gte=start, date_time__lte=end)
 
+    # For trainees, filter by their department
+    if user.role == 'trainee' and user.department:
+        qs = qs.filter(
+            Q(trainer__department=user.department) | 
+            Q(department=user.department) |
+            Q(trainer__isnull=True, department='')
+        )
+
     session_type = params.get("type")
     if session_type in {"classroom", "virtual"}:
         qs = qs.filter(session_type=session_type)
@@ -234,8 +242,10 @@ def get_calendar_sessions(user, params):
     rows = []
     for s in qs.order_by("date_time"):
         trainer_name = ""
+        trainer_dept = None
         if s.trainer:
             trainer_name = f"{s.trainer.first_name} {s.trainer.last_name}".strip() or s.trainer.username
+            trainer_dept = s.trainer.department
 
         rows.append(
             {
@@ -244,9 +254,12 @@ def get_calendar_sessions(user, params):
                 "type": s.session_type,
                 "status": s.status,
                 "trainer_name": trainer_name,
+                "trainer_department": trainer_dept,
+                "session_department": s.department,
                 "date_time": s.date_time.isoformat(),
                 "duration_minutes": s.duration_minutes,
                 "site": s.site,
+                "venue": s.meeting_link if s.session_type == 'virtual' else s.venue,
                 "attendee_count": s.attendee_count,
             }
         )
