@@ -194,6 +194,27 @@ export const bulkExportAPI = {
 };
 
 export const bulkUploadAPI = {
+  preview: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/auth/bulk-upload/preview/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  create: (validatedRows) => {
+    return api.post('/auth/bulk-upload/create/', {
+      validated_rows: validatedRows,
+    });
+  },
+
+  downloadTemplate: () => {
+    return api.get('/auth/bulk-upload/template/', {
+      responseType: 'blob',
+    });
+  },
+
+  // Legacy method (kept for compatibility)
   uploadUsers: (formData) =>
     api.post("/bulk-upload/users/", formData, {
       headers: {
