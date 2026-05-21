@@ -67,7 +67,7 @@ export default function TrainerDashboardPage() {
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%)', borderRadius: 16, padding: '28px 32px', marginBottom: 28, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+      <div style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '28px 32px', marginBottom: 28, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 6 }}>Welcome back, Trainer</div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 6px' }}>
