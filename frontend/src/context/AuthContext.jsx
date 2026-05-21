@@ -46,32 +46,30 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const restoreUser = async () => {
       const stored = localStorage.getItem('learnsphere_user')
-      if (stored) {
+      const token = localStorage.getItem('access_token')
+
+      if (stored && token) {
         try {
-          JSON.parse(stored)
           // Real user: verify token is still valid by hitting /me
-          const token = localStorage.getItem('access_token')
-          if (token) {
-            try {
-              const { data } = await authAPI.me()
-              const role = mapBackendRole(data.role)
-              const userObj = { ...data, role }
-              setUser(userObj)
-              localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
-            } catch {
-              // Token expired — clear everything
-              localStorage.removeItem('learnsphere_user')
-              localStorage.removeItem('access_token')
-              localStorage.removeItem('refresh_token')
-              setUser(null)
-            }
-          }
-        } catch {
+          const { data } = await authAPI.me()
+          const role = mapBackendRole(data.role)
+          const userObj = { ...data, role }
+          setUser(userObj)
+          localStorage.setItem('learnsphere_user', JSON.stringify(userObj))
+        } catch (error) {
+          // Token expired or backend not responding — clear everything
+          console.error('Auth verification failed:', error)
           localStorage.removeItem('learnsphere_user')
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
           setUser(null)
         }
+      } else {
+        // No stored credentials — clear everything to be safe
+        localStorage.removeItem('learnsphere_user')
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        setUser(null)
       }
       setLoading(false)
     }

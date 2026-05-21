@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AppLayout from './components/layout/AppLayout'
+import ConnectionStatus from './components/ConnectionStatus'
 
 // ─── AUTH PAGES ───────────────────────────────────────────────────────────────
 import LoginPage from './pages/LoginPage'
@@ -156,6 +157,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ConnectionStatus />
         <AppRoutes />
       </AuthProvider>
     </BrowserRouter>

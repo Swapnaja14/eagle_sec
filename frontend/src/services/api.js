@@ -19,6 +19,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+
+    // Handle network errors (backend not running)
+    if (!error.response) {
+      console.error('Network error - backend may not be running:', error.message)
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
       try {
@@ -29,9 +36,11 @@ api.interceptors.response.use(
         localStorage.setItem('access_token', data.access)
         original.headers.Authorization = `Bearer ${data.access}`
         return api(original)
-      } catch {
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError)
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
+        localStorage.removeItem('learnsphere_user')
         window.location.href = '/login'
       }
     }

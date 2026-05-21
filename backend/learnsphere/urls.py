@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -14,7 +15,14 @@ from courses.assignment_views import TrainingAssignmentViewSet
 _assignments_router = DefaultRouter()
 _assignments_router.register(r'', TrainingAssignmentViewSet, basename='training-assignment')
 
+# Health check view
+def health_check(request):
+    return JsonResponse({'status': 'ok', 'message': 'Backend is running'})
+
 urlpatterns = [
+    # Health check
+    path('api/health/', health_check, name='health_check'),
+    
     # JWT Auth
 
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),

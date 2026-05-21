@@ -4,3 +4,5 @@
 backend/venv/
 backend/certificates/*.pdf
 node_modules/
+backend/requirements.txt
+backend/requirements.txt
