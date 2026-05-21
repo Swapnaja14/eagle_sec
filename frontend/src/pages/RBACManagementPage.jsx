@@ -52,21 +52,44 @@ export default function RBACManagementPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [permRes, histRes] = await Promise.all([
+      const [matrixRes, histRes] = await Promise.all([
         rbacAPI.list(),
         rbacAPI.history(),
       ]);
 
-      // Merge API permissions on top of defaults
+      // Backend returns: { permissions: [...], matrix: { role: { code: bool } }, roles: [...] }
+      // Transform to frontend format: { role: { module_id: bool } }
+      const backendMatrix = matrixRes.data.matrix || {};
       const merged = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS));
-      for (const perm of permRes.data) {
-        if (merged[perm.role]) {
-          merged[perm.role][perm.module_id] = perm.has_access;
+
+      // Merge backend matrix into defaults
+      for (const role of Object.keys(backendMatrix)) {
+        if (merged[role]) {
+          for (const permCode of Object.keys(backendMatrix[role])) {
+            merged[role][permCode] = backendMatrix[role][permCode];
+          }
         }
       }
+
       setPermissions(merged);
-      setHistory(histRes.data);
+
+      // Transform history data
+      // Backend returns: { history: [...], total: N }
+      const historyData = histRes.data.history || histRes.data || [];
+      const transformedHistory = historyData.map(h => ({
+        id: h.id,
+        timestamp: h.timestamp,
+        changed_by_name: h.changed_by_name || h.changed_by_display,
+        role_affected: h.role,
+        module_name: h.permission_name,
+        from_access: h.previous_value,
+        to_access: h.new_value,
+        reason: h.reason,
+      }));
+
+      setHistory(transformedHistory);
     } catch (err) {
+      console.error('Failed to load RBAC data:', err);
       setError('Failed to load permissions. Showing defaults.');
     } finally {
       setLoading(false);
@@ -90,11 +113,23 @@ export default function RBACManagementPage() {
       setPermissions(prev => ({ ...prev, [role]: { ...prev[role], [moduleId]: newVal } }));
       // Refresh history
       const histRes = await rbacAPI.history();
-      setHistory(histRes.data);
+      const historyData = histRes.data.history || histRes.data || [];
+      const transformedHistory = historyData.map(h => ({
+        id: h.id,
+        timestamp: h.timestamp,
+        changed_by_name: h.changed_by_name || h.changed_by_display,
+        role_affected: h.role,
+        module_name: h.permission_name,
+        from_access: h.previous_value,
+        to_access: h.new_value,
+        reason: h.reason,
+      }));
+      setHistory(transformedHistory);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      setError('Failed to save permission change.');
+      console.error('Failed to save permission:', err);
+      setError(err.response?.data?.detail || 'Failed to save permission change.');
     } finally {
       setSaving(false);
       setPendingChange(null);

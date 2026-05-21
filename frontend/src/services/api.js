@@ -224,14 +224,27 @@ export const bulkUploadAPI = {
 };
 
 export const rbacAPI = {
-  getPermissions: () =>
-    api.get("/rbac/permissions/"),
+  // Get permission matrix
+  list: () => api.get('/rbac/matrix/'),
 
-  updatePermissions: (data) =>
-    api.post("/rbac/permissions/update/", data),
+  // Update a single permission
+  update: (data) => {
+    // Transform frontend data to backend format
+    return api.post('/rbac/update/', {
+      role: data.role,
+      permission_code: data.module_id,
+      is_granted: data.has_access,
+      reason: data.reason,
+    });
+  },
 
-  getAuditLogs: () =>
-    api.get("/rbac/audit-logs/"),
+  // Get change history
+  history: (params) => api.get('/rbac/history/', { params }),
+
+  // Legacy methods (kept for compatibility)
+  getPermissions: () => api.get("/rbac/matrix/"),
+  updatePermissions: (data) => api.post("/rbac/update/", data),
+  getAuditLogs: () => api.get("/rbac/history/"),
 };
 
 
